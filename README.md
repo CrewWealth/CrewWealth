@@ -1,10 +1,10 @@
 # CrewWealth
 
-CrewWealth is an income planning tool designed for cruise ship crew and seafarers. It helps you understand what you really earn in a year – not just your base salary, but also overtime, tips, commissions, and bonuses – and turn that into a clear plan for saving and spending.
+CrewWealth is an income planning tool designed for ship crew and seafarers. It helps you understand what you really earn in a year – not just your base salary, but also overtime, tips, commissions, and bonuses – and turn that into a clear plan for saving and spending.
 
 ## What CrewWealth will do
 
-- Estimate your **real yearly income** based on your rank, cruise line, contract length and typical extra earnings.
+- Estimate your **real yearly income** based on your rank, contract length and typical extra earnings.
 - Apply a simple **70/30 rule** so you know how much to save and how much you can safely spend.
 - Show **3–5 year wealth projections** so you can see where you’re heading if you stay consistent.
 - Help you plan for **vacation periods and contract gaps**, so you don’t run out of money between contracts.
