@@ -1,24 +1,25 @@
 # CrewWealth
 
-CrewWealth is an income planning tool designed for ship crew and seafarers. It helps you understand what you really earn in a year – not just your base salary, but also overtime, tips, commissions, and bonuses – and turn that into a clear plan for saving and spending.
+CrewWealth is an income planning tool designed for **maritime professionals** across all sectors. Whether you work on cruise ships, cargo vessels, offshore rigs, ferries, or yachts—if you have variable income and want better control over your finances—CrewWealth is for you.
 
-## What CrewWealth will do
+## What CrewWealth does
 
-- Estimate your **real yearly income** based on your rank, contract length and typical extra earnings.
-- Apply a simple **70/30 rule** so you know how much to save and how much you can safely spend.
-- Show **3–5 year wealth projections** so you can see where you’re heading if you stay consistent.
-- Help you plan for **vacation periods and contract gaps**, so you don’t run out of money between contracts.
+- Estimate your **real yearly income** based on your sector, position, base salary, and variable earnings (tips, overtime, bonuses, commissions).
+- Set **budget allocations** so you know exactly how much to save, invest, and spend each month.
+- Track **actual spending vs. targets** to stay on course.
+- See **3-5 year wealth projections** based on consistent savings and investment returns.
+- Run **scenario planning** to understand how income changes affect your long-term goals.
 
 ## Who it is for
 
-CrewWealth is built specifically for:
-- ship officers and ratings  
-- Hotel, F&B, retail, spa, casino and other onboard crew  
-- Any seafarer with variable income who wants more control and less stress about money
+CrewWealth is built for:
+- Maritime officers and ratings (all sectors)
+- Hotel, F&B, retail, and hospitality crew
+- Offshore workers with rotation schedules
+- Any seafarer with variable income who wants more financial clarity and less stress
 
 ## Project status
 
 CrewWealth is currently in **early development / MVP stage**.  
-The first version will focus on a simple web app with manual input and clear, easy-to-read income and savings projections.
+The first version will focus on a simple web app with manual input and clear, easy-to-understand projections.
 
-More details, screenshots and onboarding information will be added as the project evolves.
