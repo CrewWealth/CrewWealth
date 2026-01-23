@@ -1,0 +1,137 @@
+# Market Research - CrewWealth
+
+## Research Methodology
+Conducted informal interviews with maritime crew members across different sectors and income structures to validate product-market fit and identify core pain points.
+
+**Sample size:** 3 maritime professionals  
+**Sectors represented:** Cruise operations, hotel/service roles  
+**Experience range:** 3-15 years at sea  
+**Income structures:** Fixed salary, variable (tips-based), hybrid models  
+
+---
+
+## Key Findings
+
+### Pain Point 1: Lack of Spending Awareness
+**Frequency:** 3/3 respondents  
+**Description:** Maritime workers report spending money faster than planned during leave periods. Impulse purchases and social obligations (celebrations, family events) lead to uncontrolled spending.
+
+**Quote examples:**
+- "I spend money faster than planned when I'm home"
+- "Don't track spending onboard or during vacation"
+- "First month home I spend more than planned"
+
+---
+
+### Pain Point 2: Inability to Track Savings Progress
+**Frequency:** 3/3 respondents  
+**Description:** Workers set financial targets (e.g., €3,000-€100,000 goals) but do not track whether they are on pace to achieve them. Most cannot state annual savings amounts.
+
+**Quote examples:**
+- "I set targets but don't know if I hit them"
+- "I don't know how much I save per year"
+- "Hard to see if I'm on track financially"
+
+---
+
+### Pain Point 3: Income Variability Creates Planning Difficulty
+**Frequency:** 2/3 respondents  
+**Description:** Workers with variable income (tips, commissions, overtime) struggle to forecast earnings and plan long-term. This is especially acute for service/hospitality roles.
+
+**Quote examples:**
+- "One month high income from tips, next month at home I get €0"
+- "Tips are unpredictable, can't plan scenarios"
+
+---
+
+### Pain Point 4: Long-term Financial Visibility
+**Frequency:** 3/3 respondents  
+**Description:** Maritime workers want to understand where they will be financially in 3-5 years but lack tools to model this accurately.
+
+**Quote examples:**
+- "Difficult to see where I'll be in 5 years"
+- "Want to know if my spending continues, where I'll end up"
+
+---
+
+## Product Feature Validation
+
+### Features Respondents Would Use
+| Feature | Interest Level | Rationale |
+|---------|---------------|-----------|
+| Monthly spending tracker | 3/3 (High) | Need visibility into where money goes |
+| Target setting & tracking | 3/3 (High) | Want to measure progress toward goals |
+| 5-year wealth projection | 3/3 (Medium-High) | Motivational, helps visualize outcomes |
+| Scenario planning | 2/3 (Medium) | Useful for variable income workers |
+| Budget allocation tool | 2/3 (Medium) | Want help dividing income into buckets |
+
+### Features Respondents Would NOT Use
+- Tax modeling (too complex)
+- Inflation adjustments (not interested in complexity)
+- Detailed contract gap planning (lower priority)
+
+---
+
+## Willingness to Pay
+**Result:** 3/3 respondents indicated willingness to pay €3-5/month for a tool that helps them plan finances better.
+
+**Reasoning:**
+- "It will help me reach targets"
+- "I want to see where I can create more income"
+- "Consistency and knowing where I stand"
+
+---
+
+## Market Segments Identified
+
+### Segment 1: Disciplined Savers (Fixed Income)
+- **Profile:** Officers or senior crew with predictable salaries
+- **Behavior:** Already budget and save systematically
+- **Pain:** Lack long-term visibility; struggle with impulse spending during leave
+- **Solution fit:** Long-term projections + spending awareness
+
+### Segment 2: Target-Oriented (Variable Income, Lower Discipline)
+- **Profile:** Service/operations crew with inconsistent income
+- **Behavior:** Set goals but don't track; spending uncontrolled
+- **Pain:** Don't know if on track; money runs out faster than expected
+- **Solution fit:** Target dashboard + spending tracker
+
+### Segment 3: High Earners (Variable Income, High Discipline)
+- **Profile:** Senior service roles (hospitality, sales) with significant variable income
+- **Behavior:** Already budget (e.g., 60/20/20 split) but lack forecasting tools
+- **Pain:** Can't model scenarios (what if tips drop?); vacation income gaps
+- **Solution fit:** Scenario planner + prognosis accuracy
+
+---
+
+## MVP Scope (Final)
+
+### Core Features - Version 0.1
+1. **Income input** (sector, position, base salary, variable income, contract length)
+2. **Budget allocator** (set allocation %, see monthly breakdown)
+3. **Spending/savings tracker** (log actual vs. target)
+4. **5-year wealth projection** (compound growth at 7% assumed return)
+5. **Scenario planner** (model income changes: +/- X%)
+
+### Explicitly Out of Scope
+- Tax calculations
+- Inflation modeling
+- Complex contract gap analysis
+- Mobile app (web-first MVP)
+- Multi-currency (EUR only for MVP)
+
+---
+
+## Next Steps
+1. Build MVP (Flask + Firebase, web app)
+2. Beta test with interview participants
+3. Launch to maritime forums/communities
+4. Iterate based on user feedback
+
+---
+
+## Market Validation Summary
+✅ Problem exists across all income types  
+✅ Willingness to pay confirmed  
+✅ Clear feature priorities identified  
+✅ MVP scope validated by real users  
