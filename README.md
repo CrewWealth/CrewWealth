@@ -12,7 +12,7 @@ CrewWealth is an income planning tool designed for cruise ship crew and seafarer
 ## Who it is for
 
 CrewWealth is built specifically for:
-- Cruise ship officers and ratings  
+- ship officers and ratings  
 - Hotel, F&B, retail, spa, casino and other onboard crew  
 - Any seafarer with variable income who wants more control and less stress about money
 
