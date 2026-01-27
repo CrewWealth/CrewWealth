@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Home - CrewWealth{% endblock %}
+
+{% block content %}
+<div class="hero">
+    <h2>Welcome to CrewWealth</h2>
+    <p>Your financial companion for maritime crew members</p>
+    <p class="text-muted">Track your income, manage your savings, and plan your financial future.</p>
+    <a href="/income" class="btn btn-primary btn-lg mt-4">
+        📊 Calculate Your Income
+    </a>
+</div>
+
+<div class="row mt-5">
+    <div class="col-md-4 mb-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <h5 class="card-title">💵 Income Tracking</h5>
+                <p class="card-text">Calculate your total income based on your contract and benefits.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <h5 class="card-title">📈 Financial Goals</h5>
+                <p class="card-text">Set and track your savings goals for a better future.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <h5 class="card-title">🎯 Smart Planning</h5>
+                <p class="card-text">Make informed financial decisions with our tools.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

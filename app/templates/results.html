@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}Results - CrewWealth{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <h2 class="mb-4">Income Calculation Results</h2>
+
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title mb-3">{{ data.rank }}</h5>
+
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Base Salary:</span>
+                    <strong>€{{ data.base_salary }}</strong>
+                </div>
+
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Overtime Pay:</span>
+                    <strong>€{{ data.overtime_pay }}</strong>
+                </div>
+
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Tips:</span>
+                    <strong>€{{ data.tips }}</strong>
+                </div>
+
+                <div class="d-flex justify-content-between mb-3">
+                    <span>Bonus:</span>
+                    <strong>€{{ data.bonus }}</strong>
+                </div>
+
+                <hr>
+
+                <div class="d-flex justify-content-between mb-3" style="background-color: #f0f0f0; padding: 10px; border-radius: 5px;">
+                    <span class="fw-bold">Monthly Income:</span>
+                    <strong class="fw-bold">€{{ data.monthly_income }}</strong>
+                </div>
+
+                <div class="d-flex justify-content-between mb-3" style="background-color: #e7f3ff; padding: 10px; border-radius: 5px;">
+                    <span class="fw-bold">Contract Total ({{ data.contract_length }} months):</span>
+                    <strong class="fw-bold">€{{ data.contract_total }}</strong>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-4 d-flex gap-2">
+            <a href="/income/" class="btn btn-primary flex-grow-1">Calculate Again</a>
+            <a href="/" class="btn btn-secondary flex-grow-1">Home</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
