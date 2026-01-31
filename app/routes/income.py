@@ -1,3 +1,7 @@
+from flask import Flask, Blueprint, render_template, request
+
+app = Flask(__name__)
+
 from flask import Blueprint, render_template, request
 
 income_bp = Blueprint('income', __name__, url_prefix='/income')
@@ -37,3 +41,13 @@ def calculate_income():
 def income_form():
     """Display income calculation form"""
     return render_template('income.html')
+
+@app.route('/goals', methods=['GET', 'POST'])
+def goals():
+    return render_template('goals.html')
+
+app.register_blueprint(income_bp)
+
+if __name__ == '__main__':
+    app.run(debug=True)
+

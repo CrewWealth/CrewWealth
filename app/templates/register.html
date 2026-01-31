@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - CrewWealth</title>
+    <style>
+        :root {
+            --color-primary: #208089;
+            --color-primary-hover: #1a6670;
+            --color-primary-active: #1a5460;
+            --color-background: #fcfcf9;
+            --color-surface: #ffffff;
+            --color-text: #134252;
+            --color-text-secondary: #626c71;
+            --color-border: #e8e8e0;
+            --color-error: #ff5459;
+            --color-success: #22c55e;
+            --spacing-sm: 8px;
+            --spacing-md: 16px;
+            --spacing-lg: 24px;
+            --spacing-xl: 32px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.04);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--color-background);
+            color: var(--color-text);
+            line-height: 1.6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: var(--spacing-md);
+        }
+
+        .auth-container {
+            width: 100%;
+            max-width: 450px;
+        }
+
+        .auth-card {
+            background: var(--color-surface);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--color-border);
+            padding: var(--spacing-xl);
+            box-shadow: var(--shadow-md);
+        }
+
+        .logo-section {
+            text-align: center;
+            margin-bottom: var(--spacing-xl);
+        }
+
+        .logo {
+            font-size: 32px;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .auth-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--color-text);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .auth-subtitle {
+            font-size: 14px;
+            color: var(--color-text-secondary);
+            margin-bottom: var(--spacing-xl);
+        }
+
+        .form-group {
+            margin-bottom: var(--spacing-md);
+        }
+
+        label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: var(--spacing-sm);
+            color: var(--color-text);
+        }
+
+        input {
+            width: 100%;
+            padding: var(--spacing-sm) var(--spacing-md);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            font-size: 14px;
+            font-family: inherit;
+            background-color: var(--color-surface);
+            color: var(--color-text);
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px rgba(32, 128, 137, 0.1);
+        }
+
+        input::placeholder {
+            color: var(--color-text-secondary);
+        }
+
+        .password-requirements {
+            font-size: 12px;
+            color: var(--color-text-secondary);
+            margin-top: var(--spacing-sm);
+            padding: var(--spacing-md);
+            background-color: var(--color-background);
+            border-radius: var(--radius-md);
+            display: none;
+        }
+
+        .password-requirements.show {
+            display: block;
+        }
+
+        .req-item {
+            margin: var(--spacing-sm) 0;
+            display: flex;
+            align-items: center;
+        }
+
+        .req-check {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            margin-right: var(--spacing-sm);
+            border-radius: 50%;
+            background-color: var(--color-border);
+            color: white;
+            text-align: center;
+            line-height: 16px;
+            font-size: 12px;
+        }
+
+        .req-check.valid {
+            background-color: var(--color-success);
+        }
+
+        .terms {
+            font-size: 12px;
+            color: var(--color-text-secondary);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .terms a {
+            color: var(--color-primary);
+            text-decoration: none;
+        }
+
+        .terms a:hover {
+            text-decoration: underline;
+        }
+
+        .btn {
+            width: 100%;
+            padding: var(--spacing-md);
+            border: none;
+            border-radius: var(--radius-md);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background-color: var(--color-primary);
+            color: white;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background-color: var(--color-primary-hover);
+        }
+
+        .btn-primary:disabled {
+            background-color: var(--color-border);
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .error-message {
+            background-color: rgba(255, 84, 89, 0.1);
+            color: var(--color-error);
+            padding: var(--spacing-md);
+            border-radius: var(--radius-md);
+            margin-bottom: var(--spacing-md);
+            border-left: 4px solid var(--color-error);
+            display: none;
+        }
+
+        .success-message {
+            background-color: rgba(34, 197, 94, 0.1);
+            color: var(--color-success);
+            padding: var(--spacing-md);
+            border-radius: var(--radius-md);
+            margin-bottom: var(--spacing-md);
+            border-left: 4px solid var(--color-success);
+            display: none;
+        }
+
+        .auth-link {
+            text-align: center;
+            margin-top: var(--spacing-lg);
+            font-size: 14px;
+            color: var(--color-text-secondary);
+        }
+
+        .auth-link a {
+            color: var(--color-primary);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .auth-link a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="logo-section">
+                <div class="logo">⚓</div>
+                <h1 class="auth-title">Create Account</h1>
+                <p class="auth-subtitle">Join CrewWealth and manage your finances</p>
+            </div>
+
+            <div id="errorMessage" class="error-message"></div>
+            <div id="successMessage" class="success-message"></div>
+
+            <form id="registerForm">
+                <div class="form-group">
+                    <label for="fullName">Full Name</label>
+                    <input 
+                        type="text" 
+                        id="fullName" 
+                        name="fullName" 
+                        placeholder="Captain John Smith" 
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input 
+                        type="email" 
+                        id="email" 
+                        name="email" 
+                        placeholder="your@email.com" 
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input 
+                        type="password" 
+                        id="password" 
+                        name="password" 
+                        placeholder="••••••••" 
+                        required
+                    >
+                    <div id="passwordRequirements" class="password-requirements">
+                        <div class="req-item">
+                            <span class="req-check" id="req-length">✓</span>
+                            At least 8 characters
+                        </div>
+                        <div class="req-item">
+                            <span class="req-check" id="req-upper">✓</span>
+                            One uppercase letter
+                        </div>
+                        <div class="req-item">
+                            <span class="req-check" id="req-number">✓</span>
+                            One number
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="confirmPassword">Confirm Password</label>
+                    <input 
+                        type="password" 
+                        id="confirmPassword" 
+                        name="confirmPassword" 
+                        placeholder="••••••••" 
+                        required
+                    >
+                </div>
+
+                <div class="terms">
+                    <input type="checkbox" id="agreeTerms" name="agreeTerms" required style="margin-right: 4px;">
+                    I agree to the <a href="#terms" target="_blank">Terms of Service</a> and <a href="#privacy" target="_blank">Privacy Policy</a>
+                </div>
+
+                <button type="submit" class="btn btn-primary" id="submitBtn">Create Account</button>
+            </form>
+
+            <div class="auth-link">
+                Already have an account? <a href="/login">Sign in here</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+<script>
+    // Firebase Configuration
+    const firebaseConfig = {
+        apiKey: "AIzaSyBccv9C4CpjZFeE2HGBKKfUiV9jUw8CZLo",
+        authDomain: "crewwealth-cbe02.firebaseapp.com",
+        projectId: "crewwealth-cbe02",
+        storageBucket: "crewwealth-cbe02.firebasestorage.app",
+        messagingSenderId: "852834158589",
+        appId: "1:852834158589:web:8201ed1d9327841773bb94"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    const passwordInput = document.getElementById('password');
+    const confirmPasswordInput = document.getElementById('confirmPassword');
+    const passwordRequirements = document.getElementById('passwordRequirements');
+
+    function checkPasswordRequirements(password) {
+        const hasLength = password.length >= 8;
+        const hasUpper = /[A-Z]/.test(password);
+        const hasNumber = /\d/.test(password);
+
+        document.getElementById('req-length').classList.toggle('valid', hasLength);
+        document.getElementById('req-upper').classList.toggle('valid', hasUpper);
+        document.getElementById('req-number').classList.toggle('valid', hasNumber);
+
+        return hasLength && hasUpper && hasNumber;
+    }
+
+    passwordInput.addEventListener('input', (e) => {
+        if (e.target.value.length > 0) {
+            passwordRequirements.classList.add('show');
+            checkPasswordRequirements(e.target.value);
+        } else {
+            passwordRequirements.classList.remove('show');
+        }
+    });
+
+    document.getElementById('registerForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const fullName = document.getElementById('fullName').value;
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        const confirmPassword = document.getElementById('confirmPassword').value;
+        const agreeTerms = document.getElementById('agreeTerms').checked;
+        const submitBtn = document.getElementById('submitBtn');
+
+        if (!agreeTerms) {
+            showError('You must agree to the terms of service');
+            return;
+        }
+
+        if (password !== confirmPassword) {
+            showError('Passwords do not match');
+            return;
+        }
+
+        if (!checkPasswordRequirements(password)) {
+            showError('Password does not meet requirements');
+            return;
+        }
+
+        // Disable submit button
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Creating account...';
+
+        try {
+            // 🔥 CREATE FIREBASE AUTH USER
+            const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+            const user = userCredential.user;
+
+            console.log('✅ Firebase Auth user created:', user.email);
+
+            // Update display name
+            await user.updateProfile({
+                displayName: fullName
+            });
+
+            // 🔥 CREATE FIRESTORE USER DOCUMENT
+            await db.collection('users').doc(user.uid).set({
+                email: email,
+                displayName: fullName,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            console.log('✅ Firestore user document created');
+
+            showSuccess('Account created successfully! Redirecting...');
+            
+            setTimeout(() => {
+                window.location.href = '/';
+            }, 1500);
+
+        } catch (error) {
+            console.error('❌ Registration error:', error);
+            
+            let errorMessage = 'Registration failed';
+            
+            if (error.code === 'auth/email-already-in-use') {
+                errorMessage = 'This email is already registered';
+            } else if (error.code === 'auth/weak-password') {
+                errorMessage = 'Password is too weak';
+            } else if (error.code === 'auth/invalid-email') {
+                errorMessage = 'Invalid email address';
+            } else {
+                errorMessage = error.message;
+            }
+            
+            showError(errorMessage);
+            
+            // Re-enable submit button
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Create Account';
+        }
+    });
+
+    function showError(message) {
+        const errorEl = document.getElementById('errorMessage');
+        errorEl.textContent = message;
+        errorEl.style.display = 'block';
+        setTimeout(() => {
+            errorEl.style.display = 'none';
+        }, 5000);
+    }
+
+    function showSuccess(message) {
+        const successEl = document.getElementById('successMessage');
+        successEl.textContent = message;
+        successEl.style.display = 'block';
+    }
+</script>
+

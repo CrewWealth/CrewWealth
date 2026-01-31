@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Onboarding - CrewWealth</title>
+    <style>
+        :root {
+            --color-primary: #208089;
+            --color-primary-hover: #1a6670;
+            --color-primary-active: #1a5460;
+            --color-background: #fcfcf9;
+            --color-surface: #ffffff;
+            --color-text: #134252;
+            --color-text-secondary: #626c71;
+            --color-border: #e8e8e0;
+            --color-success: #22c55e;
+            --spacing-xs: 4px;
+            --spacing-sm: 8px;
+            --spacing-md: 16px;
+            --spacing-lg: 24px;
+            --spacing-xl: 32px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.04);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--color-background);
+            color: var(--color-text);
+            line-height: 1.6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: var(--spacing-md);
+        }
+
+        .onboarding-container {
+            width: 100%;
+            max-width: 600px;
+        }
+
+        .onboarding-card {
+            background: var(--color-surface);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--color-border);
+            padding: var(--spacing-xl);
+            box-shadow: var(--shadow-md);
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background-color: var(--color-border);
+            border-radius: 2px;
+            margin-bottom: var(--spacing-lg);
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background-color: var(--color-primary);
+            width: 33.33%;
+            transition: width 0.3s ease;
+        }
+
+        .step-indicator {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: var(--spacing-xl);
+            font-size: 12px;
+            color: var(--color-text-secondary);
+        }
+
+        .step-indicator span {
+            font-weight: 500;
+        }
+
+        .step-content {
+            min-height: 300px;
+            margin-bottom: var(--spacing-xl);
+        }
+
+        .step {
+            display: none;
+        }
+
+        .step.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .step-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--color-text);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .step-description {
+            color: var(--color-text-secondary);
+            margin-bottom: var(--spacing-lg);
+            line-height: 1.6;
+        }
+
+        .form-group {
+            margin-bottom: var(--spacing-md);
+        }
+
+        label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: var(--spacing-sm);
+            color: var(--color-text);
+        }
+
+        input, select {
+            width: 100%;
+            padding: var(--spacing-sm) var(--spacing-md);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            font-size: 14px;
+            font-family: inherit;
+            background-color: var(--color-surface);
+            color: var(--color-text);
+            transition: border-color 0.2s;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px rgba(32, 128, 137, 0.1);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--spacing-md);
+        }
+
+        .family-members-list {
+            background-color: var(--color-background);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-md);
+            margin-top: var(--spacing-md);
+        }
+
+        .family-member-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--spacing-md);
+            background-color: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .family-member-info {
+            flex: 1;
+        }
+
+        .family-member-name {
+            font-weight: 500;
+            color: var(--color-text);
+        }
+
+        .family-member-budget {
+            font-size: 12px;
+            color: var(--color-text-secondary);
+        }
+
+        .btn-remove {
+            background-color: transparent;
+            border: none;
+            color: var(--color-text-secondary);
+            cursor: pointer;
+            font-size: 18px;
+            transition: color 0.2s;
+        }
+
+        .btn-remove:hover {
+            color: var(--color-text);
+        }
+
+        .add-member-btn {
+            width: 100%;
+            padding: var(--spacing-md);
+            background-color: var(--color-background);
+            border: 1px dashed var(--color-border);
+            border-radius: var(--radius-md);
+            color: var(--color-primary);
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: var(--spacing-md);
+        }
+
+        .add-member-btn:hover {
+            background-color: var(--color-primary);
+            color: white;
+            border-style: solid;
+        }
+
+        .summary-section {
+            background-color: var(--color-background);
+            padding: var(--spacing-lg);
+            border-radius: var(--radius-md);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            padding: var(--spacing-sm) 0;
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        .summary-item:last-child {
+            border-bottom: none;
+        }
+
+        .summary-label {
+            color: var(--color-text-secondary);
+        }
+
+        .summary-value {
+            font-weight: 600;
+            color: var(--color-text);
+        }
+
+        .button-group {
+            display: flex;
+            gap: var(--spacing-md);
+        }
+
+        .btn {
+            flex: 1;
+            padding: var(--spacing-md);
+            border: none;
+            border-radius: var(--radius-md);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background-color: var(--color-primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--color-primary-hover);
+        }
+
+        .btn-secondary {
+            background-color: var(--color-border);
+            color: var(--color-text);
+            flex: 0.5;
+        }
+
+        .btn-secondary:hover {
+            background-color: var(--color-border);
+            opacity: 0.8;
+        }
+
+        .celebration {
+            text-align: center;
+            padding: var(--spacing-xl);
+        }
+
+        .celebration-emoji {
+            font-size: 64px;
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .celebration-text {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--color-text);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .celebration-subtext {
+            color: var(--color-text-secondary);
+            margin-bottom: var(--spacing-xl);
+        }
+    </style>
+</head>
+<body>
+    <div class="onboarding-container">
+        <div class="onboarding-card">
+            <!-- Progress Bar -->
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+
+            <div class="step-indicator">
+                <span id="stepNumber">Step 1 of 3</span>
+                <span id="stepName">Welcome</span>
+            </div>
+
+            <!-- Step Content -->
+            <div class="step-content">
+                <!-- STEP 1: Welcome & Monthly Income -->
+                <div class="step active" id="step1">
+                    <h2 class="step-title">Welcome to CrewWealth! ⚓</h2>
+                    <p class="step-description">
+                        CrewWealth helps maritime professionals manage their finances while at sea. Let's set up your account with some basic information.
+                    </p>
+
+                    <div class="form-group">
+                        <label for="monthlyIncome">Monthly Income (€)</label>
+                        <input 
+                            type="number" 
+                            id="monthlyIncome" 
+                            name="monthlyIncome" 
+                            placeholder="3500" 
+                            min="0"
+                            step="100"
+                            required
+                        >
+                        <small style="color: var(--color-text-secondary); font-size: 12px; margin-top: 4px; display: block;">
+                            Your average monthly salary including overtime
+                        </small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="shipType">Ship Type (Optional)</label>
+                        <select id="shipType" name="shipType">
+                            <option value="">-- Select your ship --</option>
+                            <option value="cruise">Cruise Ship</option>
+                            <option value="cargo">Cargo Ship</option>
+                            <option value="container">Container Ship</option>
+                            <option value="tanker">Tanker</option>
+                            <option value="supply">Supply Vessel</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="contractLength">Contract Length (Days)</label>
+                        <input 
+                            type="number" 
+                            id="contractLength" 
+                            name="contractLength" 
+                            placeholder="90" 
+                            min="1"
+                            step="1"
+                        >
+                    </div>
+                </div>
+
+                <!-- STEP 2: Family Members & Budget -->
+                <div class="step" id="step2">
+                    <h2 class="step-title">Family & Budget 👨‍👩‍👧‍👦</h2>
+                    <p class="step-description">
+                        Add family members and set monthly budgets for family support.
+                    </p>
+
+                    <div class="form-group">
+                        <label>Family Members</label>
+                        <div class="family-members-list" id="familyMembersList"></div>
+                        <button type="button" class="add-member-btn" onclick="openAddMemberDialog()">+ Add Family Member</button>
+                    </div>
+
+                    <!-- Add Member Form (Hidden until clicked) -->
+                    <div id="addMemberForm" style="display: none; margin-top: var(--spacing-lg); padding: var(--spacing-md); background-color: var(--color-background); border-radius: var(--radius-md);">
+                        <div class="form-group">
+                            <label for="memberName">Name</label>
+                            <input type="text" id="memberName" placeholder="e.g., Maria, Dad">
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="memberMonthlyBudget">Monthly Budget (€)</label>
+                                <input type="number" id="memberMonthlyBudget" placeholder="200" min="0" step="10">
+                            </div>
+                            <div class="form-group">
+                                <label for="memberRelation">Relation</label>
+                                <select id="memberRelation">
+                                    <option value="mother">Mother</option>
+                                    <option value="father">Father</option>
+                                    <option value="wife">Wife</option>
+                                    <option value="child">Child</option>
+                                    <option value="sister">Sister</option>
+                                    <option value="brother">Brother</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: var(--spacing-md);">
+                            <button type="button" class="btn btn-primary" style="flex: 1;" onclick="addFamilyMember()">Add Member</button>
+                            <button type="button" class="btn btn-secondary" style="flex: 1;" onclick="closeAddMemberDialog()">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- STEP 3: Confirmation -->
+                <div class="step" id="step3">
+                    <h2 class="step-title">Review Your Setup ✓</h2>
+                    <p class="step-description">
+                        Double-check your information before we get started.
+                    </p>
+
+                    <div class="summary-section">
+                        <div class="summary-item">
+                            <span class="summary-label">Monthly Income</span>
+                            <span class="summary-value">€<span id="summaryIncome">3,500</span></span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="summary-label">Ship Type</span>
+                            <span class="summary-value" id="summaryShip">Not specified</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="summary-label">Contract Length</span>
+                            <span class="summary-value"><span id="summaryContract">90</span> days</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="summary-label">Family Members</span>
+                            <span class="summary-value"><span id="summaryFamilyCount">0</span></span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="summary-label">Total Family Budget</span>
+                            <span class="summary-value">€<span id="summaryFamilyBudget">0</span></span>
+                        </div>
+                    </div>
+
+                    <p style="color: var(--color-text-secondary); font-size: 14px; text-align: center;">
+                        You can update these settings anytime in your profile.
+                    </p>
+                </div>
+
+                <!-- STEP 4: Celebration -->
+                <div class="step" id="step4">
+                    <div class="celebration">
+                        <div class="celebration-emoji">🎉</div>
+                        <div class="celebration-text">Welcome aboard, Captain!</div>
+                        <div class="celebration-subtext">Your CrewWealth account is ready to use</div>
+                        <button type="button" class="btn btn-primary" onclick="completeOnboarding()" style="width: 100%; margin-top: var(--spacing-lg);">
+                            Go to Dashboard
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation Buttons -->
+            <div class="button-group" id="navButtons">
+                <button type="button" class="btn btn-secondary" id="btnBack" onclick="previousStep()" style="display: none;">Back</button>
+                <button type="button" class="btn btn-primary" id="btnNext" onclick="nextStep()">Next</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentStep = 1;
+        const totalSteps = 4;
+        let familyMembers = [];
+
+        function updateProgress() {
+            const progress = (currentStep / (totalSteps - 1)) * 100;
+            document.getElementById('progressFill').style.width = progress + '%';
+            document.getElementById('stepNumber').textContent = `Step ${currentStep} of 3`;
+            
+            const stepNames = ['Welcome', 'Family & Budget', 'Review Setup'];
+            if (currentStep <= 3) {
+                document.getElementById('stepName').textContent = stepNames[currentStep - 1];
+            }
+
+            document.getElementById('btnBack').style.display = currentStep > 1 ? 'block' : 'none';
+            document.getElementById('btnNext').textContent = currentStep === 3 ? 'Finish' : 'Next';
+        }
+
+        function showStep(step) {
+            document.querySelectorAll('.step').forEach(el => el.classList.remove('active'));
+            document.getElementById(`step${step}`).classList.add('active');
+            
+            if (step === 4) {
+                document.getElementById('navButtons').style.display = 'none';
+            } else {
+                document.getElementById('navButtons').style.display = 'flex';
+            }
+
+            updateProgress();
+        }
+
+        function nextStep() {
+            if (currentStep === 1) {
+                const income = document.getElementById('monthlyIncome').value;
+                if (!income) {
+                    alert('Please enter your monthly income');
+                    return;
+                }
+                updateSummary();
+            }
+
+            if (currentStep < totalSteps) {
+                currentStep++;
+                showStep(currentStep);
+            }
+        }
+
+        function previousStep() {
+            if (currentStep > 1) {
+                currentStep--;
+                showStep(currentStep);
+            }
+        }
+
+        function openAddMemberDialog() {
+            document.getElementById('addMemberForm').style.display = 'block';
+        }
+
+        function closeAddMemberDialog() {
+            document.getElementById('addMemberForm').style.display = 'none';
+            document.getElementById('memberName').value = '';
+            document.getElementById('memberMonthlyBudget').value = '';
+        }
+
+        function addFamilyMember() {
+            const name = document.getElementById('memberName').value;
+            const budget = parseFloat(document.getElementById('memberMonthlyBudget').value) || 0;
+            const relation = document.getElementById('memberRelation').value;
+
+            if (!name) {
+                alert('Please enter member name');
+                return;
+            }
+
+            familyMembers.push({ name, budget, relation });
+            renderFamilyMembers();
+            closeAddMemberDialog();
+            updateSummary();
+        }
+
+        function removeFamilyMember(index) {
+            familyMembers.splice(index, 1);
+            renderFamilyMembers();
+            updateSummary();
+        }
+
+        function renderFamilyMembers() {
+            const list = document.getElementById('familyMembersList');
+            if (familyMembers.length === 0) {
+                list.innerHTML = '<p style="color: var(--color-text-secondary); text-align: center; padding: var(--spacing-md);">No family members added yet</p>';
+                return;
+            }
+
+            list.innerHTML = familyMembers.map((member, index) => `
+                <div class="family-member-item">
+                    <div class="family-member-info">
+                        <div class="family-member-name">${member.name}</div>
+                        <div class="family-member-budget">€${member.budget.toFixed(2)}/month • ${member.relation}</div>
+                    </div>
+                    <button type="button" class="btn-remove" onclick="removeFamilyMember(${index})">✕</button>
+                </div>
+            `).join('');
+        }
+
+        function updateSummary() {
+            const income = document.getElementById('monthlyIncome').value;
+            const shipType = document.getElementById('shipType').value || 'Not specified';
+            const contract = document.getElementById('contractLength').value || 90;
+
+            document.getElementById('summaryIncome').textContent = parseFloat(income).toLocaleString('en-NL', {maximumFractionDigits: 0});
+            document.getElementById('summaryShip').textContent = shipType;
+            document.getElementById('summaryContract').textContent = contract;
+            document.getElementById('summaryFamilyCount').textContent = familyMembers.length;
+            
+            const totalBudget = familyMembers.reduce((sum, member) => sum + member.budget, 0);
+            document.getElementById('summaryFamilyBudget').textContent = totalBudget.toLocaleString('en-NL', {maximumFractionDigits: 0});
+        }
+
+        function completeOnboarding() {
+            const onboardingData = {
+                monthlyIncome: document.getElementById('monthlyIncome').value,
+                shipType: document.getElementById('shipType').value,
+                contractLength: document.getElementById('contractLength').value,
+                familyMembers: familyMembers,
+                completedAt: new Date().toISOString()
+            };
+
+            localStorage.setItem('crewwealth_onboarding', JSON.stringify(onboardingData));
+            window.location.href = '/';
+        }
+
+        renderFamilyMembers();
+        updateProgress();
+    </script>
+</body>
+</html>

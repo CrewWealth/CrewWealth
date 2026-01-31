@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Financial Goals - CrewWealth</title>
+    <style>
+        :root {
+            --color-primary: #208089;
+            --color-primary-hover: #1a6670;
+            --color-primary-active: #1a5460;
+            --color-secondary: #5e5240;
+            --color-background: #fcfcf9;
+            --color-surface: #ffffff;
+            --color-text: #134252;
+            --color-text-secondary: #626c71;
+            --color-border: #e8e8e0;
+            --color-success: #22c55e;
+            --color-warning: #f59e61;
+            --color-error: #ff5459;
+            --color-accent: #32b8c6;
+            --spacing-xs: 4px;
+            --spacing-sm: 8px;
+            --spacing-md: 16px;
+            --spacing-lg: 24px;
+            --spacing-xl: 32px;
+            --radius-sm: 6px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.04);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            color: var(--color-text);
+            line-height: 1.6;
+            padding: var(--spacing-lg);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .nav-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--color-primary);
+            text-decoration: none;
+            font-weight: 600;
+            margin-bottom: var(--spacing-lg);
+            transition: all 0.2s;
+        }
+
+        .nav-back:hover {
+            gap: 12px;
+        }
+
+        header {
+            margin-bottom: var(--spacing-xl);
+        }
+
+        h1 {
+            font-size: 36px;
+            font-weight: 700;
+            margin-bottom: var(--spacing-sm);
+            color: var(--color-text);
+            background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-subtitle {
+            color: var(--color-text-secondary);
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        /* Main Grid */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 320px;
+            gap: var(--spacing-lg);
+            margin-bottom: var(--spacing-xl);
+        }
+
+        @media (max-width: 1024px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Form Section */
+        .form-section {
+            background: var(--color-surface);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-lg);
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--color-border);
+        }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: var(--spacing-lg);
+            color: var(--color-text);
+        }
+
+        .form-group {
+            margin-bottom: var(--spacing-md);
+        }
+
+        label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: var(--spacing-sm);
+            color: var(--color-text);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: var(--spacing-sm) var(--spacing-md);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            font-size: 14px;
+            font-family: inherit;
+            background-color: var(--color-surface);
+            color: var(--color-text);
+            transition: all 0.2s;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px rgba(32, 128, 137, 0.1);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--spacing-md);
+        }
+
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .btn {
+            padding: var(--spacing-sm) var(--spacing-lg);
+            border: none;
+            border-radius: var(--radius-md);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--spacing-sm);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+            color: white;
+            width: 100%;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn-danger {
+            background-color: var(--color-error);
+            color: white;
+            padding: var(--spacing-xs) var(--spacing-md);
+            font-size: 13px;
+        }
+
+        .btn-danger:hover {
+            background-color: #e63946;
+            transform: translateY(-1px);
+        }
+
+        /* Stats Sidebar */
+        .stats-sidebar {
+            background: var(--color-surface);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-lg);
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--color-border);
+            height: fit-content;
+        }
+
+        .stat-item {
+            margin-bottom: var(--spacing-lg);
+            padding-bottom: var(--spacing-lg);
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        .stat-item:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--color-text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: var(--spacing-sm);
+            font-weight: 600;
+        }
+
+        .stat-value {
+            font-size: 26px;
+            font-weight: 700;
+            color: var(--color-primary);
+        }
+
+        .stat-subtext {
+            font-size: 12px;
+            color: var(--color-text-secondary);
+            margin-top: var(--spacing-xs);
+        }
+
+        /* Goals List */
+        .goals-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-lg);
+            margin-top: var(--spacing-xl);
+        }
+
+        .goal-card {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-lg);
+            box-shadow: var(--shadow-sm);
+            transition: all 0.3s;
+        }
+
+        .goal-card:hover {
+            box-shadow: var(--shadow-lg);
+            border-color: var(--color-primary);
+            transform: translateY(-4px);
+        }
+
+        .goal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: var(--spacing-md);
+            gap: var(--spacing-md);
+        }
+
+        .goal-info h3 {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: var(--spacing-xs);
+            color: var(--color-text);
+        }
+
+        .goal-category {
+            display: inline-block;
+            background: rgba(32, 128, 137, 0.15);
+            color: var(--color-primary);
+            padding: var(--spacing-xs) var(--spacing-sm);
+            border-radius: var(--radius-sm);
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .goal-description {
+            color: var(--color-text-secondary);
+            font-size: 14px;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .goal-amounts {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-md);
+            padding-bottom: var(--spacing-md);
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        .amount-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .amount-label {
+            font-size: 12px;
+            color: var(--color-text-secondary);
+            margin-bottom: var(--spacing-xs);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .amount-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--color-primary);
+        }
+
+        .progress-section {
+            margin-bottom: var(--spacing-md);
+        }
+
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: var(--spacing-sm);
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 10px;
+            background-color: var(--color-border);
+            border-radius: 5px;
+            overflow: hidden;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--color-primary), var(--color-accent));
+            transition: width 0.3s ease;
+        }
+
+        .timeline-info {
+            background: rgba(245, 158, 11, 0.1);
+            border-left: 3px solid var(--color-warning);
+            padding: var(--spacing-sm) var(--spacing-md);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            color: var(--color-text);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .timeline-info strong {
+            color: var(--color-warning);
+            font-weight: 700;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: var(--spacing-xl);
+            color: var(--color-text-secondary);
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: var(--spacing-md);
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: var(--spacing-md);
+            }
+
+            h1 {
+                font-size: 28px;
+            }
+
+            .goal-header {
+                flex-direction: column;
+            }
+
+            .btn-danger {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="nav-back">← Back to Home</a>
+
+        <header>
+            <h1>🎯 Financial Goals</h1>
+            <p class="header-subtitle">Set ambitious goals and track your progress to financial success</p>
+        </header>
+
+        <div class="main-grid">
+            <!-- Form Section -->
+            <div class="form-section">
+                <h2 class="section-title">Add New Goal</h2>
+                <form id="goalForm">
+                    <div class="form-group">
+                        <label for="goalName">Goal Name *</label>
+                        <input type="text" id="goalName" placeholder="e.g., House Down Payment" required>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="goalCategory">Category *</label>
+                            <select id="goalCategory" required>
+                                <option value="">Select a category</option>
+                                <option value="House">🏠 House</option>
+                                <option value="Car">🚗 Car</option>
+                                <option value="Vacation">✈️ Vacation</option>
+                                <option value="Education">📚 Education</option>
+                                <option value="Investment">💼 Investment</option>
+                                <option value="Emergency">🆘 Emergency Fund</option>
+                                <option value="Retirement">🏖️ Retirement</option>
+                                <option value="Other">📌 Other</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="targetAmount">Target Amount (€) *</label>
+                            <input type="number" id="targetAmount" placeholder="50000" min="0" step="0.01" required>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="currentAmount">Current Savings (€)</label>
+                            <input type="number" id="currentAmount" placeholder="0" min="0" step="0.01" value="0">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="monthlyContribution">Monthly Contribution (€)</label>
+                            <input type="number" id="monthlyContribution" placeholder="500" min="0" step="0.01" value="0">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="deadline">Target Date</label>
+                        <input type="date" id="deadline">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="goalDescription">Description (Optional)</label>
+                        <textarea id="goalDescription" placeholder="Add notes about this goal..."></textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">+ Add Goal</button>
+                </form>
+            </div>
+
+            <!-- Stats Sidebar -->
+            <div class="stats-sidebar">
+                <h2 class="section-title">Summary</h2>
+                
+                <div class="stat-item">
+                    <div class="stat-label">Total Goals</div>
+                    <div class="stat-value" id="totalGoals">0</div>
+                </div>
+
+                <div class="stat-item">
+                    <div class="stat-label">Total Target</div>
+                    <div class="stat-value" id="totalTarget">€0</div>
+                    <div class="stat-subtext">Combined amounts</div>
+                </div>
+
+                <div class="stat-item">
+                    <div class="stat-label">Total Saved</div>
+                    <div class="stat-value" id="totalSaved">€0</div>
+                    <div class="stat-subtext">All goals</div>
+                </div>
+
+                <div class="stat-item">
+                    <div class="stat-label">Monthly Savings</div>
+                    <div class="stat-value" id="monthlySavings">€0</div>
+                    <div class="stat-subtext">Contributions</div>
+                </div>
+
+                <div class="stat-item">
+                    <div class="stat-label">Overall Progress</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="overallProgress" style="width: 0%"></div>
+                    </div>
+                    <div class="stat-subtext"><span id="progressPercent">0</span>% Complete</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Goals List -->
+        <div class="form-section">
+            <h2 class="section-title">Your Goals</h2>
+            <div class="goals-list" id="goalsList">
+                <div class="empty-state">
+                    <div class="empty-state-icon">🎯</div>
+                    <p>No goals yet. Start by adding your first financial goal!</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Goals data management - use localStorage for permanent storage
+        let goals = JSON.parse(localStorage.getItem('goals') || '[]');
+
+        // Initialize
+        document.getElementById('goalForm').addEventListener('submit', addGoal);
+        renderGoals();
+        updateStats();
+
+        function addGoal(e) {
+            e.preventDefault();
+
+            const goal = {
+                id: Date.now(),
+                name: document.getElementById('goalName').value,
+                category: document.getElementById('goalCategory').value,
+                targetAmount: parseFloat(document.getElementById('targetAmount').value),
+                currentAmount: parseFloat(document.getElementById('currentAmount').value) || 0,
+                monthlyContribution: parseFloat(document.getElementById('monthlyContribution').value) || 0,
+                deadline: document.getElementById('deadline').value,
+                description: document.getElementById('goalDescription').value,
+                createdDate: new Date().toISOString()
+            };
+
+            goals.push(goal);
+            localStorage.setItem('goals', JSON.stringify(goals));
+
+            // Reset form
+            document.getElementById('goalForm').reset();
+            renderGoals();
+            updateStats();
+        }
+
+        function deleteGoal(id) {
+            goals = goals.filter(goal => goal.id !== id);
+            localStorage.setItem('goals', JSON.stringify(goals));
+            renderGoals();
+            updateStats();
+        }
+
+        function renderGoals() {
+            const goalsList = document.getElementById('goalsList');
+
+            if (goals.length === 0) {
+                goalsList.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">🎯</div>
+                        <p>No goals yet. Start by adding your first financial goal!</p>
+                    </div>
+                `;
+                return;
+            }
+
+            goalsList.innerHTML = goals.map(goal => {
+                const progress = (goal.currentAmount / goal.targetAmount) * 100;
+                const remaining = goal.targetAmount - goal.currentAmount;
+                let monthsToGoal = goal.monthlyContribution > 0 ? Math.ceil(remaining / goal.monthlyContribution) : '∞';
+                let completionDate = 'N/A';
+
+                if (goal.monthlyContribution > 0 && monthsToGoal !== '∞') {
+                    const futureDate = new Date();
+                    futureDate.setMonth(futureDate.getMonth() + monthsToGoal);
+                    completionDate = futureDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+                }
+
+                const categoryEmoji = {
+                    'House': '🏠',
+                    'Car': '🚗',
+                    'Vacation': '✈️',
+                    'Education': '📚',
+                    'Investment': '💼',
+                    'Emergency': '🆘',
+                    'Retirement': '🏖️',
+                    'Other': '📌'
+                };
+
+                return `
+                    <div class="goal-card">
+                        <div class="goal-header">
+                            <div class="goal-info">
+                                <span class="goal-category">${categoryEmoji[goal.category] || '📌'} ${goal.category}</span>
+                                <h3>${goal.name}</h3>
+                                ${goal.description ? `<p class="goal-description">${goal.description}</p>` : ''}
+                            </div>
+                            <button class="btn btn-danger" onclick="deleteGoal(${goal.id})">Delete</button>
+                        </div>
+
+                        <div class="goal-amounts">
+                            <div class="amount-item">
+                                <div class="amount-label">Current Savings</div>
+                                <div class="amount-value">€${goal.currentAmount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</div>
+                            </div>
+                            <div class="amount-item">
+                                <div class="amount-label">Target Amount</div>
+                                <div class="amount-value">€${goal.targetAmount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</div>
+                            </div>
+                        </div>
+
+                        <div class="progress-section">
+                            <div class="progress-label">
+                                <span>Progress</span>
+                                <span>${progress.toFixed(1)}%</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: ${Math.min(progress, 100)}%"></div>
+                            </div>
+                        </div>
+
+                        ${goal.monthlyContribution > 0 ? `
+                            <div class="timeline-info">
+                                📅 At €${goal.monthlyContribution.toFixed(2)}/month, you'll reach this goal in <strong>${monthsToGoal === '∞' ? 'N/A' : monthsToGoal + ' months'}</strong> (${completionDate})
+                            </div>
+                        ` : `
+                            <div class="timeline-info">
+                                📅 No monthly contribution set. Remaining: <strong>€${remaining.toFixed(2)}</strong>
+                            </div>
+                        `}
+
+                        <div class="goal-amounts">
+                            <div class="amount-item">
+                                <div class="amount-label">Monthly Contribution</div>
+                                <div class="amount-value">€${goal.monthlyContribution.toFixed(2)}</div>
+                            </div>
+                            <div class="amount-item">
+                                <div class="amount-label">Remaining</div>
+                                <div class="amount-value">€${remaining.toFixed(2)}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateStats() {
+            const totalGoals = goals.length;
+            const totalTarget = goals.reduce((sum, g) => sum + g.targetAmount, 0);
+            const totalSaved = goals.reduce((sum, g) => sum + g.currentAmount, 0);
+            const monthlySavings = goals.reduce((sum, g) => sum + g.monthlyContribution, 0);
+            const overallProgress = totalTarget > 0 ? (totalSaved / totalTarget) * 100 : 0;
+
+            document.getElementById('totalGoals').textContent = totalGoals;
+            document.getElementById('totalTarget').textContent = '€' + totalTarget.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+            document.getElementById('totalSaved').textContent = '€' + totalSaved.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+            document.getElementById('monthlySavings').textContent = '€' + monthlySavings.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+            document.getElementById('progressPercent').textContent = overallProgress.toFixed(1);
+            document.getElementById('overallProgress').style.width = Math.min(overallProgress, 100) + '%';
+        }
+    </script>
+</body>
+</html>
