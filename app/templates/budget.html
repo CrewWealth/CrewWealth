@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
-<!-- Firebase SDKs -->
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Budget - CrewWealth</title>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
     <style>
         :root {
             --color-primary: #208089;
@@ -56,7 +56,6 @@
             min-height: 100vh;
         }
 
-        /* LEFT SIDEBAR - ACCOUNTS */
         .accounts-sidebar {
             width: 220px;
             background: var(--color-surface);
@@ -72,6 +71,8 @@
             color: var(--color-text);
             cursor: pointer;
             transition: color 0.2s;
+            text-decoration: none;
+            display: block;
         }
 
         .sidebar-title:hover {
@@ -148,7 +149,6 @@
             font-size: 12px;
             cursor: pointer;
             transition: all 0.2s;
-            margin-top: var(--spacing-md);
         }
 
         .add-account-btn:hover {
@@ -156,7 +156,6 @@
             color: var(--color-primary);
         }
 
-        /* MAIN CONTENT */
         .main-content {
             flex: 1;
             display: flex;
@@ -164,7 +163,6 @@
             overflow: hidden;
         }
 
-        /* TOP BAR */
         .top-bar {
             background: var(--color-surface);
             border-bottom: 1px solid var(--color-border);
@@ -230,7 +228,6 @@
             text-align: center;
         }
 
-        /* BUDGET OVERVIEW CARD */
         .budget-overview {
             background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%);
             color: white;
@@ -283,7 +280,6 @@
             font-weight: 700;
         }
 
-        /* CATEGORIES SECTION */
         .categories-section {
             flex: 1;
             overflow-y: auto;
@@ -366,6 +362,7 @@
             text-align: right;
             font-weight: 600;
             background: var(--color-surface);
+            width: 100%;
         }
 
         .budget-input:focus {
@@ -387,7 +384,6 @@
             opacity: 1;
         }
 
-        /* ADD CATEGORY BUTTON */
         .add-category-btn {
             width: 100%;
             padding: var(--spacing-md);
@@ -406,103 +402,6 @@
             color: var(--color-primary);
         }
 
-        /* TRANSACTIONS VIEW */
-        .transactions-view {
-            background: var(--color-surface);
-            border-radius: var(--radius-lg);
-            padding: var(--spacing-xl);
-            margin-bottom: var(--spacing-lg);
-        }
-
-        .transactions-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: var(--spacing-lg);
-        }
-
-        .transactions-title {
-            font-size: 20px;
-            font-weight: 700;
-        }
-
-        .add-transaction-btn {
-            padding: var(--spacing-sm) var(--spacing-lg);
-            background: var(--color-primary);
-            color: white;
-            border: none;
-            border-radius: var(--radius-md);
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.2s;
-        }
-
-        .add-transaction-btn:hover {
-            background: var(--color-primary-hover);
-        }
-
-        .transactions-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        .transactions-table th {
-            text-align: left;
-            padding: var(--spacing-md);
-            background: rgba(32, 128, 137, 0.05);
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: var(--color-text-secondary);
-            font-weight: 600;
-        }
-
-        .transactions-table td {
-            padding: var(--spacing-md);
-            border-top: 1px solid var(--color-border);
-        }
-
-        .transactions-table tr:hover {
-            background: rgba(32, 128, 137, 0.03);
-        }
-
-        .transaction-amount {
-            font-weight: 600;
-        }
-
-        .transaction-amount.inflow {
-            color: var(--color-success);
-        }
-
-        .transaction-amount.outflow {
-            color: var(--color-danger);
-        }
-
-        .transaction-actions {
-            display: flex;
-            gap: var(--spacing-sm);
-        }
-
-        .action-btn {
-            padding: var(--spacing-xs) var(--spacing-sm);
-            border: none;
-            background: transparent;
-            cursor: pointer;
-            font-size: 14px;
-            transition: all 0.2s;
-        }
-
-        .action-btn:hover {
-            transform: scale(1.2);
-        }
-
-        .empty-state {
-            text-align: center;
-            padding: var(--spacing-2xl);
-            color: var(--color-text-secondary);
-        }
-
-        /* MODAL */
         .modal {
             display: none;
             position: fixed;
@@ -627,9 +526,8 @@
 </head>
 <body>
     <div class="layout">
-        <!-- LEFT SIDEBAR: ACCOUNTS -->
         <aside class="accounts-sidebar">
-            <div class="sidebar-title" onclick="window.location.href='/'">💰 CrewWealth</div>
+            <a href="/" class="sidebar-title">💰 CrewWealth</a>
 
             <div class="account-section">
                 <div class="account-section-header">
@@ -657,9 +555,7 @@
             <button class="add-account-btn" onclick="openAddAccountModal()">+ Add account</button>
         </aside>
 
-        <!-- MAIN CONTENT -->
         <main class="main-content">
-            <!-- TOP BAR -->
             <div class="top-bar">
                 <div class="top-bar-left">
                     <a href="/" class="back-btn">← Dashboard</a>
@@ -672,7 +568,6 @@
                 </div>
             </div>
 
-            <!-- BUDGET OVERVIEW CARD -->
             <div class="budget-overview">
                 <div class="overview-grid">
                     <div class="overview-item">
@@ -698,40 +593,9 @@
                 </div>
             </div>
 
-            <!-- CATEGORIES SECTION -->
-            <div class="categories-section" id="categoriesView">
+            <div class="categories-section">
                 <div id="categoriesContainer"></div>
                 <button class="add-category-btn" onclick="openAddCategoryModal()">+ Add category</button>
-            </div>
-
-            <!-- TRANSACTIONS VIEW (Hidden by default) -->
-            <div class="categories-section" id="transactionsView" style="display: none;">
-                <div class="transactions-view">
-                    <div class="transactions-header">
-                        <div>
-                            <button class="btn-secondary" style="padding: var(--spacing-sm) var(--spacing-md); border-radius: var(--radius-sm); margin-bottom: var(--spacing-sm);" onclick="showCategoriesView()">← Back to Budget</button>
-                            <h2 class="transactions-title" id="transactionsAccountName">Account Transactions</h2>
-                        </div>
-                        <button class="add-transaction-btn" onclick="openAddTransactionModal()">+ Add Transaction</button>
-                    </div>
-                    <table class="transactions-table" id="transactionsTable">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Payee</th>
-                                <th>Category</th>
-                                <th>Memo</th>
-                                <th>Amount</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="transactionsTableBody">
-                        </tbody>
-                    </table>
-                    <div id="emptyTransactions" class="empty-state" style="display: none;">
-                        <p>No transactions yet. Add your first transaction to get started!</p>
-                    </div>
-                </div>
             </div>
         </main>
     </div>
@@ -752,8 +616,7 @@
                 <div class="form-group">
                     <label class="checkbox-group">
                         <input type="checkbox" id="accountOffBudget">
-                        <span>Off Budget (Investments)</span>
-                        <spam>offBudget (Savings)</spam>
+                        <span>Off Budget (Investments/Savings)</span>
                     </label>
                 </div>
                 <div class="modal-actions">
@@ -789,55 +652,45 @@
         </div>
     </div>
 
-    <!-- ADD/EDIT TRANSACTION MODAL -->
+    <!-- ADD TRANSACTION MODAL -->
     <div class="modal" id="addTransactionModal">
         <div class="modal-content">
-            <div class="modal-header" id="transactionModalTitle">Add Transaction</div>
+            <div class="modal-header">Add Transaction</div>
             <form onsubmit="saveTransaction(event)">
-                <input type="hidden" id="transactionId">
                 <div class="form-group">
-                    <label class="form-label">Date</label>
-                    <input type="date" class="form-input" id="transactionDate" required>
+                    <label class="form-label">Transaction Type</label>
+                    <select class="form-select" id="transactionType" onchange="updateTransactionFields()" required>
+                        <option value="">Select type...</option>
+                        <option value="budget">📊 Budget (Assign money to category)</option>
+                        <option value="transfer">💸 Transfer (Move between accounts)</option>
+                        <option value="income">💰 Income (Add money)</option>
+                    </select>
                 </div>
-                           <div class="form-group">
-                    <label class="form-label">Payee</label>
-                    <input type="text" class="form-input" id="transactionPayee" placeholder="e.g., Supermarket" required>
-                </div>
-
-            <div class="form-group">
-            <label class="form-label">Transaction Type</label>
-            <select class="form-select" id="transactionType" onchange="updateTransactionFields()" required>
-                <option value="">Select type...</option>
-                <option value="budget">📊 Budget (Assign money to category)</option>
-                <option value="transfer">💸 Transfer (Move between accounts)</option>
-                <option value="income">💰 Income (Add money)</option>
-                </select>
-            </div>
 
                 <div class="form-group" id="categoryField" style="display:none;">
-                <label class="form-label">Category</label>
-                <select class="form-select" id="transactionCategory">
-                <option value="">Select category...</option>
-                </select>
-            </div>
+                    <label class="form-label">Category</label>
+                    <select class="form-select" id="transactionCategory">
+                        <option value="">Select category...</option>
+                    </select>
+                </div>
 
                 <div class="form-group" id="accountField" style="display:none;">
-                <label class="form-label">To Account</label>
-                <select class="form-select" id="transactionToAccount">
-                <option value="">Select account...</option>
-                </select>
+                    <label class="form-label">To Account</label>
+                    <select class="form-select" id="transactionToAccount">
+                        <option value="">Select account...</option>
+                    </select>
                 </div>
 
                 <div class="form-group">
-    <label class="form-label">Amount (€)</label>
-    <input type="number" class="form-input" id="transactionAmount" step="0.01" min="0" placeholder="Enter amount" required>
+                    <label class="form-label">Amount (€)</label>
+                    <input type="number" class="form-input" id="transactionAmount" step="0.01" min="0" placeholder="Enter amount" required>
                 </div>
 
-                </div>
                 <div class="form-group">
                     <label class="form-label">Memo (optional)</label>
                     <input type="text" class="form-input" id="transactionMemo" placeholder="Optional note">
                 </div>
+
                 <div class="modal-actions">
                     <button type="button" class="btn btn-secondary" onclick="closeModal('addTransactionModal')">Cancel</button>
                     <button type="submit" class="btn btn-primary">Save Transaction</button>
@@ -847,361 +700,92 @@
     </div>
 
     <script>
-        // Firebase Configuration
-const firebaseConfig = {
-    apiKey: "AIzaSyBJws39S0tr3SiFV15Ij8Za1VvVKihWetI",
-    authDomain: "crewwealth-cbe02.firebaseapp.com",
-    projectId: "crewwealth-cbe02",
-    storageBucket: "crewwealth-cbe02.firebasestorage.app",
-    messagingSenderId: "522907048863",
-    appId: "1:522907048863:web:d0b4b6ea4f1f8a7f3e8e8e"
-};
+        const firebaseConfig = {
+            apiKey: "AIzaSyBJws39S0tr3SiFV15Ij8Za1VvVKihWetI",
+            authDomain: "crewwealth-cbe02.firebaseapp.com",
+            projectId: "crewwealth-cbe02",
+            storageBucket: "crewwealth-cbe02.firebasestorage.app",
+            messagingSenderId: "522907048863",
+            appId: "1:522907048863:web:d0b4b6ea4f1f8a7f3e8e8e"
+        };
 
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-const auth = firebase.auth();
-let currentUser = null;
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+        let currentUser = { uid: 'HJgW9zvAtkXQOBdYRax0JbnL9Lx1' };
 
-window.addEventListener('load', async () => {
-    // Use REAL Firebase UID
-    currentUser = { uid: 'HJgW9zvAtkXQOBdYRax0JbnL9Lx1' };
-    await init();
-});
-
-
-
-
-        // DATA STRUCTURE
         let accounts = [];
         let categories = [];
-        let budgets = {}; // { "2026-01": { "cat1": 100.00 } }
+        let budgets = {};
         let transactions = [];
         let currentDate = new Date();
-        let currentAccountId = null;
-        
-// Update transaction form fields based on type
-function updateTransactionFields() {
-    const type = document.getElementById('transactionType').value;
-    const categoryField = document.getElementById('categoryField');
-    const accountField = document.getElementById('accountField');
-    
-    console.log('Type selected:', type); // DEBUG
-    
-    // Hide all optional fields first
-    categoryField.style.display = 'none';
-    accountField.style.display = 'none';
-    
-    if (type === 'budget') {
-        categoryField.style.display = 'block';
-        populateCategoryDropdown();
-    } else if (type === 'transfer') {
-        accountField.style.display = 'block';
-        populateAccountDropdown();
-    }
-    // Income needs no extra fields
-}
 
-// Populate account dropdown
-function populateAccountDropdown() {
-    const select = document.getElementById('transactionToAccount');
-    select.innerHTML = '<option value="">Select account...</option>';
-    
-    accounts.forEach(acc => {
-        const option = document.createElement('option');
-        option.value = acc.id;
-        option.textContent = `${acc.name} (€${acc.balance.toFixed(2)})`;
-        select.appendChild(option);
-    });
-}
-
-// Populate category dropdown
-function populateCategoryDropdown() {
-    const select = document.getElementById('transactionCategory');
-    select.innerHTML = '<option value="">Select category...</option>';
-    
-    categories.forEach(cat => {
-        const option = document.createElement('option');
-        option.value = cat.id;
-        option.textContent = cat.name;
-        select.appendChild(option);
-    });
-}
-
-// DAARNA KOMT saveTransaction
-async function saveTransaction(event) {
-    event.preventDefault();
-    
-    const type = document.getElementById('transactionType').value;
-    const amount = parseFloat(document.getElementById('transactionAmount').value);
-    const memo = document.getElementById('transactionMemo').value;
-    
-    if (!type || !amount || amount <= 0) {
-        alert('Please fill in all required fields with positive amounts');
-        return;
-    }
-    
-    // ... rest of your code
-}
-
-
-        // INITIALIZE
-       async function saveTransaction(event) {
-    event.preventDefault();
-    
-    const type = document.getElementById('transactionType').value;
-    const amount = parseFloat(document.getElementById('transactionAmount').value);
-    const memo = document.getElementById('transactionMemo').value;
-    
-    if (!type || !amount || amount <= 0) {
-        alert('Please fill in all required fields with positive amounts');
-        return;
-    }
-    
-    try {
-        const monthKey = getMonthKey();
-        const transaction = {
-            type: type,
-            amount: amount,
-            memo: memo,
-            date: new Date().toISOString(),
-            monthKey: monthKey
-        };
-        
-        if (type === 'budget') {
-            // Budget: assign money to category
-            const categoryId = document.getElementById('transactionCategory').value;
-            if (!categoryId) {
-                alert('Please select a category');
-                return;
-            }
-            
-            transaction.categoryId = categoryId;
-            
-            // Update budget for this category
-            if (!budgets[monthKey]) {
-                budgets[monthKey] = {};
-            }
-            budgets[monthKey][categoryId] = (budgets[monthKey][categoryId] || 0) + amount;
-            
-            // Save budget to Firebase
-            await db.collection('users').doc(currentUser.uid)
-                .collection('budgets').doc(monthKey).set(budgets[monthKey]);
-            
-        } else if (type === 'transfer') {
-            // Transfer: move money between accounts
-            const toAccountId = document.getElementById('transactionToAccount').value;
-            if (!toAccountId) {
-                alert('Please select an account to transfer to');
-                return;
-            }
-            
-            // Find current account (assume first on-budget account for now)
-            const fromAccount = accounts.find(a => !a.offBudget);
-            const toAccount = accounts.find(a => a.id === toAccountId);
-            
-            if (!fromAccount || !toAccount) {
-                alert('Account not found');
-                return;
-            }
-            
-            // Update account balances
-            fromAccount.balance -= amount;
-            toAccount.balance += amount;
-            
-            // Save to Firebase
-            await db.collection('users').doc(currentUser.uid)
-                .collection('accounts').doc(fromAccount.id)
-                .update({ balance: fromAccount.balance });
-            
-            await db.collection('users').doc(currentUser.uid)
-                .collection('accounts').doc(toAccount.id)
-                .update({ balance: toAccount.balance });
-            
-            transaction.fromAccountId = fromAccount.id;
-            transaction.toAccountId = toAccountId;
-            
-        } else if (type === 'income') {
-            // Income: add money to first on-budget account
-            const budgetAccount = accounts.find(a => !a.offBudget);
-            
-            if (!budgetAccount) {
-                alert('No budget account found');
-                return;
-            }
-            
-            budgetAccount.balance += amount;
-            
-            // Save to Firebase
-            await db.collection('users').doc(currentUser.uid)
-                .collection('accounts').doc(budgetAccount.id)
-                .update({ balance: budgetAccount.balance });
-            
-            transaction.accountId = budgetAccount.id;
-        }
-        
-        // Save transaction to Firebase
-        await db.collection('users').doc(currentUser.uid)
-            .collection('transactions').add(transaction);
-        
-        // Reload everything
-        await loadData();
-        renderAccounts();
-        renderCategories();
-        updateOverview();
-        
-        closeModal('addTransactionModal');
-        
-        // Reset form
-        document.getElementById('transactionType').value = '';
-        document.getElementById('transactionAmount').value = '';
-        document.getElementById('transactionMemo').value = '';
-        updateTransactionFields();
-        
-        alert('Transaction saved successfully!');
-        
-    } catch (error) {
-        console.error('Error saving transaction:', error);
-        alert('Failed to save transaction: ' + error.message);
-    }
-}
-
-
-        // SAVE DATA
-async function saveAccounts() {
-    // Accounts are saved individually, not as array
-    // This function is kept for compatibility
-}
-
-        function saveCategories() {
-            localStorage.setItem('crewwealth_categories', JSON.stringify(categories));
+        async function init() {
+            updateMonthDisplay();
+            await loadData();
+            renderAccounts();
+            renderCategories();
+            updateOverview();
         }
 
-        function saveBudgets() {
-            localStorage.setItem('crewwealth_budgets', JSON.stringify(budgets));
+        async function loadData() {
+            try {
+                const accountsSnapshot = await db.collection('users').doc(currentUser.uid)
+                    .collection('accounts').get();
+                accounts = accountsSnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+
+                const categoriesSnapshot = await db.collection('users').doc(currentUser.uid)
+                    .collection('categories').get();
+                categories = categoriesSnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+
+                const monthKey = getMonthKey();
+                const budgetDoc = await db.collection('users').doc(currentUser.uid)
+                    .collection('budgets').doc(monthKey).get();
+                budgets = budgetDoc.exists ? { [monthKey]: budgetDoc.data() } : { [monthKey]: {} };
+
+                const transactionsSnapshot = await db.collection('users').doc(currentUser.uid)
+                    .collection('transactions').get();
+                transactions = transactionsSnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+
+                console.log('Data loaded:', { accounts, categories, budgets, transactions });
+            } catch (error) {
+                console.error('Error loading ', error);
+                alert('Failed to load  ' + error.message);
+            }
         }
 
-        async function saveTransaction(event) {
-    event.preventDefault();
-    
-    const type = document.getElementById('transactionType').value;
-    const amount = parseFloat(document.getElementById('transactionAmount').value);
-    const memo = document.getElementById('transactionMemo').value;
-    
-    if (!type || !amount || amount <= 0) {
-        alert('Please fill in all required fields with positive amounts');
-        return;
-    }
-    
-    try {
-        const monthKey = getMonthKey();
-        const transaction = {
-            type: type,
-            amount: amount,
-            memo: memo,
-            date: new Date().toISOString(),
-            monthKey: monthKey
-        };
-        
-        if (type === 'budget') {
-            // Budget: assign money to category
-            const categoryId = document.getElementById('transactionCategory').value;
-            if (!categoryId) {
-                alert('Please select a category');
-                return;
-            }
-            
-            transaction.categoryId = categoryId;
-            
-            // Update budget for this category
-            if (!budgets[monthKey]) {
-                budgets[monthKey] = {};
-            }
-            budgets[monthKey][categoryId] = (budgets[monthKey][categoryId] || 0) + amount;
-            
-            // Save budget to Firebase
-            await db.collection('users').doc(currentUser.uid)
-                .collection('budgets').doc(monthKey).set(budgets[monthKey]);
-            
-        } else if (type === 'transfer') {
-            // Transfer: move money between accounts
-            const toAccountId = document.getElementById('transactionToAccount').value;
-            if (!toAccountId) {
-                alert('Please select an account to transfer to');
-                return;
-            }
-            
-            // Find current account (assume first on-budget account for now)
-            const fromAccount = accounts.find(a => !a.offBudget);
-            const toAccount = accounts.find(a => a.id === toAccountId);
-            
-            if (!fromAccount || !toAccount) {
-                alert('Account not found');
-                return;
-            }
-            
-            // Update account balances
-            fromAccount.balance -= amount;
-            toAccount.balance += amount;
-            
-            // Save to Firebase
-            await db.collection('users').doc(currentUser.uid)
-                .collection('accounts').doc(fromAccount.id)
-                .update({ balance: fromAccount.balance });
-            
-            await db.collection('users').doc(currentUser.uid)
-                .collection('accounts').doc(toAccount.id)
-                .update({ balance: toAccount.balance });
-            
-            transaction.fromAccountId = fromAccount.id;
-            transaction.toAccountId = toAccountId;
-            
-        } else if (type === 'income') {
-            // Income: add money to first on-budget account
-            const budgetAccount = accounts.find(a => !a.offBudget);
-            
-            if (!budgetAccount) {
-                alert('No budget account found');
-                return;
-            }
-            
-            budgetAccount.balance += amount;
-            
-            // Save to Firebase
-            await db.collection('users').doc(currentUser.uid)
-                .collection('accounts').doc(budgetAccount.id)
-                .update({ balance: budgetAccount.balance });
-            
-            transaction.accountId = budgetAccount.id;
+        function getMonthKey() {
+            const year = currentDate.getFullYear();
+            const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+            return `${year}-${month}`;
         }
-        
-        // Save transaction to Firebase
-        await db.collection('users').doc(currentUser.uid)
-            .collection('transactions').add(transaction);
-        
-        // Reload everything
-        await loadData();
-        renderAccounts();
-        renderCategories();
-        updateOverview();
-        
-        closeModal('addTransactionModal');
-        
-        // Reset form
-        document.getElementById('transactionType').value = '';
-        document.getElementById('transactionAmount').value = '';
-        document.getElementById('transactionMemo').value = '';
-        updateTransactionFields();
-        
-        alert('Transaction saved successfully!');
-        
-    } catch (error) {
-        console.error('Error saving transaction:', error);
-        alert('Failed to save transaction: ' + error.message);
-    }
-}
 
+        function updateMonthDisplay() {
+            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                'July', 'August', 'September', 'October', 'November', 'December'];
+            const monthName = monthNames[currentDate.getMonth()];
+            const year = currentDate.getFullYear();
+            document.getElementById('currentMonth').textContent = `${monthName} ${year}`;
+        }
 
-        // RENDER ACCOUNTS
+        function changeMonth(delta) {
+            currentDate.setMonth(currentDate.getMonth() + delta);
+            updateMonthDisplay();
+            loadData().then(() => {
+                renderCategories();
+                updateOverview();
+            });
+        }
+
         function renderAccounts() {
             const onBudgetContainer = document.getElementById('onBudgetAccounts');
             const offBudgetContainer = document.getElementById('offBudgetAccounts');
@@ -1213,29 +797,24 @@ async function saveAccounts() {
             let onBudgetTotal = 0;
             let offBudgetTotal = 0;
 
-            accounts.forEach(acc => {
+            accounts.forEach(account => {
                 const div = document.createElement('div');
-                div.className = 'account-item' + (currentAccountId === acc.id ? ' active' : '');
+                div.className = 'account-item';
                 div.innerHTML = `
-                    <span class="account-name">${acc.name}</span>
-                    <span class="account-balance">€${acc.balance.toFixed(2)}</span>
-                    <span class="account-delete" onclick="deleteAccount('${acc.id}', event)">🗑️</span>
+                    <span class="account-name">${account.name}</span>
+                    <span class="account-balance">€${account.balance.toFixed(2)}</span>
+                    <span class="account-delete" onclick="deleteAccount('${account.id}')">×</span>
                 `;
-                div.onclick = (e) => {
-                    if (!e.target.classList.contains('account-delete')) {
-                        viewAccountTransactions(acc.id);
-                    }
-                };
 
-                allTotal += acc.balance;
-
-                if (acc.offBudget) {
-                    offBudgetTotal += acc.balance;
+                if (account.offBudget) {
                     offBudgetContainer.appendChild(div);
+                    offBudgetTotal += account.balance;
                 } else {
-                    onBudgetTotal += acc.balance;
                     onBudgetContainer.appendChild(div);
+                    onBudgetTotal += account.balance;
                 }
+
+                allTotal += account.balance;
             });
 
             document.getElementById('allAccountsTotal').textContent = `€${allTotal.toFixed(2)}`;
@@ -1243,113 +822,42 @@ async function saveAccounts() {
             document.getElementById('offBudgetTotal').textContent = `€${offBudgetTotal.toFixed(2)}`;
         }
 
-        // DELETE ACCOUNT
-        function deleteAccount(accountId, event) {
-            event.stopPropagation();
-            if (confirm('Are you sure you want to delete this account? All transactions will be removed.')) {
-                accounts = accounts.filter(a => a.id !== accountId);
-                transactions = transactions.filter(t => t.accountId !== accountId);
-                saveAccounts();
-                saveTransactions();
-                if (currentAccountId === accountId) {
-                    showCategoriesView();
-                }
-                renderAccounts();
-                renderCategories();
-                updateOverview();
-            }
-        }
-
-        // VIEW ACCOUNT TRANSACTIONS
-        function viewAccountTransactions(accountId) {
-            currentAccountId = accountId;
-            const account = accounts.find(a => a.id === accountId);
-            
-            document.getElementById('categoriesView').style.display = 'none';
-            document.getElementById('transactionsView').style.display = 'block';
-            document.getElementById('transactionsAccountName').textContent = account.name;
-            
-            renderTransactions();
-            renderAccounts(); // Update active state
-        }
-
-        // SHOW CATEGORIES VIEW
-        function showCategoriesView() {
-            currentAccountId = null;
-            document.getElementById('categoriesView').style.display = 'block';
-            document.getElementById('transactionsView').style.display = 'none';
-            renderAccounts(); // Update active state
-        }
-
-        // RENDER TRANSACTIONS
-        function renderTransactions() {
-            const tbody = document.getElementById('transactionsTableBody');
-            const emptyState = document.getElementById('emptyTransactions');
-            tbody.innerHTML = '';
-
-            const accountTransactions = transactions
-                .filter(t => t.accountId === currentAccountId)
-                .sort((a, b) => new Date(b.date) - new Date(a.date));
-
-            if (accountTransactions.length === 0) {
-                emptyState.style.display = 'block';
-                return;
-            }
-
-            emptyState.style.display = 'none';
-
-            accountTransactions.forEach(transaction => {
-                const category = categories.find(c => c.id === transaction.categoryId);
-                const row = document.createElement('tr');
-                const amountClass = transaction.amount >= 0 ? 'inflow' : 'outflow';
-                
-                row.innerHTML = `
-                    <td>${new Date(transaction.date).toLocaleDateString('nl-NL')}</td>
-                    <td>${transaction.payee}</td>
-                    <td>${category ? category.name : 'Uncategorized'}</td>
-                    <td>${transaction.memo || '-'}</td>
-                    <td class="transaction-amount ${amountClass}">€${Math.abs(transaction.amount).toFixed(2)}</td>
-                    <td class="transaction-actions">
-                        <button class="action-btn" onclick="editTransaction('${transaction.id}')">✏️</button>
-                        <button class="action-btn" onclick="deleteTransaction('${transaction.id}')">🗑️</button>
-                    </td>
-                `;
-                tbody.appendChild(row);
-            });
-        }
-
-        // RENDER CATEGORIES
         function renderCategories() {
             const container = document.getElementById('categoriesContainer');
             container.innerHTML = '';
 
             const monthKey = getMonthKey();
-            const monthBudgets = budgets[monthKey] || {};
+            const currentBudgets = budgets[monthKey] || {};
 
             const groups = {
-                'expenses': { name: '💸 Daily Expenses', items: [] },
-                'bills': { name: '📄 Monthly Bills', items: [] },
-                'savings': { name: '💰 Savings Goals', items: [] }
+                expenses: { name: '💸 Daily Expenses', categories: [] },
+                savings: { name: '💰 Savings Goals', categories: [] },
+                bills: { name: '📄 Monthly Bills', categories: [] }
             };
 
             categories.forEach(cat => {
                 if (groups[cat.group]) {
-                    const budgeted = monthBudgets[cat.id] || 0;
-                    const spent = calculateCategorySpent(cat.id, monthKey);
-                    groups[cat.group].items.push({ ...cat, budgeted, spent });
+                    groups[cat.group].categories.push(cat);
                 }
             });
 
-            Object.keys(groups).forEach(groupKey => {
-                const group = groups[groupKey];
-                if (group.items.length === 0) return;
+            Object.entries(groups).forEach(([groupKey, group]) => {
+                if (group.categories.length === 0) return;
 
                 const groupDiv = document.createElement('div');
                 groupDiv.className = 'category-group';
 
-                const groupBudgeted = group.items.reduce((sum, cat) => sum + cat.budgeted, 0);
-                const groupSpent = group.items.reduce((sum, cat) => sum + cat.spent, 0);
-                const groupBalance = groupBudgeted + groupSpent;
+                let groupBudgeted = 0;
+                let groupSpent = 0;
+
+                group.categories.forEach(cat => {
+                    const budgeted = currentBudgets[cat.id] || 0;
+                    const spent = calculateSpent(cat.id, monthKey);
+                    groupBudgeted += budgeted;
+                    groupSpent += spent;
+                });
+
+                const groupAvailable = groupBudgeted - groupSpent;
 
                 groupDiv.innerHTML = `
                     <div class="category-group-header">
@@ -1357,315 +865,352 @@ async function saveAccounts() {
                         <div class="category-group-totals">
                             <span>Budgeted: €${groupBudgeted.toFixed(2)}</span>
                             <span>Spent: €${groupSpent.toFixed(2)}</span>
-                            <span>Balance: €${groupBalance.toFixed(2)}</span>
+                            <span>Available: €${groupAvailable.toFixed(2)}</span>
                         </div>
                     </div>
                 `;
 
-                group.items.forEach(cat => {
-                    const balance = cat.budgeted + cat.spent;
-                    const balanceClass = balance >= 0 ? 'positive' : 'negative';
+                group.categories.forEach(cat => {
+                    const budgeted = currentBudgets[cat.id] || 0;
+                    const spent = calculateSpent(cat.id, monthKey);
+                    const available = budgeted - spent;
 
-                    const row = document.createElement('div');
-                    row.className = 'category-row';
-                    row.innerHTML = `
+                    const rowDiv = document.createElement('div');
+                    rowDiv.className = 'category-row';
+                    rowDiv.innerHTML = `
                         <div class="category-name">${cat.name}</div>
-                        <input type="number" class="budget-input" value="${cat.budgeted.toFixed(2)}" 
-                               onchange="updateBudget('${cat.id}', this.value)" step="0.01">
-                        <div class="category-value">€${cat.spent.toFixed(2)}</div>
-                        <div class="category-value ${balanceClass}">€${balance.toFixed(2)}</div>
-                        <div class="category-delete" onclick="deleteCategory('${cat.id}')">🗑️</div>
+                        <div>
+                            <input type="number" 
+                                   class="budget-input" 
+                                   value="${budgeted.toFixed(2)}" 
+                                   step="0.01"
+                                   onchange="updateBudget('${cat.id}', this.value)">
+                        </div>
+                        <div class="category-value">€${spent.toFixed(2)}</div>
+                        <div class="category-value ${available >= 0 ? 'positive' : 'negative'}">
+                            €${available.toFixed(2)}
+                        </div>
+                        <div class="category-delete" onclick="deleteCategory('${cat.id}')">×</div>
                     `;
-                    groupDiv.appendChild(row);
+                    groupDiv.appendChild(rowDiv);
                 });
 
                 container.appendChild(groupDiv);
             });
         }
 
-        // CALCULATE CATEGORY SPENT
-        function calculateCategorySpent(categoryId, monthKey) {
-            const [year, month] = monthKey.split('-').map(Number);
+        function calculateSpent(categoryId, monthKey) {
             return transactions
-                .filter(t => {
-                    const tDate = new Date(t.date);
-                    return t.categoryId === categoryId && 
-                           tDate.getFullYear() === year && 
-                           tDate.getMonth() === month - 1;
-                })
+                .filter(t => t.categoryId === categoryId && t.monthKey === monthKey && t.type === 'expense')
                 .reduce((sum, t) => sum + t.amount, 0);
         }
 
-        // UPDATE BUDGET
-        function updateBudget(categoryId, value) {
+        function updateOverview() {
+            const monthKey = getMonthKey();
+            const currentBudgets = budgets[monthKey] || {};
+
+            const onBudgetAccounts = accounts.filter(a => !a.offBudget);
+            const availableFunds = onBudgetAccounts.reduce((sum, a) => sum + a.balance, 0);
+
+            const totalBudgeted = Object.values(currentBudgets).reduce((sum, val) => sum + val, 0);
+            const totalSpent = categories.reduce((sum, cat) => sum + calculateSpent(cat.id, monthKey), 0);
+            const toBudget = availableFunds - totalBudgeted;
+
+            const overspent = categories.reduce((sum, cat) => {
+                const budgeted = currentBudgets[cat.id] || 0;
+                const spent = calculateSpent(cat.id, monthKey);
+                const diff = spent - budgeted;
+                return sum + (diff > 0 ? diff : 0);
+            }, 0);
+
+            document.getElementById('availableFunds').textContent = `€${availableFunds.toFixed(2)}`;
+            document.getElementById('overspent').textContent = `€${overspent.toFixed(2)}`;
+            document.getElementById('budgeted').textContent = `€${totalBudgeted.toFixed(2)}`;
+            document.getElementById('totalSpent').textContent = `€${totalSpent.toFixed(2)}`;
+            document.getElementById('toBudget').textContent = `€${toBudget.toFixed(2)}`;
+        }
+
+        async function updateBudget(categoryId, value) {
             const monthKey = getMonthKey();
             if (!budgets[monthKey]) {
                 budgets[monthKey] = {};
             }
             budgets[monthKey][categoryId] = parseFloat(value) || 0;
-            saveBudgets();
-            renderCategories();
-            updateOverview();
-        }
 
-        // DELETE CATEGORY
-        function deleteCategory(categoryId) {
-            if (confirm('Are you sure you want to delete this category?')) {
-                categories = categories.filter(c => c.id !== categoryId);
-                saveCategories();
-                renderCategories();
+            try {
+                await db.collection('users').doc(currentUser.uid)
+                    .collection('budgets').doc(monthKey).set(budgets[monthKey]);
                 updateOverview();
+                renderCategories();
+            } catch (error) {
+                console.error('Error updating budget:', error);
+                alert('Failed to update budget: ' + error.message);
             }
         }
 
-        // UPDATE OVERVIEW
-        function updateOverview() {
-            const onBudgetBalance = accounts.filter(a => !a.offBudget).reduce((sum, a) => sum + a.balance, 0);
-            
-            const monthKey = getMonthKey();
-            const monthBudgets = budgets[monthKey] || {};
-            const totalBudgeted = Object.values(monthBudgets).reduce((sum, b) => sum + b, 0);
-            
-            let totalSpent = 0;
-            categories.forEach(cat => {
-                totalSpent += calculateCategorySpent(cat.id, monthKey);
-            });
-
-            const overspent = Math.min(0, totalBudgeted + totalSpent);
-            const toBudget = onBudgetBalance - totalBudgeted;
-
-            document.getElementById('availableFunds').textContent = `€${onBudgetBalance.toFixed(2)}`;
-            document.getElementById('budgeted').textContent = `€${totalBudgeted.toFixed(2)}`;
-            document.getElementById('totalSpent').textContent = `€${Math.abs(totalSpent).toFixed(2)}`;
-            document.getElementById('overspent').textContent = `€${Math.abs(overspent).toFixed(2)}`;
-            document.getElementById('toBudget').textContent = `€${toBudget.toFixed(2)}`;
-        }
-
-        // MONTH NAVIGATION
-        function getMonthKey() {
-            return `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
-        }
-
-        function updateMonthDisplay() {
-            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
-                              'July', 'August', 'September', 'October', 'November', 'December'];
-            const monthStr = `${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
-            document.getElementById('currentMonth').textContent = monthStr;
-        }
-
-        function changeMonth(direction) {
-            currentDate.setMonth(currentDate.getMonth() + direction);
-            updateMonthDisplay();
-            renderCategories();
-            updateOverview();
-        }
-
-        // MODAL FUNCTIONS
-        function openAddAccountModal() {
-            document.getElementById('addAccountModal').classList.add('active');
-        }
-
-        function openAddCategoryModal() {
-            document.getElementById('addCategoryModal').classList.add('active');
-        }
-
-        function openAddTransactionModal() {
-            document.getElementById('transactionModalTitle').textContent = 'Add Transaction';
-            document.getElementById('transactionId').value = '';
-            document.getElementById('addTransactionModal').classList.add('active');
-            populateCategoryDropdown();
-            setDefaultTransactionDate();
+        function openModal(modalId) {
+            document.getElementById(modalId).classList.add('active');
         }
 
         function closeModal(modalId) {
             document.getElementById(modalId).classList.remove('active');
-            if (modalId === 'addTransactionModal') {
-                document.getElementById('transactionId').value = '';
-                document.querySelector(`#${modalId} form`).reset();
+        }
+
+        function openAddAccountModal() {
+            document.getElementById('accountName').value = '';
+            document.getElementById('accountBalance').value = '0.00';
+            document.getElementById('accountOffBudget').checked = false;
+            openModal('addAccountModal');
+        }
+
+        function openAddCategoryModal() {
+            document.getElementById('categoryGroup').value = 'expenses';
+            document.getElementById('categoryName').value = '';
+            openModal('addCategoryModal');
+        }
+
+        function openAddTransactionModal() {
+            document.getElementById('transactionType').value = '';
+            document.getElementById('transactionAmount').value = '';
+            document.getElementById('transactionMemo').value = '';
+            updateTransactionFields();
+            openModal('addTransactionModal');
+        }
+
+        async function saveAccount(event) {
+            event.preventDefault();
+
+            const name = document.getElementById('accountName').value;
+            const balance = parseFloat(document.getElementById('accountBalance').value);
+            const offBudget = document.getElementById('accountOffBudget').checked;
+
+            try {
+                await db.collection('users').doc(currentUser.uid)
+                    .collection('accounts').add({
+                        name: name,
+                        balance: balance,
+                        offBudget: offBudget,
+                        createdAt: new Date().toISOString()
+                    });
+
+                await loadData();
+                renderAccounts();
+                updateOverview();
+                closeModal('addAccountModal');
+                alert('Account added successfully!');
+            } catch (error) {
+                console.error('Error saving account:', error);
+                alert('Failed to save account: ' + error.message);
             }
         }
 
-        // POPULATE CATEGORY DROPDOWN
-        function populateCategoryDropdown() {
-            const select = document.getElementById('transactionCategory');
-            select.innerHTML = '<option value="">Select category...</option>';
-            
-            const groups = {
-                'expenses': '💸 Daily Expenses',
-                'bills': '📄 Monthly Bills',
-                'savings': '💰 Savings Goals'
-            };
+        async function deleteAccount(accountId) {
+            if (!confirm('Are you sure you want to delete this account?')) return;
 
-            Object.keys(groups).forEach(groupKey => {
-                const groupCats = categories.filter(c => c.group === groupKey);
-                if (groupCats.length > 0) {
-                    const optgroup = document.createElement('optgroup');
-                    optgroup.label = groups[groupKey];
-                    groupCats.forEach(cat => {
-                        const option = document.createElement('option');
-                        option.value = cat.id;
-                        option.textContent = cat.name;
-                        optgroup.appendChild(option);
-                    });
-                    select.appendChild(optgroup);
-                }
-            });
+            try {
+                await db.collection('users').doc(currentUser.uid)
+                    .collection('accounts').doc(accountId).delete();
+
+                await loadData();
+                renderAccounts();
+                updateOverview();
+                alert('Account deleted successfully!');
+            } catch (error) {
+                console.error('Error deleting account:', error);
+                alert('Failed to delete account: ' + error.message);
+            }
         }
 
-        // SET DEFAULT TRANSACTION DATE
-        function setDefaultTransactionDate() {
-            const today = new Date().toISOString().split('T')[0];
-            document.getElementById('transactionDate').value = today;
-        }
-
-        // SAVE ACCOUNT
-        async function saveAccount(event) {
-    event.preventDefault();
-    
-    const name = document.getElementById('accountName').value;
-    const balance = parseFloat(document.getElementById('accountBalance').value);
-    const offBudget = document.getElementById('accountOffBudget').checked;
-    
-    try {
-        await db.collection('users').doc(currentUser.uid).collection('accounts').add({
-            name: name,
-            balance: balance,
-            offBudget: offBudget,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        
-        closeModal('addAccountModal');
-        await loadData();
-        renderAccounts();
-        updateOverview();
-        
-        // Reset form
-        document.getElementById('accountName').value = '';
-        document.getElementById('accountBalance').value = '0.00';
-        document.getElementById('accountOffBudget').checked = false;
-    } catch (error) {
-        console.error('Error saving account:', error);
-        alert('Failed to save account. Please try again.');
-    }
-}
-
-
-        // SAVE CATEGORY
-        function saveCategory(event) {
+        async function saveCategory(event) {
             event.preventDefault();
+
             const group = document.getElementById('categoryGroup').value;
             const name = document.getElementById('categoryName').value;
 
-            const newCategory = {
-                id: 'cat_' + Date.now(),
-                group,
-                name
-            };
+            try {
+                await db.collection('users').doc(currentUser.uid)
+                    .collection('categories').add({
+                        name: name,
+                        group: group,
+                        createdAt: new Date().toISOString()
+                    });
 
-            categories.push(newCategory);
-            saveCategories();
-            renderCategories();
-            updateOverview();
-            closeModal('addCategoryModal');
-            event.target.reset();
+                await loadData();
+                renderCategories();
+                closeModal('addCategoryModal');
+                alert('Category added successfully!');
+            } catch (error) {
+                console.error('Error saving category:', error);
+                alert('Failed to save category: ' + error.message);
+            }
         }
 
-        // SAVE TRANSACTION
-        function saveTransaction(event) {
+        async function deleteCategory(categoryId) {
+            if (!confirm('Are you sure you want to delete this category?')) return;
+
+            try {
+                await db.collection('users').doc(currentUser.uid)
+                    .collection('categories').doc(categoryId).delete();
+
+                await loadData();
+                renderCategories();
+                alert('Category deleted successfully!');
+            } catch (error) {
+                console.error('Error deleting category:', error);
+                alert('Failed to delete category: ' + error.message);
+            }
+        }
+
+        function updateTransactionFields() {
+            const type = document.getElementById('transactionType').value;
+            const categoryField = document.getElementById('categoryField');
+            const accountField = document.getElementById('accountField');
+
+            categoryField.style.display = 'none';
+            accountField.style.display = 'none';
+
+            if (type === 'budget') {
+                categoryField.style.display = 'block';
+                populateCategoryDropdown();
+            } else if (type === 'transfer') {
+                accountField.style.display = 'block';
+                populateAccountDropdown();
+            }
+        }
+
+        function populateCategoryDropdown() {
+            const select = document.getElementById('transactionCategory');
+            select.innerHTML = '<option value="">Select category...</option>';
+
+            categories.forEach(cat => {
+                const option = document.createElement('option');
+                option.value = cat.id;
+                option.textContent = cat.name;
+                select.appendChild(option);
+            });
+        }
+
+        function populateAccountDropdown() {
+            const select = document.getElementById('transactionToAccount');
+            select.innerHTML = '<option value="">Select account...</option>';
+
+            accounts.forEach(acc => {
+                const option = document.createElement('option');
+                option.value = acc.id;
+                option.textContent = `${acc.name} (€${acc.balance.toFixed(2)})`;
+                select.appendChild(option);
+            });
+        }
+
+        async function saveTransaction(event) {
             event.preventDefault();
-            const id = document.getElementById('transactionId').value;
-            const date = document.getElementById('transactionDate').value;
-            const payee = document.getElementById('transactionPayee').value;
-            const categoryId = document.getElementById('transactionCategory').value;
-            const amount = parseFloat(document.getElementById('transactionAmount').value) || 0;
+
+            const type = document.getElementById('transactionType').value;
+            const amount = parseFloat(document.getElementById('transactionAmount').value);
             const memo = document.getElementById('transactionMemo').value;
 
-            if (id) {
-                // Edit existing
-                const transaction = transactions.find(t => t.id === id);
-                const oldAmount = transaction.amount;
-                const oldAccountId = transaction.accountId;
-                
-                transaction.date = date;
-                transaction.payee = payee;
-                transaction.categoryId = categoryId;
-                transaction.amount = amount;
-                transaction.memo = memo;
-
-                // Update account balance
-                const account = accounts.find(a => a.id === oldAccountId);
-                account.balance = account.balance - oldAmount + amount;
-            } else {
-                // Add new
-                const newTransaction = {
-                    id: 'txn_' + Date.now(),
-                    accountId: currentAccountId,
-                    date,
-                    payee,
-                    categoryId,
-                    amount,
-                    memo
-                };
-                transactions.push(newTransaction);
-
-                // Update account balance
-                const account = accounts.find(a => a.id === currentAccountId);
-                account.balance += amount;
+            if (!type || !amount || amount <= 0) {
+                alert('Please fill in all required fields with positive amounts');
+                return;
             }
 
-            saveTransactions();
-            saveAccounts();
-            renderTransactions();
-            renderAccounts();
-            renderCategories();
-            updateOverview();
-            closeModal('addTransactionModal');
-            event.target.reset();
-        }
+            try {
+                const monthKey = getMonthKey();
+                const transaction = {
+                    type: type,
+                    amount: amount,
+                    memo: memo,
+                    date: new Date().toISOString(),
+                    monthKey: monthKey
+                };
 
-        // EDIT TRANSACTION
-        function editTransaction(transactionId) {
-            const transaction = transactions.find(t => t.id === transactionId);
-            
-            document.getElementById('transactionModalTitle').textContent = 'Edit Transaction';
-            document.getElementById('transactionId').value = transaction.id;
-            document.getElementById('transactionDate').value = transaction.date;
-            document.getElementById('transactionPayee').value = transaction.payee;
-            document.getElementById('transactionCategory').value = transaction.categoryId;
-            document.getElementById('transactionAmount').value = transaction.amount;
-            document.getElementById('transactionMemo').value = transaction.memo;
-            
-            openAddTransactionModal();
-        }
+                if (type === 'budget') {
+                    const categoryId = document.getElementById('transactionCategory').value;
+                    if (!categoryId) {
+                        alert('Please select a category');
+                        return;
+                    }
 
-        // DELETE TRANSACTION
-        function deleteTransaction(transactionId) {
-            if (confirm('Are you sure you want to delete this transaction?')) {
-                const transaction = transactions.find(t => t.id === transactionId);
-                const account = accounts.find(a => a.id === transaction.accountId);
-                
-                // Reverse the transaction from account balance
-                account.balance -= transaction.amount;
-                
-                transactions = transactions.filter(t => t.id !== transactionId);
-                saveTransactions();
-                saveAccounts();
-                renderTransactions();
+                    transaction.categoryId = categoryId;
+
+                    if (!budgets[monthKey]) {
+                        budgets[monthKey] = {};
+                    }
+                    budgets[monthKey][categoryId] = (budgets[monthKey][categoryId] || 0) + amount;
+
+                    await db.collection('users').doc(currentUser.uid)
+                        .collection('budgets').doc(monthKey).set(budgets[monthKey]);
+
+                } else if (type === 'transfer') {
+                    const toAccountId = document.getElementById('transactionToAccount').value;
+                    if (!toAccountId) {
+                        alert('Please select an account to transfer to');
+                        return;
+                    }
+
+                    const fromAccount = accounts.find(a => !a.offBudget);
+                    const toAccount = accounts.find(a => a.id === toAccountId);
+
+                    if (!fromAccount || !toAccount) {
+                        alert('Account not found');
+                        return;
+                    }
+
+                    fromAccount.balance -= amount;
+                    toAccount.balance += amount;
+
+                    await db.collection('users').doc(currentUser.uid)
+                        .collection('accounts').doc(fromAccount.id)
+                        .update({ balance: fromAccount.balance });
+
+                    await db.collection('users').doc(currentUser.uid)
+                        .collection('accounts').doc(toAccount.id)
+                        .update({ balance: toAccount.balance });
+
+                    transaction.fromAccountId = fromAccount.id;
+                    transaction.toAccountId = toAccountId;
+
+                } else if (type === 'income') {
+                    const budgetAccount = accounts.find(a => !a.offBudget);
+
+                    if (!budgetAccount) {
+                        alert('No budget account found');
+                        return;
+                    }
+
+                    budgetAccount.balance += amount;
+
+                    await db.collection('users').doc(currentUser.uid)
+                        .collection('accounts').doc(budgetAccount.id)
+                        .update({ balance: budgetAccount.balance });
+
+                    transaction.accountId = budgetAccount.id;
+                }
+
+                await db.collection('users').doc(currentUser.uid)
+                    .collection('transactions').add(transaction);
+
+                await loadData();
                 renderAccounts();
                 renderCategories();
                 updateOverview();
+
+                closeModal('addTransactionModal');
+
+                document.getElementById('transactionType').value = '';
+                document.getElementById('transactionAmount').value = '';
+                document.getElementById('transactionMemo').value = '';
+                updateTransactionFields();
+
+                alert('Transaction saved successfully!');
+
+            } catch (error) {
+                console.error('Error saving transaction:', error);
+                alert('Failed to save transaction: ' + error.message);
             }
         }
 
-        // Click outside modal to close
-        window.onclick = function(event) {
-            if (event.target.classList.contains('modal')) {
-                event.target.classList.remove('active');
-            }
-        }
-
-        // INIT ON LOAD
-        init();
+        window.addEventListener('load', init);
     </script>
 </body>
 </html>
