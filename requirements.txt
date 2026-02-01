@@ -36,9 +36,6 @@ pyasn1==0.6.2
 pyasn1_modules==0.4.2
 pycparser==3.0
 PyJWT==2.10.1
-pyobjc-core==12.0
-pyobjc-framework-Cocoa==12.0
-pyobjc-framework-CoreLocation==12.0
 pyparsing==3.3.2
 python-dateutil==2.9.0.post0
 python-dotenv==1.0.0
