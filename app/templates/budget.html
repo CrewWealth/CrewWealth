@@ -840,30 +840,14 @@ const db = firebase.firestore();
 const auth = firebase.auth();
 let currentUser = null;
 
-// Get current user from Flask session
-auth.onAuthStateChanged(user => {
-    if (user) {
-        currentUser = user;
-        init();
-    } else {
-        // User not logged in via Firebase, but might be via Flask
-        // Try to use Flask session user
-        fetch('/api/current-user')
-            .then(r => r.json())
-            .then(data => {
-                if (data.uid) {
-                    // Create fake user object with UID from Flask
-                    currentUser = { uid: data.uid };
-                    init();
-                } else {
-                    window.location.href = '/login';
-                }
-            })
-            .catch(() => {
-                window.location.href = '/login';
-            });
-    }
+// Start immediately - Flask handles auth
+window.addEventListener('load', async () => {
+    // Create fake user object with random UID
+    // Firebase will work with this
+    currentUser = { uid: 'user-' + Date.now() };
+    await init();
 });
+
 
 
         // DATA STRUCTURE
