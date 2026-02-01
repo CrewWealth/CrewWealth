@@ -840,13 +840,12 @@ const db = firebase.firestore();
 const auth = firebase.auth();
 let currentUser = null;
 
-// Start immediately - Flask handles auth
 window.addEventListener('load', async () => {
-    // Create fake user object with random UID
-    // Firebase will work with this
-    currentUser = { uid: 'user-' + Date.now() };
+    // Use REAL Firebase UID
+    currentUser = { uid: 'HJgW9zvAtkXQOBdYRax0JbnL9Lx1' };
     await init();
 });
+
 
 
 
