@@ -7,8 +7,6 @@ def create_app(config_name='development'):
     app = Flask(__name__)
     app.config.from_object(config[config_name])
     
-    db.init_app(app)
-    
     # Register blueprints
     from app.routes.main import main_bp
     from app.routes.income import income_bp
