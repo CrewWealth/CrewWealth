@@ -1,5 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -821,6 +825,31 @@
     </div>
 
     <script>
+        // Firebase Configuration
+const firebaseConfig = {
+    apiKey: "AIzaSyBJws39S0tr3SiFV15Ij8Za1VvVKihWetI",
+    authDomain: "crewwealth-cbe02.firebaseapp.com",
+    projectId: "crewwealth-cbe02",
+    storageBucket: "crewwealth-cbe02.firebasestorage.app",
+    messagingSenderId: "522907048863",
+    appId: "1:522907048863:web:d0b4b6ea4f1f8a7f3e8e8e"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const auth = firebase.auth();
+let currentUser = null;
+
+// Wait for auth
+auth.onAuthStateChanged(user => {
+    if (user) {
+        currentUser = user;
+        init();
+    } else {
+        window.location.href = '/login';
+    }
+});
+
         // DATA STRUCTURE
         let accounts = [];
         let categories = [];
@@ -830,7 +859,8 @@
         let currentAccountId = null;
 
         // INITIALIZE
-        function init() {
+        async function init() {
+    await loadData();
             loadData();
             renderAccounts();
             renderCategories();
@@ -840,17 +870,34 @@
         }
 
         // LOAD DATA FROM LOCALSTORAGE
-        function loadData() {
-            accounts = JSON.parse(localStorage.getItem('crewwealth_accounts') || '[]');
-            categories = JSON.parse(localStorage.getItem('crewwealth_categories') || '[]');
-            budgets = JSON.parse(localStorage.getItem('crewwealth_budgets') || '{}');
-            transactions = JSON.parse(localStorage.getItem('crewwealth_transactions') || '[]');
-        }
+async function loadData() {
+    if (!currentUser) return;
+    
+    // Load accounts
+    const accountsSnap = await db.collection('users').doc(currentUser.uid).collection('accounts').get();
+    accounts = accountsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    
+    // Load categories
+    const categoriesSnap = await db.collection('users').doc(currentUser.uid).collection('categories').get();
+    categories = categoriesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    
+    // Load budgets
+    const budgetsSnap = await db.collection('users').doc(currentUser.uid).collection('budgets').get();
+    budgets = {};
+    budgetsSnap.docs.forEach(doc => {
+        budgets[doc.id] = doc.data();
+    });
+    
+    // Load transactions
+    const transactionsSnap = await db.collection('users').doc(currentUser.uid).collection('transactions').get();
+    transactions = transactionsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+}
 
         // SAVE DATA
-        function saveAccounts() {
-            localStorage.setItem('crewwealth_accounts', JSON.stringify(accounts));
-        }
+async function saveAccounts() {
+    // Accounts are saved individually, not as array
+    // This function is kept for compatibility
+}
 
         function saveCategories() {
             localStorage.setItem('crewwealth_categories', JSON.stringify(categories));
@@ -1182,26 +1229,36 @@
         }
 
         // SAVE ACCOUNT
-        function saveAccount(event) {
-            event.preventDefault();
-            const name = document.getElementById('accountName').value;
-            const balance = parseFloat(document.getElementById('accountBalance').value) || 0;
-            const offBudget = document.getElementById('accountOffBudget').checked;
+        async function saveAccount(event) {
+    event.preventDefault();
+    
+    const name = document.getElementById('accountName').value;
+    const balance = parseFloat(document.getElementById('accountBalance').value);
+    const offBudget = document.getElementById('accountOffBudget').checked;
+    
+    try {
+        await db.collection('users').doc(currentUser.uid).collection('accounts').add({
+            name: name,
+            balance: balance,
+            offBudget: offBudget,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        closeModal('addAccountModal');
+        await loadData();
+        renderAccounts();
+        updateOverview();
+        
+        // Reset form
+        document.getElementById('accountName').value = '';
+        document.getElementById('accountBalance').value = '0.00';
+        document.getElementById('accountOffBudget').checked = false;
+    } catch (error) {
+        console.error('Error saving account:', error);
+        alert('Failed to save account. Please try again.');
+    }
+}
 
-            const newAccount = {
-                id: 'acc_' + Date.now(),
-                name,
-                balance,
-                offBudget
-            };
-
-            accounts.push(newAccount);
-            saveAccounts();
-            renderAccounts();
-            updateOverview();
-            closeModal('addAccountModal');
-            event.target.reset();
-        }
 
         // SAVE CATEGORY
         function saveCategory(event) {
