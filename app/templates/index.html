@@ -516,7 +516,7 @@
                 <div class="hero-title">Your Financial Overview</div>
                 <div class="hero-networth">
                     <div class="hero-networth-label">Total Net Worth</div>
-                    <div class="hero-networth-value" id="totalNetWorth">€18,100.00</div>
+                    <div class="hero-networth-value" id="totalNetWorth">€{{ "%.2f"|format(net_worth) }}</div>
                 </div>
             </div>
 
@@ -632,50 +632,134 @@
         });
     }
 
-    async function loadNetWorth() {
-        if (!currentUser) {
-            console.log('⚠️ No user logged in');
-            return;
-        }
+async function loadNetWorth() {
+    if (!currentUser) {
+        console.log('⚠️ No user logged in');
+        return;
+    }
 
-        try {
-            // 🔥 FIREBASE: Load accounts from USER-SPECIFIC subcollection
-            // Path: users/{userId}/accounts
-            const accountsSnapshot = await db.collection('users').doc(currentUser.uid).collection('accounts').get();
-            const accounts = [];
-            
-            accountsSnapshot.forEach(doc => {
-                const data = doc.data();
-                accounts.push({
-                    id: doc.id,
-                    name: data.name || 'Unnamed Account',
-                    balance: parseFloat(data.balance) || 0,
-                    offBudget: data.offBudget || false
-                });
+    try {
+        console.log('🔍 DEBUG: Loading accounts for user:', currentUser.uid);
+        console.log('🔍 DEBUG: User email:', currentUser.email);
+        
+        // 🔥 FIREBASE: Load accounts from USER-SPECIFIC subcollection
+        const accountsRef = db.collection('users').doc(currentUser.uid).collection('accounts');
+        console.log('🔍 DEBUG: Fetching from path: users/' + currentUser.uid + '/accounts');
+        
+        const accountsSnapshot = await accountsRef.get();
+        
+        console.log('🔍 DEBUG: Snapshot received');
+        console.log('🔍 DEBUG: Snapshot size:', accountsSnapshot.size);
+        console.log('🔍 DEBUG: Snapshot empty?', accountsSnapshot.empty);
+        
+        const accounts = [];
+        
+        accountsSnapshot.forEach(doc => {
+            const data = doc.data();
+            console.log('🔍 DEBUG: Raw account data from Firebase:', {
+                id: doc.id,
+                 data
             });
+            
+            const account = {
+                id: doc.id,
+                name: data.name || 'Unnamed Account',
+                balance: parseFloat(data.balance) || 0,
+                offBudget: data.offBudget || false
+            };
+            
+            console.log('🔍 DEBUG: Parsed account:', account);
+            accounts.push(account);
+        });
 
-            if (accounts.length === 0) {
-                updateDashboardNumbers([]);
-                console.log('⚠️ No accounts found for user:', currentUser.email);
-            } else {
-                updateDashboardNumbers(accounts);
-                console.log('✅ Loaded', accounts.length, 'accounts for user:', currentUser.email);
-            }
-        } catch (error) {
-            console.error('❌ Error loading accounts from Firebase:', error);
+        console.log('🔍 DEBUG: Total accounts loaded:', accounts.length);
+        console.log('🔍 DEBUG: Full accounts array:', accounts);
+
+        if (accounts.length === 0) {
+            console.log('⚠️ No accounts found for user:', currentUser.email);
             updateDashboardNumbers([]);
+        } else {
+            console.log('✅ Calling updateDashboardNumbers with', accounts.length, 'accounts');
+            updateDashboardNumbers(accounts);
         }
+    } catch (error) {
+        console.error('❌ Error loading accounts from Firebase:', error);
+        console.error('❌ Error message:', error.message);
+        console.error('❌ Error code:', error.code);
+        updateDashboardNumbers([]);
     }
+}
 
-    function updateDashboardNumbers(accounts) {
-        const totalNetWorth = accounts.reduce((sum, acc) => sum + acc.balance, 0);
-        const onBudget = accounts.filter(a => !a.offBudget).reduce((sum, acc) => sum + acc.balance, 0);
-        const investments = accounts.filter(a => a.offBudget).reduce((sum, acc) => sum + acc.balance, 0);
 
-        document.getElementById('totalNetWorth').textContent = '€' + totalNetWorth.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        document.getElementById('onBudgetTotal').textContent = '€' + onBudget.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        document.getElementById('investmentsTotal').textContent = '€' + investments.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+function updateDashboardNumbers(accounts) {
+    console.log('🎯 updateDashboardNumbers called');
+    console.log('🔍 Received accounts:', accounts);
+    console.log('🔍 Accounts length:', accounts ? accounts.length : 'null/undefined');
+    
+    // Check if DOM elements exist
+    const netWorthEl = document.getElementById('totalNetWorth');
+    const onBudgetEl = document.getElementById('onBudgetTotal');
+    const investmentsEl = document.getElementById('investmentsTotal');
+    
+    console.log('🔍 DOM elements found:', {
+        totalNetWorth: !!netWorthEl,
+        onBudgetTotal: !!onBudgetEl,
+        investmentsTotal: !!investmentsEl
+    });
+    
+    if (!accounts || accounts.length === 0) {
+        console.log('⚠️ No accounts, setting all to €0.00');
+        if (netWorthEl) netWorthEl.textContent = '€0.00';
+        if (onBudgetEl) onBudgetEl.textContent = '€0.00';
+        if (investmentsEl) investmentsEl.textContent = '€0.00';
+        return;
     }
+    
+    // Calculate totals
+    let totalNetWorth = 0;
+    let onBudget = 0;
+    let investments = 0;
+    
+    accounts.forEach(acc => {
+        const balance = parseFloat(acc.balance) || 0;
+        console.log(`🔍 Processing "${acc.name}": €${balance}, offBudget=${acc.offBudget}`);
+        
+        totalNetWorth += balance;
+        
+        if (acc.offBudget) {
+            investments += balance;
+        } else {
+            onBudget += balance;
+        }
+    });
+
+    console.log('✅ CALCULATED:');
+    console.log('   Total Net Worth: €' + totalNetWorth);
+    console.log('   On Budget: €' + onBudget);
+    console.log('   Investments: €' + investments);
+
+    // Update DOM
+    if (netWorthEl) {
+        const formatted = '€' + totalNetWorth.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        netWorthEl.textContent = formatted;
+        console.log('✅ Set totalNetWorth to:', formatted);
+    }
+    
+    if (onBudgetEl) {
+        const formatted = '€' + onBudget.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        onBudgetEl.textContent = formatted;
+        console.log('✅ Set onBudgetTotal to:', formatted);
+    }
+    
+    if (investmentsEl) {
+        const formatted = '€' + investments.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        investmentsEl.textContent = formatted;
+        console.log('✅ Set investmentsTotal to:', formatted);
+    }
+    
+    console.log('🎉 Update complete!');
+}
+
 
     function updateCurrencyConverter() {
         const amount = parseFloat(document.getElementById('currencyAmount').value) || 0;
