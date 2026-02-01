@@ -799,19 +799,40 @@
                     <label class="form-label">Date</label>
                     <input type="date" class="form-input" id="transactionDate" required>
                 </div>
-                <div class="form-group">
+                           <div class="form-group">
                     <label class="form-label">Payee</label>
                     <input type="text" class="form-input" id="transactionPayee" placeholder="e.g., Supermarket" required>
                 </div>
-                <div class="form-group">
-                    <label class="form-label">Category</label>
-                    <select class="form-select" id="transactionCategory" required>
-                        <option value="">Select category...</option>
-                    </select>
+
+            <div class="form-group">
+            <label class="form-label">Transaction Type</label>
+            <select class="form-select" id="transactionType" onchange="updateTransactionFields()" required>
+                <option value="">Select type...</option>
+                <option value="budget">📊 Budget (Assign money to category)</option>
+                <option value="transfer">💸 Transfer (Move between accounts)</option>
+                <option value="income">💰 Income (Add money)</option>
+                </select>
+            </div>
+
+                <div class="form-group" id="categoryField" style="display:none;">
+                <label class="form-label">Category</label>
+                <select class="form-select" id="transactionCategory">
+                <option value="">Select category...</option>
+                </select>
+            </div>
+
+                <div class="form-group" id="accountField" style="display:none;">
+                <label class="form-label">To Account</label>
+                <select class="form-select" id="transactionToAccount">
+                <option value="">Select account...</option>
+                </select>
                 </div>
+
                 <div class="form-group">
-                    <label class="form-label">Amount (€)</label>
-                    <input type="number" class="form-input" id="transactionAmount" step="0.01" placeholder="Negative for outflow, positive for inflow" required>
+    <label class="form-label">Amount (€)</label>
+    <input type="number" class="form-input" id="transactionAmount" step="0.01" min="0" placeholder="Enter amount" required>
+                </div>
+
                 </div>
                 <div class="form-group">
                     <label class="form-label">Memo (optional)</label>
@@ -857,41 +878,193 @@ window.addEventListener('load', async () => {
         let transactions = [];
         let currentDate = new Date();
         let currentAccountId = null;
+        
+// Update transaction form fields based on type
+function updateTransactionFields() {
+    const type = document.getElementById('transactionType').value;
+    const categoryField = document.getElementById('categoryField');
+    const accountField = document.getElementById('accountField');
+    
+    console.log('Type selected:', type); // DEBUG
+    
+    // Hide all optional fields first
+    categoryField.style.display = 'none';
+    accountField.style.display = 'none';
+    
+    if (type === 'budget') {
+        categoryField.style.display = 'block';
+        populateCategoryDropdown();
+    } else if (type === 'transfer') {
+        accountField.style.display = 'block';
+        populateAccountDropdown();
+    }
+    // Income needs no extra fields
+}
+
+// Populate account dropdown
+function populateAccountDropdown() {
+    const select = document.getElementById('transactionToAccount');
+    select.innerHTML = '<option value="">Select account...</option>';
+    
+    accounts.forEach(acc => {
+        const option = document.createElement('option');
+        option.value = acc.id;
+        option.textContent = `${acc.name} (€${acc.balance.toFixed(2)})`;
+        select.appendChild(option);
+    });
+}
+
+// Populate category dropdown
+function populateCategoryDropdown() {
+    const select = document.getElementById('transactionCategory');
+    select.innerHTML = '<option value="">Select category...</option>';
+    
+    categories.forEach(cat => {
+        const option = document.createElement('option');
+        option.value = cat.id;
+        option.textContent = cat.name;
+        select.appendChild(option);
+    });
+}
+
+// DAARNA KOMT saveTransaction
+async function saveTransaction(event) {
+    event.preventDefault();
+    
+    const type = document.getElementById('transactionType').value;
+    const amount = parseFloat(document.getElementById('transactionAmount').value);
+    const memo = document.getElementById('transactionMemo').value;
+    
+    if (!type || !amount || amount <= 0) {
+        alert('Please fill in all required fields with positive amounts');
+        return;
+    }
+    
+    // ... rest of your code
+}
+
 
         // INITIALIZE
-        async function init() {
-    await loadData();
-            loadData();
-            renderAccounts();
-            renderCategories();
-            updateOverview();
-            updateMonthDisplay();
-            setDefaultTransactionDate();
+       async function saveTransaction(event) {
+    event.preventDefault();
+    
+    const type = document.getElementById('transactionType').value;
+    const amount = parseFloat(document.getElementById('transactionAmount').value);
+    const memo = document.getElementById('transactionMemo').value;
+    
+    if (!type || !amount || amount <= 0) {
+        alert('Please fill in all required fields with positive amounts');
+        return;
+    }
+    
+    try {
+        const monthKey = getMonthKey();
+        const transaction = {
+            type: type,
+            amount: amount,
+            memo: memo,
+            date: new Date().toISOString(),
+            monthKey: monthKey
+        };
+        
+        if (type === 'budget') {
+            // Budget: assign money to category
+            const categoryId = document.getElementById('transactionCategory').value;
+            if (!categoryId) {
+                alert('Please select a category');
+                return;
+            }
+            
+            transaction.categoryId = categoryId;
+            
+            // Update budget for this category
+            if (!budgets[monthKey]) {
+                budgets[monthKey] = {};
+            }
+            budgets[monthKey][categoryId] = (budgets[monthKey][categoryId] || 0) + amount;
+            
+            // Save budget to Firebase
+            await db.collection('users').doc(currentUser.uid)
+                .collection('budgets').doc(monthKey).set(budgets[monthKey]);
+            
+        } else if (type === 'transfer') {
+            // Transfer: move money between accounts
+            const toAccountId = document.getElementById('transactionToAccount').value;
+            if (!toAccountId) {
+                alert('Please select an account to transfer to');
+                return;
+            }
+            
+            // Find current account (assume first on-budget account for now)
+            const fromAccount = accounts.find(a => !a.offBudget);
+            const toAccount = accounts.find(a => a.id === toAccountId);
+            
+            if (!fromAccount || !toAccount) {
+                alert('Account not found');
+                return;
+            }
+            
+            // Update account balances
+            fromAccount.balance -= amount;
+            toAccount.balance += amount;
+            
+            // Save to Firebase
+            await db.collection('users').doc(currentUser.uid)
+                .collection('accounts').doc(fromAccount.id)
+                .update({ balance: fromAccount.balance });
+            
+            await db.collection('users').doc(currentUser.uid)
+                .collection('accounts').doc(toAccount.id)
+                .update({ balance: toAccount.balance });
+            
+            transaction.fromAccountId = fromAccount.id;
+            transaction.toAccountId = toAccountId;
+            
+        } else if (type === 'income') {
+            // Income: add money to first on-budget account
+            const budgetAccount = accounts.find(a => !a.offBudget);
+            
+            if (!budgetAccount) {
+                alert('No budget account found');
+                return;
+            }
+            
+            budgetAccount.balance += amount;
+            
+            // Save to Firebase
+            await db.collection('users').doc(currentUser.uid)
+                .collection('accounts').doc(budgetAccount.id)
+                .update({ balance: budgetAccount.balance });
+            
+            transaction.accountId = budgetAccount.id;
         }
-
-        // LOAD DATA FROM LOCALSTORAGE
-async function loadData() {
-    if (!currentUser) return;
-    
-    // Load accounts
-    const accountsSnap = await db.collection('users').doc(currentUser.uid).collection('accounts').get();
-    accounts = accountsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    
-    // Load categories
-    const categoriesSnap = await db.collection('users').doc(currentUser.uid).collection('categories').get();
-    categories = categoriesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    
-    // Load budgets
-    const budgetsSnap = await db.collection('users').doc(currentUser.uid).collection('budgets').get();
-    budgets = {};
-    budgetsSnap.docs.forEach(doc => {
-        budgets[doc.id] = doc.data();
-    });
-    
-    // Load transactions
-    const transactionsSnap = await db.collection('users').doc(currentUser.uid).collection('transactions').get();
-    transactions = transactionsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        // Save transaction to Firebase
+        await db.collection('users').doc(currentUser.uid)
+            .collection('transactions').add(transaction);
+        
+        // Reload everything
+        await loadData();
+        renderAccounts();
+        renderCategories();
+        updateOverview();
+        
+        closeModal('addTransactionModal');
+        
+        // Reset form
+        document.getElementById('transactionType').value = '';
+        document.getElementById('transactionAmount').value = '';
+        document.getElementById('transactionMemo').value = '';
+        updateTransactionFields();
+        
+        alert('Transaction saved successfully!');
+        
+    } catch (error) {
+        console.error('Error saving transaction:', error);
+        alert('Failed to save transaction: ' + error.message);
+    }
 }
+
 
         // SAVE DATA
 async function saveAccounts() {
@@ -907,9 +1080,126 @@ async function saveAccounts() {
             localStorage.setItem('crewwealth_budgets', JSON.stringify(budgets));
         }
 
-        function saveTransactions() {
-            localStorage.setItem('crewwealth_transactions', JSON.stringify(transactions));
+        async function saveTransaction(event) {
+    event.preventDefault();
+    
+    const type = document.getElementById('transactionType').value;
+    const amount = parseFloat(document.getElementById('transactionAmount').value);
+    const memo = document.getElementById('transactionMemo').value;
+    
+    if (!type || !amount || amount <= 0) {
+        alert('Please fill in all required fields with positive amounts');
+        return;
+    }
+    
+    try {
+        const monthKey = getMonthKey();
+        const transaction = {
+            type: type,
+            amount: amount,
+            memo: memo,
+            date: new Date().toISOString(),
+            monthKey: monthKey
+        };
+        
+        if (type === 'budget') {
+            // Budget: assign money to category
+            const categoryId = document.getElementById('transactionCategory').value;
+            if (!categoryId) {
+                alert('Please select a category');
+                return;
+            }
+            
+            transaction.categoryId = categoryId;
+            
+            // Update budget for this category
+            if (!budgets[monthKey]) {
+                budgets[monthKey] = {};
+            }
+            budgets[monthKey][categoryId] = (budgets[monthKey][categoryId] || 0) + amount;
+            
+            // Save budget to Firebase
+            await db.collection('users').doc(currentUser.uid)
+                .collection('budgets').doc(monthKey).set(budgets[monthKey]);
+            
+        } else if (type === 'transfer') {
+            // Transfer: move money between accounts
+            const toAccountId = document.getElementById('transactionToAccount').value;
+            if (!toAccountId) {
+                alert('Please select an account to transfer to');
+                return;
+            }
+            
+            // Find current account (assume first on-budget account for now)
+            const fromAccount = accounts.find(a => !a.offBudget);
+            const toAccount = accounts.find(a => a.id === toAccountId);
+            
+            if (!fromAccount || !toAccount) {
+                alert('Account not found');
+                return;
+            }
+            
+            // Update account balances
+            fromAccount.balance -= amount;
+            toAccount.balance += amount;
+            
+            // Save to Firebase
+            await db.collection('users').doc(currentUser.uid)
+                .collection('accounts').doc(fromAccount.id)
+                .update({ balance: fromAccount.balance });
+            
+            await db.collection('users').doc(currentUser.uid)
+                .collection('accounts').doc(toAccount.id)
+                .update({ balance: toAccount.balance });
+            
+            transaction.fromAccountId = fromAccount.id;
+            transaction.toAccountId = toAccountId;
+            
+        } else if (type === 'income') {
+            // Income: add money to first on-budget account
+            const budgetAccount = accounts.find(a => !a.offBudget);
+            
+            if (!budgetAccount) {
+                alert('No budget account found');
+                return;
+            }
+            
+            budgetAccount.balance += amount;
+            
+            // Save to Firebase
+            await db.collection('users').doc(currentUser.uid)
+                .collection('accounts').doc(budgetAccount.id)
+                .update({ balance: budgetAccount.balance });
+            
+            transaction.accountId = budgetAccount.id;
         }
+        
+        // Save transaction to Firebase
+        await db.collection('users').doc(currentUser.uid)
+            .collection('transactions').add(transaction);
+        
+        // Reload everything
+        await loadData();
+        renderAccounts();
+        renderCategories();
+        updateOverview();
+        
+        closeModal('addTransactionModal');
+        
+        // Reset form
+        document.getElementById('transactionType').value = '';
+        document.getElementById('transactionAmount').value = '';
+        document.getElementById('transactionMemo').value = '';
+        updateTransactionFields();
+        
+        alert('Transaction saved successfully!');
+        
+    } catch (error) {
+        console.error('Error saving transaction:', error);
+        alert('Failed to save transaction: ' + error.message);
+    }
+}
+
 
         // RENDER ACCOUNTS
         function renderAccounts() {
