@@ -709,9 +709,9 @@
             appId: "1:522907048863:web:d0b4b6ea4f1f8a7f3e8e8e"
         };
 
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
-        const auth = firebase.auth();
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const auth = firebase.auth();
 
 let accounts = [];
 let categories = [];
@@ -719,26 +719,43 @@ let budgets = {};
 let transactions = [];
 let currentDate = new Date();
 let currentUser = null;
+let authInitialized = false;
 
 // Set auth persistence
-firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+    .then(() => console.log('✅ Auth persistence set'))
+    .catch(err => console.error('❌ Persistence error:', err));
 
-// 🔐 AUTH CHECK
-firebase.auth().onAuthStateChanged(async (user) => {
+// 🔐 AUTH CHECK - ONLY ONE TIME!
+auth.onAuthStateChanged(async (user) => {
     console.log('🔐 Auth state changed:', user ? user.email : 'No user');
     
+    if (authInitialized) {
+        console.log('⚠️ Auth already initialized, skipping...');
+        return;
+    }
+    
     if (!user) {
-        console.log('❌ Not authenticated. Redirecting to login...');
-        window.location.href = '/login';
+        console.log('⏳ No user detected, waiting 2s...');
+        setTimeout(() => {
+            if (!auth.currentUser) {
+                console.log('❌ Still no user. Redirecting to login...');
+                window.location.href = '/login';
+            } else {
+                console.log('✅ User loaded after delay');
+                currentUser = auth.currentUser;
+                authInitialized = true;
+                init();
+            }
+        }, 2000);
         return;
     }
     
     console.log('✅ User logged in:', user.uid);
     currentUser = user;
+    authInitialized = true;
     await init();
 });
-
-
         async function init() {
             updateMonthDisplay();
             await loadData();
