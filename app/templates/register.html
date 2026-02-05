@@ -391,31 +391,41 @@
         submitBtn.textContent = 'Creating account...';
 
         try {
-            // 🔥 CREATE FIREBASE AUTH USER
-            const userCredential = await auth.createUserWithEmailAndPassword(email, password);
-            const user = userCredential.user;
+console.log('✅ Firestore user document created');
 
-            console.log('✅ Firebase Auth user created:', user.email);
+// 🔥 AUTO-CREATE STARTER DATA
+// Default account
+await db.collection('users').doc(user.uid)
+    .collection('accounts').add({
+        name: 'Checking Account',
+        balance: 0,
+        offBudget: false,
+        createdAt: new Date().toISOString()
+    });
 
-            // Update display name
-            await user.updateProfile({
-                displayName: fullName
-            });
+// Default categories
+const starterCategories = [
+    { name: 'Groceries', group: 'expenses' },
+    { name: 'Rent', group: 'bills' },
+    { name: 'Emergency Fund', group: 'savings' }
+];
 
-            // 🔥 CREATE FIRESTORE USER DOCUMENT
-            await db.collection('users').doc(user.uid).set({
-                email: email,
-                displayName: fullName,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
+for (const cat of starterCategories) {
+    await db.collection('users').doc(user.uid)
+        .collection('categories').add({
+            ...cat,
+            createdAt: new Date().toISOString()
+        });
+}
 
-            console.log('✅ Firestore user document created');
+console.log('✅ Starter accounts & categories created');
 
-            showSuccess('Account created successfully! Redirecting...');
-            
-            setTimeout(() => {
-                window.location.href = '/';
-            }, 1500);
+showSuccess('Account created successfully! Redirecting...');
+
+setTimeout(() => {
+    window.location.href = '/';
+}, 1500);
+
 
         } catch (error) {
             console.error('❌ Registration error:', error);
