@@ -720,15 +720,25 @@
         let currentDate = new Date();
 
         // CHECK AUTH STATE
-        auth.onAuthStateChanged(async (user) => {
-            if (user) {
-                console.log('✅ User logged in:', user.email, user.uid);
-                await init();
-            } else {
-                console.log('❌ No user logged in, redirecting to login');
-                window.location.href = '/login.html';
-            }
-        });
+let authCheckComplete = false;
+
+firebase.auth().onAuthStateChanged(async (user) => {
+    if (authCheckComplete) return; // Prevent double-run
+    authCheckComplete = true;
+
+    console.log('🔐 Auth state changed:', user ? user.email : 'No user');
+
+    if (!user) {
+        console.log('❌ No user logged in, redirecting to login');
+        window.location.href = '/login';
+        return;
+    }
+
+    console.log('✅ User logged in:', user.uid);
+    currentUser = user;
+    await init();
+});
+
 
         async function init() {
             updateMonthDisplay();
@@ -1092,7 +1102,7 @@
                 alert('Failed to save category: ' + error.message);
             }
         }
-        
+
         async function deleteCategory(categoryId) {
             if (!confirm('Are you sure you want to delete this category?')) return;
 
@@ -1263,8 +1273,6 @@
                 alert('Failed to save transaction: ' + error.message);
             }
         }
-
-        window.addEventListener('load', init);
     </script>
 </body>
 </html>
