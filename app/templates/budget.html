@@ -720,8 +720,13 @@ let transactions = [];
 let currentDate = new Date();
 let currentUser = null;
 
-// CHECK AUTH STATE (simpel, geen flag nodig)
-auth.onAuthStateChanged(async (user) => {
+// Set auth persistence
+firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+
+// 🔐 AUTH CHECK
+firebase.auth().onAuthStateChanged(async (user) => {
+    console.log('🔐 Auth state changed:', user ? user.email : 'No user');
+    
     if (!user) {
         console.log('❌ Not authenticated. Redirecting to login...');
         window.location.href = '/login';
@@ -732,7 +737,6 @@ auth.onAuthStateChanged(async (user) => {
     currentUser = user;
     await init();
 });
-
 
 
         async function init() {
