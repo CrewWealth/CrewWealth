@@ -713,31 +713,26 @@
         const db = firebase.firestore();
         const auth = firebase.auth();
 
-        let accounts = [];
-        let categories = [];
-        let budgets = {};
-        let transactions = [];
-        let currentDate = new Date();
+let accounts = [];
+let categories = [];
+let budgets = {};
+let transactions = [];
+let currentDate = new Date();
+let currentUser = null;
 
-        // CHECK AUTH STATE
-let authCheckComplete = false;
-
-firebase.auth().onAuthStateChanged(async (user) => {
-    if (authCheckComplete) return; // Prevent double-run
-    authCheckComplete = true;
-
-    console.log('🔐 Auth state changed:', user ? user.email : 'No user');
-
+// CHECK AUTH STATE (simpel, geen flag nodig)
+auth.onAuthStateChanged(async (user) => {
     if (!user) {
-        console.log('❌ No user logged in, redirecting to login');
+        console.log('❌ Not authenticated. Redirecting to login...');
         window.location.href = '/login';
         return;
     }
-
+    
     console.log('✅ User logged in:', user.uid);
     currentUser = user;
     await init();
 });
+
 
 
         async function init() {
