@@ -1018,7 +1018,7 @@
         }
 
         // Close modal when clicking outside
-        document.addEventListener('DOMContentLoaded', () => {
+        window.addEventListener('load', () => {
             document.querySelectorAll('.modal').forEach(modal => {
                 modal.addEventListener('click', (e) => {
                     if (e.target === modal) {
@@ -1090,18 +1090,26 @@
             const monthly = parseFloat(document.getElementById('monthlySavings').value) || 0;
 
             const needed = goal - current;
-            const months = monthly > 0 ? Math.ceil(needed / monthly) : 0;
+            let months = 0;
+            let targetDateText = '-';
             
-            const targetDate = new Date();
-            targetDate.setMonth(targetDate.getMonth() + months);
+            if (needed <= 0) {
+                months = 0;
+                targetDateText = 'Goal already achieved!';
+            } else {
+                months = monthly > 0 ? Math.ceil(needed / monthly) : 0;
+                const targetDate = new Date();
+                targetDate.setMonth(targetDate.getMonth() + months);
+                targetDateText = targetDate.toLocaleDateString('nl-NL', {
+                    month: 'long',
+                    year: 'numeric'
+                });
+            }
 
             document.getElementById('savingsGoalAmount').textContent = formatCurrency(goal);
-            document.getElementById('amountNeeded').textContent = formatCurrency(needed);
+            document.getElementById('amountNeeded').textContent = formatCurrency(Math.max(0, needed));
             document.getElementById('monthsToGoal').textContent = months + ' months';
-            document.getElementById('targetDate').textContent = targetDate.toLocaleDateString('en-GB', {
-                month: 'long',
-                year: 'numeric'
-            });
+            document.getElementById('targetDate').textContent = targetDateText;
 
             document.getElementById('savingsResults').style.display = 'block';
         }
