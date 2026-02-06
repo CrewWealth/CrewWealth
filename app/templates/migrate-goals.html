@@ -278,7 +278,7 @@
                         .doc(goalId)
                         .update(updates);
 
-                    addProgress(`✅ Updated: "${goal.name}" → ${updates.icon} status: ${updates.status}`);
+                    addProgress(`✅ Updated: "${goal.name}" → ${updates.icon || goal.icon} status: ${updates.status || goal.status}`);
                     updatedCount++;
                 }
 
