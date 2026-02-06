@@ -1185,7 +1185,7 @@
         // GLOBAL STATE
         // ============================================
         let currentUser = null;
-        let userCurrency = 'EUR'; // global variable for currency
+        window.userCurrency = 'EUR'; // global variable for currency
 
         // ============================================
         // CURRENCY FUNCTIONS
@@ -1209,7 +1209,7 @@
                 'JPY': { symbol: '¥', decimals: 0 }
             };
             
-            const currency = (typeof userCurrency !== 'undefined') ? userCurrency : 'EUR';
+            const currency = window.userCurrency || 'EUR';
             const config = currencyConfig[currency] || currencyConfig['EUR'];
             const formatted = (amount || 0).toFixed(config.decimals)
                 .replace(/\B(?=(\d{3})+(?!\d))/g, ',');
@@ -1238,7 +1238,7 @@
             try {
                 const doc = await db.collection('users').doc(currentUser.uid).get();
                 if (doc.exists) {
-                    userCurrency = doc.data().settings?.currency || 'EUR';
+                    window.userCurrency = doc.data().settings?.currency || 'EUR';
                     updateCurrencyLabels();
                 }
             } catch (error) {
