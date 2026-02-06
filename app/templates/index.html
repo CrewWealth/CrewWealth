@@ -1190,11 +1190,25 @@
         // ============================================
         // Refresh dashboard data when user returns to the page
         // This ensures deleted transactions and updated data are reflected
+        let lastRefreshTime = 0;
+        const REFRESH_DEBOUNCE_MS = 2000; // Minimum 2 seconds between refreshes
+        
         document.addEventListener('visibilitychange', async () => {
             if (!document.hidden && currentUser) {
-                console.log('🔄 Page became visible, refreshing dashboard data...');
-                await calculateNetWorth();
-                await loadDashboardData();
+                const now = Date.now();
+                if (now - lastRefreshTime < REFRESH_DEBOUNCE_MS) {
+                    console.log('⏭️ Skipping refresh (too soon)');
+                    return;
+                }
+                
+                try {
+                    console.log('🔄 Page became visible, refreshing dashboard data...');
+                    lastRefreshTime = now;
+                    await calculateNetWorth();
+                    await loadDashboardData();
+                } catch (error) {
+                    console.error('❌ Error refreshing dashboard data:', error);
+                }
             }
         });
 
