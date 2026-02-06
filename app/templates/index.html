@@ -1152,6 +1152,10 @@
         // ============================================
         // CURRENCY FUNCTIONS
         // ============================================
+        function getMonthKey(date = new Date()) {
+            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        }
+
         function formatCurrency(amount) {
             const currencyConfig = {
                 'EUR': { symbol: '€', position: 'before' },
@@ -1300,8 +1304,7 @@
                 });
 
                 // Get current month budget to calculate "To Budget" (unassigned money)
-                const now = new Date();
-                const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+                const monthKey = getMonthKey();
                 
                 const budgetDoc = await db.collection('users')
                     .doc(currentUser.uid)
@@ -1357,14 +1360,17 @@
             if (!currentUser) return;
 
             try {
-                // Set up real-time listeners
-                setupRealtimeListeners();
-                
-                // Initial load of other widgets
+                // Initial load of all widgets
                 await Promise.all([
+                    loadMonthOverview(),
+                    loadRecentTransactions(),
                     loadGoalsProgress(),
                     loadUpcomingBills()
                 ]);
+                
+                // Set up real-time listeners for automatic updates
+                setupRealtimeListeners();
+                
                 console.log('✅ Dashboard widgets loaded');
             } catch (error) {
                 console.error('❌ Error loading dashboard data:', error);
@@ -1386,8 +1392,7 @@
                 });
 
             // Listen to budget changes
-            const now = new Date();
-            const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            const monthKey = getMonthKey();
             
             db.collection('users').doc(currentUser.uid)
                 .collection('budgets')
@@ -1416,7 +1421,7 @@
                 const now = new Date();
                 const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
                 const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-                const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+                const monthKey = getMonthKey();
 
                 // Get budgets from budgets collection
                 const budgetDoc = await db.collection('users')
