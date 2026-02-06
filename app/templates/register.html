@@ -113,6 +113,14 @@
             color: var(--color-text-secondary);
         }
 
+        input.error {
+            border-color: var(--color-error);
+        }
+
+        input.success {
+            border-color: var(--color-success);
+        }
+
         .password-requirements {
             font-size: 12px;
             color: var(--color-text-secondary);
@@ -134,26 +142,54 @@
         }
 
         .req-check {
-            display: inline-block;
-            width: 16px;
-            height: 16px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 18px;
+            height: 18px;
             margin-right: var(--spacing-sm);
             border-radius: 50%;
             background-color: var(--color-border);
             color: white;
-            text-align: center;
-            line-height: 16px;
-            font-size: 12px;
+            font-size: 11px;
+            transition: background-color 0.2s;
         }
 
         .req-check.valid {
             background-color: var(--color-success);
         }
 
+        .password-match {
+            font-size: 12px;
+            margin-top: var(--spacing-sm);
+            display: none;
+        }
+
+        .password-match.show {
+            display: block;
+        }
+
+        .password-match.match {
+            color: var(--color-success);
+        }
+
+        .password-match.no-match {
+            color: var(--color-error);
+        }
+
         .terms {
             font-size: 12px;
             color: var(--color-text-secondary);
             margin-bottom: var(--spacing-md);
+            display: flex;
+            align-items: flex-start;
+            gap: var(--spacing-sm);
+        }
+
+        .terms input[type="checkbox"] {
+            width: auto;
+            margin-top: 2px;
+            cursor: pointer;
         }
 
         .terms a {
@@ -186,6 +222,10 @@
             background-color: var(--color-primary-hover);
         }
 
+        .btn-primary:active:not(:disabled) {
+            background-color: var(--color-primary-active);
+        }
+
         .btn-primary:disabled {
             background-color: var(--color-border);
             cursor: not-allowed;
@@ -200,6 +240,7 @@
             margin-bottom: var(--spacing-md);
             border-left: 4px solid var(--color-error);
             display: none;
+            font-size: 14px;
         }
 
         .success-message {
@@ -210,6 +251,7 @@
             margin-bottom: var(--spacing-md);
             border-left: 4px solid var(--color-success);
             display: none;
+            font-size: 14px;
         }
 
         .auth-link {
@@ -228,6 +270,36 @@
         .auth-link a:hover {
             text-decoration: underline;
         }
+
+        .progress-steps {
+            display: none;
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .progress-steps.show {
+            display: block;
+        }
+
+        .progress-bar {
+            height: 4px;
+            background: var(--color-border);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--color-primary);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            font-size: 12px;
+            color: var(--color-text-secondary);
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -242,6 +314,14 @@
             <div id="errorMessage" class="error-message"></div>
             <div id="successMessage" class="success-message"></div>
 
+            <!-- Progress indicator for account creation -->
+            <div id="progressSteps" class="progress-steps">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-text" id="progressText">Creating your account...</div>
+            </div>
+
             <form id="registerForm">
                 <div class="form-group">
                     <label for="fullName">Full Name</label>
@@ -251,6 +331,8 @@
                         name="fullName" 
                         placeholder="Captain John Smith" 
                         required
+                        autocomplete="name"
+                        minlength="2"
                     >
                 </div>
 
@@ -262,6 +344,7 @@
                         name="email" 
                         placeholder="your@email.com" 
                         required
+                        autocomplete="email"
                     >
                 </div>
 
@@ -273,6 +356,7 @@
                         name="password" 
                         placeholder="••••••••" 
                         required
+                        autocomplete="new-password"
                     >
                     <div id="passwordRequirements" class="password-requirements">
                         <div class="req-item">
@@ -282,6 +366,10 @@
                         <div class="req-item">
                             <span class="req-check" id="req-upper">✓</span>
                             One uppercase letter
+                        </div>
+                        <div class="req-item">
+                            <span class="req-check" id="req-lower">✓</span>
+                            One lowercase letter
                         </div>
                         <div class="req-item">
                             <span class="req-check" id="req-number">✓</span>
@@ -298,12 +386,14 @@
                         name="confirmPassword" 
                         placeholder="••••••••" 
                         required
+                        autocomplete="new-password"
                     >
+                    <div id="passwordMatch" class="password-match"></div>
                 </div>
 
                 <div class="terms">
-                    <input type="checkbox" id="agreeTerms" name="agreeTerms" required style="margin-right: 4px;">
-                    I agree to the <a href="#terms" target="_blank">Terms of Service</a> and <a href="#privacy" target="_blank">Privacy Policy</a>
+                    <input type="checkbox" id="agreeTerms" name="agreeTerms" required>
+                    <span>I agree to the <a href="/terms" target="_blank">Terms of Service</a> and <a href="/privacy" target="_blank">Privacy Policy</a></span>
                 </div>
 
                 <button type="submit" class="btn btn-primary" id="submitBtn">Create Account</button>
@@ -316,153 +406,404 @@
     </div>
 
     <!-- Firebase SDK -->
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
-<script>
-    // Firebase Configuration
-    const firebaseConfig = {
-        apiKey: "AIzaSyBccv9C4CpjZFeE2HGBKKfUiV9jUw8CZLo",
-        authDomain: "crewwealth-cbe02.firebaseapp.com",
-        projectId: "crewwealth-cbe02",
-        storageBucket: "crewwealth-cbe02.firebasestorage.app",
-        messagingSenderId: "852834158589",
-        appId: "1:852834158589:web:8201ed1d9327841773bb94"
-    };
+    <script>
+        // ============================================
+        // FIREBASE CONFIGURATION
+        // ============================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyBccv9C4CpjZFeE2HGBKKfUiV9jUw8CZLo",
+            authDomain: "crewwealth-cbe02.firebaseapp.com",
+            projectId: "crewwealth-cbe02",
+            storageBucket: "crewwealth-cbe02.firebasestorage.app",
+            messagingSenderId: "852834158589",
+            appId: "1:852834158589:web:8201ed1d9327841773bb94"
+        };
 
-    // Initialize Firebase
-    firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
-    const db = firebase.firestore();
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
 
-    const passwordInput = document.getElementById('password');
-    const confirmPasswordInput = document.getElementById('confirmPassword');
-    const passwordRequirements = document.getElementById('passwordRequirements');
-
-    function checkPasswordRequirements(password) {
-        const hasLength = password.length >= 8;
-        const hasUpper = /[A-Z]/.test(password);
-        const hasNumber = /\d/.test(password);
-
-        document.getElementById('req-length').classList.toggle('valid', hasLength);
-        document.getElementById('req-upper').classList.toggle('valid', hasUpper);
-        document.getElementById('req-number').classList.toggle('valid', hasNumber);
-
-        return hasLength && hasUpper && hasNumber;
-    }
-
-    passwordInput.addEventListener('input', (e) => {
-        if (e.target.value.length > 0) {
-            passwordRequirements.classList.add('show');
-            checkPasswordRequirements(e.target.value);
-        } else {
-            passwordRequirements.classList.remove('show');
-        }
-    });
-
-    document.getElementById('registerForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-
-        const fullName = document.getElementById('fullName').value;
-        const email = document.getElementById('email').value;
-        const password = document.getElementById('password').value;
-        const confirmPassword = document.getElementById('confirmPassword').value;
-        const agreeTerms = document.getElementById('agreeTerms').checked;
-        const submitBtn = document.getElementById('submitBtn');
-
-        if (!agreeTerms) {
-            showError('You must agree to the terms of service');
-            return;
-        }
-
-        if (password !== confirmPassword) {
-            showError('Passwords do not match');
-            return;
-        }
-
-        if (!checkPasswordRequirements(password)) {
-            showError('Password does not meet requirements');
-            return;
-        }
-
-        // Disable submit button
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Creating account...';
-
-        try {
-console.log('✅ Firestore user document created');
-
-// 🔥 AUTO-CREATE STARTER DATA
-// Default account
-await db.collection('users').doc(user.uid)
-    .collection('accounts').add({
-        name: 'Checking Account',
-        balance: 0,
-        offBudget: false,
-        createdAt: new Date().toISOString()
-    });
-
-// Default categories
-const starterCategories = [
-    { name: 'Groceries', group: 'expenses' },
-    { name: 'Rent', group: 'bills' },
-    { name: 'Emergency Fund', group: 'savings' }
-];
-
-for (const cat of starterCategories) {
-    await db.collection('users').doc(user.uid)
-        .collection('categories').add({
-            ...cat,
-            createdAt: new Date().toISOString()
-        });
-}
-
-console.log('✅ Starter accounts & categories created');
-
-showSuccess('Account created successfully! Redirecting...');
-
-setTimeout(() => {
-    window.location.href = '/';
-}, 1500);
-
-
-        } catch (error) {
-            console.error('❌ Registration error:', error);
-            
-            let errorMessage = 'Registration failed';
-            
-            if (error.code === 'auth/email-already-in-use') {
-                errorMessage = 'This email is already registered';
-            } else if (error.code === 'auth/weak-password') {
-                errorMessage = 'Password is too weak';
-            } else if (error.code === 'auth/invalid-email') {
-                errorMessage = 'Invalid email address';
-            } else {
-                errorMessage = error.message;
+        // ============================================
+        // CHECK IF ALREADY LOGGED IN
+        // ============================================
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                // User is already logged in, redirect to dashboard
+                console.log('✅ User already logged in, redirecting to dashboard...');
+                window.location.href = '/';
             }
-            
-            showError(errorMessage);
-            
-            // Re-enable submit button
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Create Account';
+        });
+
+        // ============================================
+        // DOM ELEMENTS
+        // ============================================
+        const registerForm = document.getElementById('registerForm');
+        const fullNameInput = document.getElementById('fullName');
+        const emailInput = document.getElementById('email');
+        const passwordInput = document.getElementById('password');
+        const confirmPasswordInput = document.getElementById('confirmPassword');
+        const agreeTermsCheckbox = document.getElementById('agreeTerms');
+        const submitBtn = document.getElementById('submitBtn');
+        const passwordRequirements = document.getElementById('passwordRequirements');
+        const passwordMatchEl = document.getElementById('passwordMatch');
+        const progressSteps = document.getElementById('progressSteps');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+
+        // ============================================
+        // PASSWORD VALIDATION
+        // ============================================
+        function checkPasswordRequirements(password) {
+            const requirements = {
+                length: password.length >= 8,
+                upper: /[A-Z]/.test(password),
+                lower: /[a-z]/.test(password),
+                number: /\d/.test(password)
+            };
+
+            document.getElementById('req-length').classList.toggle('valid', requirements.length);
+            document.getElementById('req-upper').classList.toggle('valid', requirements.upper);
+            document.getElementById('req-lower').classList.toggle('valid', requirements.lower);
+            document.getElementById('req-number').classList.toggle('valid', requirements.number);
+
+            return requirements.length && requirements.upper && requirements.lower && requirements.number;
         }
-    });
 
-    function showError(message) {
-        const errorEl = document.getElementById('errorMessage');
-        errorEl.textContent = message;
-        errorEl.style.display = 'block';
-        setTimeout(() => {
-            errorEl.style.display = 'none';
-        }, 5000);
-    }
+        function checkPasswordMatch() {
+            const password = passwordInput.value;
+            const confirmPassword = confirmPasswordInput.value;
 
-    function showSuccess(message) {
-        const successEl = document.getElementById('successMessage');
-        successEl.textContent = message;
-        successEl.style.display = 'block';
-    }
-</script>
+            if (confirmPassword.length === 0) {
+                passwordMatchEl.classList.remove('show');
+                confirmPasswordInput.classList.remove('success', 'error');
+                return false;
+            }
 
+            passwordMatchEl.classList.add('show');
+
+            if (password === confirmPassword) {
+                passwordMatchEl.textContent = '✓ Passwords match';
+                passwordMatchEl.classList.remove('no-match');
+                passwordMatchEl.classList.add('match');
+                confirmPasswordInput.classList.remove('error');
+                confirmPasswordInput.classList.add('success');
+                return true;
+            } else {
+                passwordMatchEl.textContent = '✗ Passwords do not match';
+                passwordMatchEl.classList.remove('match');
+                passwordMatchEl.classList.add('no-match');
+                confirmPasswordInput.classList.remove('success');
+                confirmPasswordInput.classList.add('error');
+                return false;
+            }
+        }
+
+        // Password input events
+        passwordInput.addEventListener('input', () => {
+            if (passwordInput.value.length > 0) {
+                passwordRequirements.classList.add('show');
+                checkPasswordRequirements(passwordInput.value);
+            } else {
+                passwordRequirements.classList.remove('show');
+            }
+            // Also check match when password changes
+            if (confirmPasswordInput.value.length > 0) {
+                checkPasswordMatch();
+            }
+        });
+
+        passwordInput.addEventListener('focus', () => {
+            if (passwordInput.value.length > 0) {
+                passwordRequirements.classList.add('show');
+            }
+        });
+
+        confirmPasswordInput.addEventListener('input', checkPasswordMatch);
+
+        // Remove error styling on input
+        fullNameInput.addEventListener('input', () => fullNameInput.classList.remove('error'));
+        emailInput.addEventListener('input', () => emailInput.classList.remove('error'));
+
+        // ============================================
+        // EMAIL VALIDATION
+        // ============================================
+        function validateEmail(email) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return emailRegex.test(email);
+        }
+
+        // ============================================
+        // PROGRESS INDICATOR
+        // ============================================
+        function updateProgress(percent, text) {
+            progressFill.style.width = percent + '%';
+            progressText.textContent = text;
+        }
+
+        function showProgress() {
+            progressSteps.classList.add('show');
+            registerForm.style.display = 'none';
+        }
+
+        function hideProgress() {
+            progressSteps.classList.remove('show');
+            registerForm.style.display = 'block';
+        }
+
+        // ============================================
+        // REGISTRATION FORM HANDLER
+        // ============================================
+        registerForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            hideMessages();
+
+            const fullName = fullNameInput.value.trim();
+            const email = emailInput.value.trim();
+            const password = passwordInput.value;
+            const confirmPassword = confirmPasswordInput.value;
+            const agreeTerms = agreeTermsCheckbox.checked;
+
+            // ============================================
+            // CLIENT-SIDE VALIDATION
+            // ============================================
+            
+            // Validate name
+            if (fullName.length < 2) {
+                showError('Please enter your full name');
+                fullNameInput.classList.add('error');
+                fullNameInput.focus();
+                return;
+            }
+
+            // Validate email
+            if (!validateEmail(email)) {
+                showError('Please enter a valid email address');
+                emailInput.classList.add('error');
+                emailInput.focus();
+                return;
+            }
+
+            // Validate password requirements
+            if (!checkPasswordRequirements(password)) {
+                showError('Password does not meet all requirements');
+                passwordInput.classList.add('error');
+                passwordInput.focus();
+                return;
+            }
+
+            // Validate password match
+            if (password !== confirmPassword) {
+                showError('Passwords do not match');
+                confirmPasswordInput.classList.add('error');
+                confirmPasswordInput.focus();
+                return;
+            }
+
+            // Validate terms agreement
+            if (!agreeTerms) {
+                showError('You must agree to the Terms of Service and Privacy Policy');
+                return;
+            }
+
+            // ============================================
+            // DISABLE FORM & SHOW PROGRESS
+            // ============================================
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Creating account...';
+            showProgress();
+            updateProgress(10, 'Creating your account...');
+
+            try {
+                // ============================================
+                // STEP 1: CREATE FIREBASE AUTH USER
+                // ============================================
+                updateProgress(20, 'Setting up authentication...');
+                
+                const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+                const user = userCredential.user;
+
+                console.log('✅ Firebase Auth user created:', user.uid);
+
+                // ============================================
+                // STEP 2: UPDATE USER PROFILE WITH NAME
+                // ============================================
+                updateProgress(35, 'Saving your profile...');
+
+                await user.updateProfile({
+                    displayName: fullName
+                });
+
+                console.log('✅ User profile updated with name:', fullName);
+
+                // ============================================
+                // STEP 3: CREATE FIRESTORE USER DOCUMENT
+                // ============================================
+                updateProgress(50, 'Creating your workspace...');
+
+                await db.collection('users').doc(user.uid).set({
+                    fullName: fullName,
+                    email: email,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    settings: {
+                        currency: 'EUR',
+                        language: 'en',
+                        theme: 'light'
+                    }
+                });
+
+                console.log('✅ Firestore user document created');
+
+                // ============================================
+                // STEP 4: CREATE DEFAULT ACCOUNT
+                // ============================================
+                updateProgress(65, 'Setting up your first account...');
+
+                await db.collection('users').doc(user.uid)
+                    .collection('accounts').add({
+                        name: 'Checking Account',
+                        balance: 0,
+                        offBudget: false,
+                        icon: '🏦',
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+
+                console.log('✅ Default account created');
+
+                // ============================================
+                // STEP 5: CREATE DEFAULT CATEGORIES
+                // ============================================
+                updateProgress(80, 'Setting up budget categories...');
+
+                const starterCategories = [
+                    // Daily Expenses
+                    { name: 'Groceries', group: 'expenses', icon: '🛒' },
+                    { name: 'Transportation', group: 'expenses', icon: '🚗' },
+                    { name: 'Dining Out', group: 'expenses', icon: '🍽️' },
+                    { name: 'Entertainment', group: 'expenses', icon: '🎬' },
+                    
+                    // Monthly Bills
+                    { name: 'Rent / Mortgage', group: 'bills', icon: '🏠' },
+                    { name: 'Utilities', group: 'bills', icon: '💡' },
+                    { name: 'Phone / Internet', group: 'bills', icon: '📱' },
+                    { name: 'Insurance', group: 'bills', icon: '🛡️' },
+                    
+                    // Savings Goals
+                    { name: 'Emergency Fund', group: 'savings', icon: '🆘' },
+                    { name: 'Vacation', group: 'savings', icon: '✈️' },
+                    { name: 'Investments', group: 'savings', icon: '📈' }
+                ];
+
+                // Use batched writes for better performance
+                const batch = db.batch();
+                
+                for (const category of starterCategories) {
+                    const categoryRef = db.collection('users').doc(user.uid)
+                        .collection('categories').doc();
+                    batch.set(categoryRef, {
+                        ...category,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                }
+
+                await batch.commit();
+                console.log('✅ Starter categories created:', starterCategories.length);
+
+                // ============================================
+                // STEP 6: CREATE INITIAL BUDGET FOR CURRENT MONTH
+                // ============================================
+                updateProgress(90, 'Finalizing setup...');
+
+                const now = new Date();
+                const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+                await db.collection('users').doc(user.uid)
+                    .collection('budgets').doc(monthKey).set({
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+
+                console.log('✅ Initial budget document created for:', monthKey);
+
+                // ============================================
+                // STEP 7: SUCCESS - REDIRECT TO DASHBOARD
+                // ============================================
+                updateProgress(100, 'Account created successfully!');
+                
+                hideProgress();
+                showSuccess('🎉 Welcome to CrewWealth! Redirecting to your dashboard...');
+
+                console.log('✅ Registration complete for:', email);
+
+                // Redirect to dashboard after short delay
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 1500);
+
+            } catch (error) {
+                console.error('❌ Registration error:', error);
+                
+                hideProgress();
+                
+                let errorMessage = 'Registration failed. Please try again.';
+                
+                switch (error.code) {
+                    case 'auth/email-already-in-use':
+                        errorMessage = 'This email address is already registered. Please sign in instead.';
+                        emailInput.classList.add('error');
+                        break;
+                    case 'auth/weak-password':
+                        errorMessage = 'Password is too weak. Please choose a stronger password.';
+                        passwordInput.classList.add('error');
+                        break;
+                    case 'auth/invalid-email':
+                        errorMessage = 'Please enter a valid email address.';
+                        emailInput.classList.add('error');
+                        break;
+                    case 'auth/operation-not-allowed':
+                        errorMessage = 'Registration is currently disabled. Please try again later.';
+                        break;
+                    case 'auth/network-request-failed':
+                        errorMessage = 'Network error. Please check your internet connection.';
+                        break;
+                    default:
+                        errorMessage = error.message || 'An unexpected error occurred. Please try again.';
+                }
+                
+                showError(errorMessage);
+                
+                // Re-enable submit button
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Create Account';
+            }
+        });
+
+        // ============================================
+        // UTILITY FUNCTIONS
+        // ============================================
+        function showError(message) {
+            const errorEl = document.getElementById('errorMessage');
+            errorEl.textContent = message;
+            errorEl.style.display = 'block';
+            
+            // Scroll to error message
+            errorEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        function showSuccess(message) {
+            const successEl = document.getElementById('successMessage');
+            successEl.textContent = message;
+            successEl.style.display = 'block';
+        }
+
+        function hideMessages() {
+            document.getElementById('errorMessage').style.display = 'none';
+            document.getElementById('successMessage').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
