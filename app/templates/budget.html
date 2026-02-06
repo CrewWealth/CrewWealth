@@ -1790,7 +1790,10 @@
                 const categorySelect = document.getElementById('recurringCategory');
                 categorySelect.innerHTML = '<option value="">Select category...</option>';
                 categories.forEach(cat => {
-                    categorySelect.innerHTML += `<option value="${escapeHtml(cat.name)}">${escapeHtml(cat.name)}</option>`;
+                    const option = document.createElement('option');
+                    option.value = cat.name;
+                    option.textContent = cat.name;
+                    categorySelect.appendChild(option);
                 });
                 
                 // Set default next due date to today
@@ -2001,7 +2004,7 @@
             const categorySelect = document.getElementById('paymentCategory');
             categorySelect.innerHTML = '<option value="">Uncategorized</option>';
             categories.filter(cat => cat.group === 'expenses' || cat.group === 'bills').forEach(cat => {
-                categorySelect.innerHTML += `<option value="${cat.id}">${cat.name}</option>`;
+                categorySelect.innerHTML += `<option value="${cat.id}">${escapeHtml(cat.name)}</option>`;
             });
             
             openModal('paymentModal');
@@ -2022,7 +2025,7 @@
             const categorySelect = document.getElementById('depositCategory');
             categorySelect.innerHTML = '<option value="">Uncategorized</option>';
             categories.filter(cat => cat.group === 'savings').forEach(cat => {
-                categorySelect.innerHTML += `<option value="${cat.id}">${cat.name}</option>`;
+                categorySelect.innerHTML += `<option value="${cat.id}">${escapeHtml(cat.name)}</option>`;
             });
             
             openModal('depositModal');
@@ -2803,16 +2806,23 @@
                         <div class="recurring-bill-name">${escapeHtml(bill.name || 'Bill')}</div>
                         <div class="recurring-bill-meta">
                             <span class="frequency-badge">${bill.frequency || 'monthly'}</span>
-                            <span>${bill.category || 'Uncategorized'}</span>
+                            <span>${escapeHtml(bill.category || 'Uncategorized')}</span>
                         </div>
                     </div>
                     <div class="recurring-bill-amount">${formatCurrency(Math.abs(bill.amount || 0))}</div>
                     <div class="recurring-bill-due">Due: ${nextDueStr}</div>
                     <div class="recurring-bill-actions">
-                        <button class="bill-action-btn" onclick="editRecurringTransaction('${bill.id}')">Edit</button>
-                        <button class="bill-action-btn delete" onclick="deleteRecurringTransaction('${bill.id}')">Delete</button>
+                        <button class="bill-action-btn edit-btn">Edit</button>
+                        <button class="bill-action-btn delete delete-btn">Delete</button>
                     </div>
                 `;
+                
+                // Add event listeners safely
+                const editBtn = div.querySelector('.edit-btn');
+                const deleteBtn = div.querySelector('.delete-btn');
+                editBtn.addEventListener('click', () => editRecurringTransaction(bill.id));
+                deleteBtn.addEventListener('click', () => deleteRecurringTransaction(bill.id));
+                
                 billsList.appendChild(div);
             });
 
@@ -2937,7 +2947,10 @@
             const categorySelect = document.getElementById('editRecurringCategory');
             categorySelect.innerHTML = '<option value="">Select category...</option>';
             categories.forEach(cat => {
-                categorySelect.innerHTML += `<option value="${cat.name}">${escapeHtml(cat.name)}</option>`;
+                const option = document.createElement('option');
+                option.value = cat.name;
+                option.textContent = cat.name;
+                categorySelect.appendChild(option);
             });
             categorySelect.value = bill.category || '';
 

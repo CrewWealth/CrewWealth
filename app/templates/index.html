@@ -1253,6 +1253,12 @@
             });
         }
 
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
         // ============================================
         // DASHBOARD WIDGETS
         // ============================================
@@ -1369,9 +1375,9 @@
                     html += `
                         <div class="transaction-item">
                             <div class="transaction-info">
-                                <div class="transaction-name">${transaction.description || 'Transaction'}</div>
+                                <div class="transaction-name">${escapeHtml(transaction.description || 'Transaction')}</div>
                                 <div class="transaction-meta">
-                                    <span>${transaction.category || 'Uncategorized'}</span>
+                                    <span>${escapeHtml(transaction.category || 'Uncategorized')}</span>
                                     <span>•</span>
                                     <span>${relativeDate}</span>
                                 </div>
@@ -1424,7 +1430,7 @@
                     html += `
                         <div class="goal-item">
                             <div class="goal-header">
-                                <div class="goal-name">${icon} ${goal.name || 'Goal'}</div>
+                                <div class="goal-name">${icon} ${escapeHtml(goal.name || 'Goal')}</div>
                                 <div class="goal-percentage">${percentage.toFixed(0)}%</div>
                             </div>
                             <div class="goal-amounts">${formatCurrency(current)} / ${formatCurrency(target)}</div>
@@ -1511,7 +1517,7 @@
                     html += `
                         <div class="bill-item">
                             <div class="bill-info">
-                                <div class="bill-name">${bill.name || 'Bill'}</div>
+                                <div class="bill-name">${escapeHtml(bill.name || 'Bill')}</div>
                                 <div class="bill-due ${dueClass}">${dueText}</div>
                             </div>
                             <div class="bill-amount">${formatCurrency(Math.abs(bill.amount || 0))}</div>
@@ -1535,7 +1541,11 @@
             if (diffDays === 1) return 'Yesterday';
             if (diffDays < 7) return `${diffDays} days ago`;
             if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
-            if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
+            
+            // Calculate actual month difference
+            const monthsDiff = (now.getFullYear() - date.getFullYear()) * 12 + (now.getMonth() - date.getMonth());
+            if (monthsDiff > 0 && monthsDiff < 12) return `${monthsDiff} month${monthsDiff > 1 ? 's' : ''} ago`;
+            
             return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
         }
 
