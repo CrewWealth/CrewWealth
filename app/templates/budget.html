@@ -406,6 +406,142 @@
             color: var(--color-primary);
         }
 
+        /* Transaction Buttons */
+        .transaction-buttons {
+            display: flex;
+            gap: var(--spacing-md);
+            padding: var(--spacing-lg) var(--spacing-2xl);
+            justify-content: center;
+        }
+
+        .transaction-btn {
+            padding: var(--spacing-md) var(--spacing-xl);
+            border: none;
+            border-radius: var(--radius-md);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .payment-btn {
+            background: var(--color-danger);
+            color: white;
+        }
+
+        .payment-btn:hover {
+            background: #dc2626;
+            box-shadow: var(--shadow-md);
+        }
+
+        .deposit-btn {
+            background: var(--color-success);
+            color: white;
+        }
+
+        .deposit-btn:hover {
+            background: #16a34a;
+            box-shadow: var(--shadow-md);
+        }
+
+        .transfer-btn {
+            background: var(--color-primary);
+            color: white;
+        }
+
+        .transfer-btn:hover {
+            background: var(--color-primary-hover);
+            box-shadow: var(--shadow-md);
+        }
+
+        /* Transactions List */
+        .transactions-section {
+            background: var(--color-surface);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--color-border);
+            margin-bottom: var(--spacing-lg);
+            overflow: hidden;
+        }
+
+        .transactions-header {
+            padding: var(--spacing-md) var(--spacing-lg);
+            background: rgba(32, 128, 137, 0.05);
+            font-weight: 600;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .transaction-item {
+            display: grid;
+            grid-template-columns: 40px 2fr 1fr 1fr 1fr 80px;
+            gap: var(--spacing-md);
+            padding: var(--spacing-md) var(--spacing-lg);
+            border-top: 1px solid var(--color-border);
+            align-items: center;
+        }
+
+        .transaction-item:hover {
+            background: rgba(32, 128, 137, 0.03);
+        }
+
+        .transaction-icon {
+            font-size: 20px;
+            text-align: center;
+        }
+
+        .transaction-description {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .transaction-category {
+            font-size: 13px;
+            color: var(--color-text-secondary);
+        }
+
+        .transaction-amount {
+            font-size: 14px;
+            font-weight: 600;
+            text-align: right;
+        }
+
+        .transaction-amount.income {
+            color: var(--color-success);
+        }
+
+        .transaction-amount.expense {
+            color: var(--color-danger);
+        }
+
+        .transaction-date {
+            font-size: 12px;
+            color: var(--color-text-secondary);
+            text-align: right;
+        }
+
+        .transaction-account {
+            font-size: 12px;
+            color: var(--color-text-secondary);
+        }
+
+        .form-textarea {
+            width: 100%;
+            padding: var(--spacing-md);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            font-size: 14px;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .form-textarea:focus {
+            outline: none;
+            border-color: var(--color-primary);
+        }
+
         /* Modal Styles */
         .modal {
             display: none;
@@ -581,6 +717,19 @@
                 </div>
             </div>
 
+            <!-- Transaction Buttons -->
+            <div class="transaction-buttons">
+                <button class="transaction-btn payment-btn" onclick="openPaymentModal()">
+                    💸 New Payment
+                </button>
+                <button class="transaction-btn deposit-btn" onclick="openDepositModal()">
+                    💰 New Deposit
+                </button>
+                <button class="transaction-btn transfer-btn" onclick="openTransferModal()">
+                    🔄 Transfer
+                </button>
+            </div>
+
             <div class="budget-overview">
                 <div class="overview-grid">
                     <div class="overview-item">
@@ -607,6 +756,12 @@
             </div>
 
             <div class="categories-section">
+                <div class="transactions-section">
+                    <div class="transactions-header">Recent Transactions</div>
+                    <div id="transactionsContainer">
+                        <div class="loading">No transactions yet</div>
+                    </div>
+                </div>
                 <div id="categoriesContainer">
                     <div class="loading">Loading categories...</div>
                 </div>
@@ -667,6 +822,117 @@
         </div>
     </div>
 
+    <!-- Payment/Expense Modal -->
+    <div class="modal" id="paymentModal">
+        <div class="modal-content">
+            <div class="modal-header">New Payment</div>
+            <form onsubmit="savePayment(event)">
+                <div class="form-group">
+                    <label class="form-label">Amount (€) *</label>
+                    <input type="number" class="form-input" id="paymentAmount" step="0.01" min="0.01" placeholder="0.00" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Account *</label>
+                    <select class="form-select" id="paymentAccount" required>
+                        <option value="">Select account...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Category</label>
+                    <select class="form-select" id="paymentCategory">
+                        <option value="">Uncategorized</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Date *</label>
+                    <input type="date" class="form-input" id="paymentDate" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Note/Description</label>
+                    <textarea class="form-textarea" id="paymentNote" placeholder="Optional note..."></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('paymentModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Payment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Deposit/Income Modal -->
+    <div class="modal" id="depositModal">
+        <div class="modal-content">
+            <div class="modal-header">New Deposit</div>
+            <form onsubmit="saveDeposit(event)">
+                <div class="form-group">
+                    <label class="form-label">Amount (€) *</label>
+                    <input type="number" class="form-input" id="depositAmount" step="0.01" min="0.01" placeholder="0.00" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Account *</label>
+                    <select class="form-select" id="depositAccount" required>
+                        <option value="">Select account...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Category</label>
+                    <select class="form-select" id="depositCategory">
+                        <option value="">Uncategorized</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Date *</label>
+                    <input type="date" class="form-input" id="depositDate" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Note/Description</label>
+                    <textarea class="form-textarea" id="depositNote" placeholder="Optional note..."></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('depositModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Deposit</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Transfer Modal -->
+    <div class="modal" id="transferModal">
+        <div class="modal-content">
+            <div class="modal-header">Transfer Money</div>
+            <form onsubmit="saveTransfer(event)">
+                <div class="form-group">
+                    <label class="form-label">Amount (€) *</label>
+                    <input type="number" class="form-input" id="transferAmount" step="0.01" min="0.01" placeholder="0.00" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">From Account *</label>
+                    <select class="form-select" id="transferFromAccount" onchange="updateTransferToAccount()" required>
+                        <option value="">Select account...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">To Account *</label>
+                    <select class="form-select" id="transferToAccount" required>
+                        <option value="">Select account...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Date *</label>
+                    <input type="date" class="form-input" id="transferDate" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Note/Description</label>
+                    <textarea class="form-textarea" id="transferNote" placeholder="Optional note..."></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('transferModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Complete Transfer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
         // ============================================
         // FIREBASE CONFIGURATION
@@ -718,6 +984,7 @@
                 await loadAllData();
                 renderAccounts();
                 renderCategories();
+                renderTransactions();
                 updateOverview();
                 console.log('✅ Dashboard initialized successfully');
             } catch (error) {
@@ -942,8 +1209,25 @@
         }
 
         function calculateSpent(categoryId, monthKey) {
+            // Parse the monthKey to get year and month
+            const [year, month] = monthKey.split('-').map(Number);
+            
             return transactions
-                .filter(t => t.categoryId === categoryId && t.monthKey === monthKey && t.type === 'expense')
+                .filter(t => {
+                    if (!t.date || t.categoryId !== categoryId || t.type !== 'payment') return false;
+                    
+                    // Convert Firestore timestamp to Date if needed
+                    let txDate;
+                    if (t.date.toDate) {
+                        txDate = t.date.toDate();
+                    } else if (typeof t.date === 'string') {
+                        txDate = new Date(t.date);
+                    } else {
+                        txDate = new Date(t.date);
+                    }
+                    
+                    return txDate.getFullYear() === year && txDate.getMonth() === month - 1;
+                })
                 .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
         }
 
@@ -1167,6 +1451,373 @@
                 console.error('❌ Error updating budget:', error);
                 showError('Failed to update budget: ' + error.message);
             }
+        }
+
+        // ============================================
+        // TRANSACTION MODAL FUNCTIONS
+        // ============================================
+        function openPaymentModal() {
+            // Set today's date
+            document.getElementById('paymentDate').valueAsDate = new Date();
+            
+            // Populate accounts dropdown
+            const accountSelect = document.getElementById('paymentAccount');
+            accountSelect.innerHTML = '<option value="">Select account...</option>';
+            accounts.forEach(acc => {
+                accountSelect.innerHTML += `<option value="${acc.id}">${acc.name}</option>`;
+            });
+            
+            // Populate categories dropdown (expense categories only)
+            const categorySelect = document.getElementById('paymentCategory');
+            categorySelect.innerHTML = '<option value="">Uncategorized</option>';
+            categories.filter(cat => cat.group === 'expenses' || cat.group === 'bills').forEach(cat => {
+                categorySelect.innerHTML += `<option value="${cat.id}">${cat.name}</option>`;
+            });
+            
+            openModal('paymentModal');
+        }
+
+        function openDepositModal() {
+            // Set today's date
+            document.getElementById('depositDate').valueAsDate = new Date();
+            
+            // Populate accounts dropdown
+            const accountSelect = document.getElementById('depositAccount');
+            accountSelect.innerHTML = '<option value="">Select account...</option>';
+            accounts.forEach(acc => {
+                accountSelect.innerHTML += `<option value="${acc.id}">${acc.name}</option>`;
+            });
+            
+            // Populate categories dropdown (income/savings categories)
+            const categorySelect = document.getElementById('depositCategory');
+            categorySelect.innerHTML = '<option value="">Uncategorized</option>';
+            categories.filter(cat => cat.group === 'savings').forEach(cat => {
+                categorySelect.innerHTML += `<option value="${cat.id}">${cat.name}</option>`;
+            });
+            
+            openModal('depositModal');
+        }
+
+        function openTransferModal() {
+            // Set today's date
+            document.getElementById('transferDate').valueAsDate = new Date();
+            
+            // Populate from account dropdown
+            const fromSelect = document.getElementById('transferFromAccount');
+            fromSelect.innerHTML = '<option value="">Select account...</option>';
+            accounts.forEach(acc => {
+                fromSelect.innerHTML += `<option value="${acc.id}">${acc.name}</option>`;
+            });
+            
+            // Populate to account dropdown
+            updateTransferToAccount();
+            
+            openModal('transferModal');
+        }
+
+        function updateTransferToAccount() {
+            const fromAccountId = document.getElementById('transferFromAccount').value;
+            const toSelect = document.getElementById('transferToAccount');
+            
+            toSelect.innerHTML = '<option value="">Select account...</option>';
+            accounts.filter(acc => acc.id !== fromAccountId).forEach(acc => {
+                toSelect.innerHTML += `<option value="${acc.id}">${acc.name}</option>`;
+            });
+        }
+
+        // ============================================
+        // CRUD OPERATIONS - TRANSACTIONS
+        // ============================================
+        async function savePayment(event) {
+            event.preventDefault();
+
+            if (!currentUser) {
+                showError('You must be logged in');
+                return;
+            }
+
+            const amount = parseFloat(document.getElementById('paymentAmount').value);
+            const accountId = document.getElementById('paymentAccount').value;
+            const categoryId = document.getElementById('paymentCategory').value || null;
+            const date = document.getElementById('paymentDate').value;
+            const note = document.getElementById('paymentNote').value.trim();
+
+            // Validation
+            if (!amount || amount <= 0) {
+                showError('Please enter a valid amount');
+                return;
+            }
+            if (!accountId) {
+                showError('Please select an account');
+                return;
+            }
+            if (!date) {
+                showError('Please select a date');
+                return;
+            }
+
+            try {
+                // Create transaction
+                await db.collection('users').doc(currentUser.uid)
+                    .collection('transactions').add({
+                        type: 'payment',
+                        amount: amount,
+                        accountId: accountId,
+                        categoryId: categoryId,
+                        date: firebase.firestore.Timestamp.fromDate(new Date(date)),
+                        note: note,
+                        createdAt: firebase.firestore.Timestamp.now()
+                    });
+
+                // Update account balance
+                const account = accounts.find(a => a.id === accountId);
+                if (account) {
+                    const newBalance = (parseFloat(account.balance) || 0) - amount;
+                    await db.collection('users').doc(currentUser.uid)
+                        .collection('accounts').doc(accountId).update({
+                            balance: newBalance
+                        });
+                }
+
+                // Reset form and close modal
+                document.getElementById('paymentAmount').value = '';
+                document.getElementById('paymentNote').value = '';
+                closeModal('paymentModal');
+
+                // Reload data and update UI
+                await loadAllData();
+                renderAccounts();
+                renderCategories();
+                renderTransactions();
+                updateOverview();
+
+                console.log('✅ Payment saved successfully');
+            } catch (error) {
+                console.error('❌ Error saving payment:', error);
+                showError('Failed to save payment: ' + error.message);
+            }
+        }
+
+        async function saveDeposit(event) {
+            event.preventDefault();
+
+            if (!currentUser) {
+                showError('You must be logged in');
+                return;
+            }
+
+            const amount = parseFloat(document.getElementById('depositAmount').value);
+            const accountId = document.getElementById('depositAccount').value;
+            const categoryId = document.getElementById('depositCategory').value || null;
+            const date = document.getElementById('depositDate').value;
+            const note = document.getElementById('depositNote').value.trim();
+
+            // Validation
+            if (!amount || amount <= 0) {
+                showError('Please enter a valid amount');
+                return;
+            }
+            if (!accountId) {
+                showError('Please select an account');
+                return;
+            }
+            if (!date) {
+                showError('Please select a date');
+                return;
+            }
+
+            try {
+                // Create transaction
+                await db.collection('users').doc(currentUser.uid)
+                    .collection('transactions').add({
+                        type: 'deposit',
+                        amount: amount,
+                        accountId: accountId,
+                        categoryId: categoryId,
+                        date: firebase.firestore.Timestamp.fromDate(new Date(date)),
+                        note: note,
+                        createdAt: firebase.firestore.Timestamp.now()
+                    });
+
+                // Update account balance
+                const account = accounts.find(a => a.id === accountId);
+                if (account) {
+                    const newBalance = (parseFloat(account.balance) || 0) + amount;
+                    await db.collection('users').doc(currentUser.uid)
+                        .collection('accounts').doc(accountId).update({
+                            balance: newBalance
+                        });
+                }
+
+                // Reset form and close modal
+                document.getElementById('depositAmount').value = '';
+                document.getElementById('depositNote').value = '';
+                closeModal('depositModal');
+
+                // Reload data and update UI
+                await loadAllData();
+                renderAccounts();
+                renderCategories();
+                renderTransactions();
+                updateOverview();
+
+                console.log('✅ Deposit saved successfully');
+            } catch (error) {
+                console.error('❌ Error saving deposit:', error);
+                showError('Failed to save deposit: ' + error.message);
+            }
+        }
+
+        async function saveTransfer(event) {
+            event.preventDefault();
+
+            if (!currentUser) {
+                showError('You must be logged in');
+                return;
+            }
+
+            const amount = parseFloat(document.getElementById('transferAmount').value);
+            const fromAccountId = document.getElementById('transferFromAccount').value;
+            const toAccountId = document.getElementById('transferToAccount').value;
+            const date = document.getElementById('transferDate').value;
+            const note = document.getElementById('transferNote').value.trim();
+
+            // Validation
+            if (!amount || amount <= 0) {
+                showError('Please enter a valid amount');
+                return;
+            }
+            if (!fromAccountId) {
+                showError('Please select a source account');
+                return;
+            }
+            if (!toAccountId) {
+                showError('Please select a destination account');
+                return;
+            }
+            if (fromAccountId === toAccountId) {
+                showError('Source and destination accounts must be different');
+                return;
+            }
+            if (!date) {
+                showError('Please select a date');
+                return;
+            }
+
+            try {
+                // Create transaction
+                await db.collection('users').doc(currentUser.uid)
+                    .collection('transactions').add({
+                        type: 'transfer',
+                        amount: amount,
+                        accountId: fromAccountId,
+                        toAccountId: toAccountId,
+                        date: firebase.firestore.Timestamp.fromDate(new Date(date)),
+                        note: note,
+                        createdAt: firebase.firestore.Timestamp.now()
+                    });
+
+                // Update from account balance
+                const fromAccount = accounts.find(a => a.id === fromAccountId);
+                if (fromAccount) {
+                    const newBalance = (parseFloat(fromAccount.balance) || 0) - amount;
+                    await db.collection('users').doc(currentUser.uid)
+                        .collection('accounts').doc(fromAccountId).update({
+                            balance: newBalance
+                        });
+                }
+
+                // Update to account balance
+                const toAccount = accounts.find(a => a.id === toAccountId);
+                if (toAccount) {
+                    const newBalance = (parseFloat(toAccount.balance) || 0) + amount;
+                    await db.collection('users').doc(currentUser.uid)
+                        .collection('accounts').doc(toAccountId).update({
+                            balance: newBalance
+                        });
+                }
+
+                // Reset form and close modal
+                document.getElementById('transferAmount').value = '';
+                document.getElementById('transferNote').value = '';
+                closeModal('transferModal');
+
+                // Reload data and update UI
+                await loadAllData();
+                renderAccounts();
+                renderTransactions();
+                updateOverview();
+
+                console.log('✅ Transfer completed successfully');
+            } catch (error) {
+                console.error('❌ Error completing transfer:', error);
+                showError('Failed to complete transfer: ' + error.message);
+            }
+        }
+
+        // ============================================
+        // RENDER TRANSACTIONS
+        // ============================================
+        function renderTransactions() {
+            const container = document.getElementById('transactionsContainer');
+            container.innerHTML = '';
+
+            if (transactions.length === 0) {
+                container.innerHTML = '<div class="loading">No transactions yet</div>';
+                return;
+            }
+
+            // Sort transactions by date (newest first)
+            const sortedTransactions = [...transactions].sort((a, b) => {
+                const dateA = a.date?.toDate ? a.date.toDate() : new Date(a.date);
+                const dateB = b.date?.toDate ? b.date.toDate() : new Date(b.date);
+                return dateB - dateA;
+            });
+
+            // Show last 10 transactions
+            const recentTransactions = sortedTransactions.slice(0, 10);
+
+            recentTransactions.forEach(tx => {
+                const account = accounts.find(a => a.id === tx.accountId);
+                const category = categories.find(c => c.id === tx.categoryId);
+                
+                let icon, amountClass, description;
+                
+                if (tx.type === 'payment') {
+                    icon = '💸';
+                    amountClass = 'expense';
+                    description = tx.note || 'Payment';
+                } else if (tx.type === 'deposit') {
+                    icon = '💰';
+                    amountClass = 'income';
+                    description = tx.note || 'Deposit';
+                } else if (tx.type === 'transfer') {
+                    icon = '🔄';
+                    amountClass = '';
+                    const toAccount = accounts.find(a => a.id === tx.toAccountId);
+                    description = tx.note || `Transfer to ${toAccount?.name || 'Unknown'}`;
+                }
+
+                const txDate = tx.date?.toDate ? tx.date.toDate() : new Date(tx.date);
+                const formattedDate = txDate.toLocaleDateString('en-GB', { 
+                    day: '2-digit', 
+                    month: 'short' 
+                });
+
+                const div = document.createElement('div');
+                div.className = 'transaction-item';
+                div.innerHTML = `
+                    <div class="transaction-icon">${icon}</div>
+                    <div class="transaction-description">${description}</div>
+                    <div class="transaction-category">${category?.name || '—'}</div>
+                    <div class="transaction-amount ${amountClass}">
+                        ${tx.type === 'payment' ? '-' : tx.type === 'deposit' ? '+' : ''}${formatCurrency(tx.amount)}
+                    </div>
+                    <div class="transaction-date">${formattedDate}</div>
+                    <div class="transaction-account">${account?.name || 'Unknown'}</div>
+                `;
+                container.appendChild(div);
+            });
         }
     </script>
 </body>
