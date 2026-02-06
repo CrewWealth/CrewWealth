@@ -1201,14 +1201,37 @@
                 const div = document.createElement('div');
                 div.className = 'account-item';
                 div.dataset.accountId = account.id; // Add data attribute for selection
-                div.innerHTML = `
-                    <span class="account-name">${escapeHtml(account.name)}</span>
-                    <span class="account-balance">${formatCurrency(balance)}</span>
-                    <span class="account-delete" onclick="event.stopPropagation(); deleteAccount('${account.id}')">×</span>
-                `;
+                div.tabIndex = 0; // Make keyboard accessible
                 
-                // Make account clickable
+                // Create child elements safely
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'account-name';
+                nameSpan.textContent = account.name;
+                
+                const balanceSpan = document.createElement('span');
+                balanceSpan.className = 'account-balance';
+                balanceSpan.textContent = formatCurrency(balance);
+                
+                const deleteSpan = document.createElement('span');
+                deleteSpan.className = 'account-delete';
+                deleteSpan.textContent = '×';
+                deleteSpan.onclick = (e) => {
+                    e.stopPropagation();
+                    deleteAccount(account.id);
+                };
+                
+                div.appendChild(nameSpan);
+                div.appendChild(balanceSpan);
+                div.appendChild(deleteSpan);
+                
+                // Make account clickable with mouse and keyboard
                 div.onclick = () => selectAccount(account.id);
+                div.onkeydown = (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        selectAccount(account.id);
+                    }
+                };
 
                 if (account.offBudget) {
                     offBudgetContainer.appendChild(div);
@@ -1225,11 +1248,18 @@
             document.getElementById('onBudgetTotal').textContent = formatCurrency(onBudgetTotal);
             document.getElementById('offBudgetTotal').textContent = formatCurrency(offBudgetTotal);
             
-            // Make "All accounts" header clickable
+            // Make "All accounts" header clickable with keyboard support
             const allAccountsHeader = document.querySelector('.account-section-header');
             if (allAccountsHeader) {
                 allAccountsHeader.style.cursor = 'pointer';
+                allAccountsHeader.tabIndex = 0;
                 allAccountsHeader.onclick = () => selectAccount(null);
+                allAccountsHeader.onkeydown = (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        selectAccount(null);
+                    }
+                };
             }
             
             // Update visual selection
@@ -1875,9 +1905,20 @@
             document.getElementById('salaryDate').valueAsDate = new Date();
             
             const accountSelect = document.getElementById('salaryAccount');
-            accountSelect.innerHTML = '<option value="">Select account...</option>';
+            accountSelect.innerHTML = ''; // Clear existing options
+            
+            // Add default option
+            const defaultOption = document.createElement('option');
+            defaultOption.value = '';
+            defaultOption.textContent = 'Select account...';
+            accountSelect.appendChild(defaultOption);
+            
+            // Add account options safely
             accounts.forEach(acc => {
-                accountSelect.innerHTML += `<option value="${acc.id}">${escapeHtml(acc.name)}</option>`;
+                const option = document.createElement('option');
+                option.value = acc.id;
+                option.textContent = acc.name;
+                accountSelect.appendChild(option);
             });
             
             openModal('salaryModal');
