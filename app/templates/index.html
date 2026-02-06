@@ -1209,7 +1209,8 @@
                 'JPY': { symbol: '¥', decimals: 0 }
             };
             
-            const config = currencyConfig[userCurrency] || currencyConfig['EUR'];
+            const currency = (typeof userCurrency !== 'undefined') ? userCurrency : 'EUR';
+            const config = currencyConfig[currency] || currencyConfig['EUR'];
             const formatted = (amount || 0).toFixed(config.decimals)
                 .replace(/\B(?=(\d{3})+(?!\d))/g, ',');
             
