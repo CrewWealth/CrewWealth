@@ -1192,7 +1192,7 @@
                     <input type="text" class="form-input" id="accountName" placeholder="e.g., Checking Account" required>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Starting Balance (€)</label>
+                    <label class="form-label">Starting Balance (<span class="currency-symbol">€</span>)</label>
                     <input type="number" class="form-input" id="accountBalance" step="0.01" value="0.00" required>
                 </div>
                 <div class="form-group">
@@ -1240,7 +1240,7 @@
             <div class="modal-header">New Payment</div>
             <form onsubmit="savePayment(event)">
                 <div class="form-group">
-                    <label class="form-label">Amount (€) *</label>
+                    <label class="form-label">Amount (<span class="currency-symbol">€</span>) *</label>
                     <input type="number" class="form-input" id="paymentAmount" step="0.01" min="0.01" placeholder="0.00" required>
                 </div>
                 <div class="form-group">
@@ -1277,7 +1277,7 @@
             <div class="modal-header">New Deposit</div>
             <form onsubmit="saveDeposit(event)">
                 <div class="form-group">
-                    <label class="form-label">Amount (€) *</label>
+                    <label class="form-label">Amount (<span class="currency-symbol">€</span>) *</label>
                     <input type="number" class="form-input" id="depositAmount" step="0.01" min="0.01" placeholder="0.00" required>
                 </div>
                 <div class="form-group">
@@ -1314,7 +1314,7 @@
             <div class="modal-header">Transfer Money</div>
             <form onsubmit="saveTransfer(event)">
                 <div class="form-group">
-                    <label class="form-label">Amount (€) *</label>
+                    <label class="form-label">Amount (<span class="currency-symbol">€</span>) *</label>
                     <input type="number" class="form-input" id="transferAmount" step="0.01" min="0.01" placeholder="0.00" required>
                 </div>
                 <div class="form-group">
@@ -1351,7 +1351,7 @@
             <div class="modal-header">Add Salary</div>
             <form onsubmit="saveSalary(event)">
                 <div class="form-group">
-                    <label class="form-label">Amount (€) *</label>
+                    <label class="form-label">Amount (<span class="currency-symbol">€</span>) *</label>
                     <input type="number" class="form-input" id="salaryAmount" step="0.01" min="0.01" placeholder="0.00" required>
                 </div>
                 <div class="form-group">
@@ -1390,7 +1390,7 @@
                 <!-- Payment/Deposit/Salary Fields -->
                 <div id="editStandardFields">
                     <div class="form-group">
-                        <label class="form-label">Amount (€) *</label>
+                        <label class="form-label">Amount (<span class="currency-symbol">€</span>) *</label>
                         <input type="number" class="form-input" id="editAmount" step="0.01" min="0.01" required>
                     </div>
 
@@ -1422,7 +1422,7 @@
                 <!-- Transfer Fields -->
                 <div id="editTransferFields" style="display: none;">
                     <div class="form-group">
-                        <label class="form-label">Amount (€) *</label>
+                        <label class="form-label">Amount (<span class="currency-symbol">€</span>) *</label>
                         <input type="number" class="form-input" id="editTransferAmount" step="0.01" min="0.01">
                     </div>
 
@@ -1469,7 +1469,7 @@
                     <input type="text" class="form-input" id="recurringName" placeholder="e.g., Rent, Netflix" required>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Amount (€) *</label>
+                    <label class="form-label">Amount (<span class="currency-symbol">€</span>) *</label>
                     <input type="number" class="form-input" id="recurringAmount" step="0.01" min="0.01" placeholder="0.00" required>
                 </div>
                 <div class="form-group">
@@ -1527,7 +1527,7 @@
                     <input type="text" class="form-input" id="editRecurringName" placeholder="e.g., Rent, Netflix" required>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Amount (€) *</label>
+                    <label class="form-label">Amount (<span class="currency-symbol">€</span>) *</label>
                     <input type="number" class="form-input" id="editRecurringAmount" step="0.01" min="0.01" placeholder="0.00" required>
                 </div>
                 <div class="form-group">
@@ -1607,6 +1607,58 @@
         let transactions = [];
         let currentDate = new Date();
         let selectedAccountId = null; // null = "All Accounts" view, else specific account ID
+        let userCurrency = 'EUR'; // global variable for currency
+
+        // ============================================
+        // CURRENCY FUNCTIONS
+        // ============================================
+        function formatCurrency(amount) {
+            const currencyConfig = {
+                'EUR': { symbol: '€', position: 'before' },
+                'USD': { symbol: '$', position: 'before' },
+                'GBP': { symbol: '£', position: 'before' },
+                'PHP': { symbol: '₱', position: 'before' },
+                'INR': { symbol: '₹', position: 'before' },
+                'AUD': { symbol: 'A$', position: 'before' },
+                'CAD': { symbol: 'C$', position: 'before' },
+                'SGD': { symbol: 'S$', position: 'before' }
+            };
+            
+            const config = currencyConfig[userCurrency] || currencyConfig['EUR'];
+            const formatted = (amount || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+            
+            return config.position === 'before' 
+                ? config.symbol + formatted 
+                : formatted + config.symbol;
+        }
+
+        function getCurrencySymbol() {
+            const symbols = {
+                'EUR': '€', 'USD': '$', 'GBP': '£', 'PHP': '₱',
+                'INR': '₹', 'AUD': 'A$', 'CAD': 'C$', 'SGD': 'S$'
+            };
+            return symbols[userCurrency] || '€';
+        }
+
+        function updateCurrencyLabels() {
+            document.querySelectorAll('.currency-symbol').forEach(el => {
+                el.textContent = getCurrencySymbol();
+            });
+        }
+
+        async function loadUserSettings() {
+            if (!currentUser) return;
+            
+            try {
+                const doc = await db.collection('users').doc(currentUser.uid).get();
+                if (doc.exists) {
+                    userCurrency = doc.data().settings?.currency || 'EUR';
+                    updateCurrencyLabels();
+                }
+            } catch (error) {
+                console.error('Error loading user settings:', error);
+            }
+        }
 
         // ============================================
         // AUTHENTICATION
@@ -1620,6 +1672,7 @@
             
             console.log('✅ User authenticated:', user.email);
             currentUser = user;
+            await loadUserSettings();
             await initializeDashboard();
         });
 
@@ -1702,10 +1755,6 @@
             const year = currentDate.getFullYear();
             const month = String(currentDate.getMonth() + 1).padStart(2, '0');
             return `${year}-${month}`;
-        }
-
-        function formatCurrency(amount) {
-            return '€' + (amount || 0).toFixed(2);
         }
 
         function escapeHtml(text) {
