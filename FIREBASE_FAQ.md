@@ -55,7 +55,7 @@ Als je meerdere accounts tegelijk wilt verwijderen, kan je Firebase Admin SDK ge
 - Firebase API keys zijn bedoeld om publiek te zijn
 - Ze worden in client-side code gebruikt
 - Beveiliging wordt geregeld door Firebase Security Rules, niet door de API key
-- Zolg ervoor dat je Firestore Security Rules goed ingesteld zijn
+- Zorg ervoor dat je Firestore Security Rules goed ingesteld zijn
 
 ### V: Hoeveel test accounts kan ik aanmaken?
 
@@ -67,7 +67,7 @@ Als je meerdere accounts tegelijk wilt verwijderen, kan je Firebase Admin SDK ge
 **Aanbeveling**: Houd het schoon en overzichtelijk:
 - 1-2 test accounts voor jou zelf
 - Verwijder oude/ongebruikte test accounts
-- Gebruik meaningful namen zoals "Test Account - Production" voor duidelijkheid
+- Gebruik duidelijke namen zoals "Test Account - Production" voor overzicht
 
 ### V: Wat moet ik testen na deployment?
 
