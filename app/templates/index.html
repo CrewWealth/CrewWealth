@@ -1204,8 +1204,10 @@
                 try {
                     console.log('🔄 Page became visible, refreshing dashboard data...');
                     lastRefreshTime = now;
-                    await calculateNetWorth();
-                    await loadDashboardData();
+                    await Promise.all([
+                        calculateNetWorth(),
+                        loadDashboardData()
+                    ]);
                 } catch (error) {
                     console.error('❌ Error refreshing dashboard data:', error);
                 }
