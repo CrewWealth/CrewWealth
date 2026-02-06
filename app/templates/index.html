@@ -131,32 +131,35 @@
                 }
             });
         }
+async function loadDashboardData() {
+    const content = document.getElementById('content');
+    content.innerHTML = '<p>Loading data...</p>'; // Laadstatus tonen
 
-        async function loadDashboardData() {
-            if (!currentUser) return;
+    if (!currentUser) {
+        content.innerHTML = '<p>Error: User not authenticated. Please log in.</p>';
+        return;
+    }
 
-            try {
-                // Load Budgets
-                const accountsRef = db.collection('users').doc(currentUser.uid).collection('accounts');
-                const accountsSnapshot = await accountsRef.get();
-                const accounts = [];
-                accountsSnapshot.forEach(doc => accounts.push(doc.data()));
+    try {
+        const accountsRef = db.collection('users').doc(currentUser.uid).collection('accounts');
+        const snapshot = await accountsRef.get();
 
-                const content = document.getElementById('content');
-                if (accounts.length > 0) {
-                    content.innerHTML = accounts.map(account => `
-                        <div class="card">
-                            <h3>${account.name}</h3>
-                            <p>Balance: €${account.balance}</p>
-                        </div>
-                    `).join('');
-                } else {
-                    content.innerHTML = '<p>No accounts found.</p>';
-                }
-            } catch (err) {
-                console.error('Error loading data:', err);
-            }
+        if (snapshot.empty) {
+            content.innerHTML = '<p>No accounts found. Add a new account to get started.</p>';
+        } else {
+            const accounts = snapshot.docs.map(doc => doc.data());
+            content.innerHTML = accounts.map(acc => `
+                <div class="card">
+                    <h3>${acc.name}</h3>
+                    <p>Balance: €${acc.balance || '0.00'}</p>
+                </div>
+            `).join('');
         }
+    } catch (error) {
+        console.error('Error loading accounts:', error);
+        content.innerHTML = '<p>Error loading accounts. Please try again later.</p>';
+    }
+}
 
         // Event listeners for navigation
         document.querySelectorAll('.menu a').forEach(link => {
