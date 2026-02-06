@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Migrate Goals - CrewWealth</title>
+    
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --color-primary: #208089;
+            --color-success: #22c55e;
+            --color-error: #ef4444;
+            --color-text: #1f2937;
+            --color-text-secondary: #6b7280;
+            --color-surface: #ffffff;
+            --color-border: #e5e7eb;
+            --spacing-md: 12px;
+            --spacing-lg: 20px;
+            --spacing-xl: 32px;
+            --radius-lg: 16px;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #208089 0%, #16a085 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: var(--spacing-lg);
+        }
+
+        .container {
+            background: var(--color-surface);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-xl);
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            font-size: 28px;
+            margin-bottom: var(--spacing-md);
+            color: var(--color-text);
+        }
+
+        .description {
+            color: var(--color-text-secondary);
+            margin-bottom: var(--spacing-xl);
+            line-height: 1.6;
+        }
+
+        .status {
+            padding: var(--spacing-lg);
+            border-radius: 8px;
+            margin-bottom: var(--spacing-lg);
+            font-weight: 600;
+        }
+
+        .status.info {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .status.success {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .status.error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .btn {
+            background: var(--color-primary);
+            color: white;
+            border: none;
+            padding: 16px 32px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            background: #1a6670;
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .progress {
+            margin-top: var(--spacing-lg);
+        }
+
+        .progress-item {
+            padding: var(--spacing-md);
+            border-left: 3px solid var(--color-success);
+            background: #f9fafb;
+            margin-bottom: 8px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-top: var(--spacing-lg);
+            color: var(--color-primary);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Migrate Your Goals</h1>
+        <p class="description">
+            This tool will update your existing goals to work with the new Dashboard Goals widget. 
+            It adds the required fields (<code>status</code>, <code>targetDate</code>, <code>icon</code>) 
+            to all your goals so they appear on your Dashboard.
+        </p>
+
+        <div id="statusBox" class="status info">
+            Ready to migrate your goals. Click the button below to start.
+        </div>
+
+        <button id="migrateBtn" class="btn" onclick="migrateGoals()">
+            🚀 Migrate My Goals
+        </button>
+
+        <div id="progress" class="progress" style="display: none;"></div>
+
+        <a href="/" class="back-link">← Back to Dashboard</a>
+    </div>
+
+    <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBccv9C4CpjZFeE2HGBKKfUiV9jUw8CZLo",
+            authDomain: "crewwealth-cbe02.firebaseapp.com",
+            projectId: "crewwealth-cbe02",
+            storageBucket: "crewwealth-cbe02.firebasestorage.app",
+            messagingSenderId: "852834158589",
+            appId: "1:852834158589:web:8201ed1d9327841773bb94"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        let currentUser = null;
+
+        // Authentication Check
+        auth.onAuthStateChanged(async (user) => {
+            if (!user) {
+                window.location.href = '/login';
+                return;
+            }
+            currentUser = user;
+            console.log('✅ User authenticated:', user.email);
+        });
+
+        async function migrateGoals() {
+            if (!currentUser) {
+                alert('Please log in first');
+                return;
+            }
+
+            const statusBox = document.getElementById('statusBox');
+            const migrateBtn = document.getElementById('migrateBtn');
+            const progressDiv = document.getElementById('progress');
+
+            // Disable button
+            migrateBtn.disabled = true;
+            migrateBtn.textContent = '⏳ Migrating...';
+
+            // Show progress
+            progressDiv.style.display = 'block';
+            progressDiv.innerHTML = '';
+
+            function addProgress(message) {
+                const item = document.createElement('div');
+                item.className = 'progress-item';
+                item.textContent = message;
+                progressDiv.appendChild(item);
+            }
+
+            try {
+                addProgress('📥 Loading your goals from Firebase...');
+
+                // Get all goals for current user
+                const goalsSnapshot = await db.collection('users')
+                    .doc(currentUser.uid)
+                    .collection('goals')
+                    .get();
+
+                if (goalsSnapshot.empty) {
+                    statusBox.className = 'status info';
+                    statusBox.textContent = 'ℹ️ No goals found. Create your first goal in the Goals tab!';
+                    migrateBtn.textContent = 'No Goals to Migrate';
+                    addProgress('No goals found in your account.');
+                    return;
+                }
+
+                addProgress(`✅ Found ${goalsSnapshot.size} goal(s)`);
+
+                // Category to icon mapping
+                const categoryIcons = {
+                    'House': '🏠',
+                    'Car': '🚗',
+                    'Vacation': '✈️',
+                    'Education': '📚',
+                    'Investment': '💼',
+                    'Emergency': '🆘',
+                    'Retirement': '🏖️',
+                    'Other': '📌'
+                };
+
+                let updatedCount = 0;
+                let skippedCount = 0;
+
+                // Update each goal
+                for (const doc of goalsSnapshot.docs) {
+                    const goal = doc.data();
+                    const goalId = doc.id;
+
+                    // Check if already migrated
+                    if (goal.status && goal.targetDate && goal.icon) {
+                        addProgress(`⏭️ Skipped: "${goal.name}" (already migrated)`);
+                        skippedCount++;
+                        continue;
+                    }
+
+                    // Prepare update data
+                    const updates = {};
+
+                    if (!goal.status) {
+                        updates.status = 'active';
+                    }
+
+                    if (!goal.targetDate) {
+                        // Use deadline if exists, otherwise use a far future date
+                        updates.targetDate = goal.deadline || '2099-12-31';
+                    }
+
+                    if (!goal.icon) {
+                        // Determine icon from category
+                        updates.icon = categoryIcons[goal.category] || '🎯';
+                    }
+
+                    // Update in Firebase
+                    await db.collection('users')
+                        .doc(currentUser.uid)
+                        .collection('goals')
+                        .doc(goalId)
+                        .update(updates);
+
+                    addProgress(`✅ Updated: "${goal.name}" → ${updates.icon} status: ${updates.status}`);
+                    updatedCount++;
+                }
+
+                // Success message
+                statusBox.className = 'status success';
+                statusBox.textContent = `🎉 Success! Updated ${updatedCount} goal(s). ${skippedCount > 0 ? `Skipped ${skippedCount} already migrated.` : ''} Your goals will now appear on the Dashboard!`;
+                
+                migrateBtn.textContent = '✅ Migration Complete';
+                
+                addProgress('');
+                addProgress('🎊 All done! Go to your Dashboard to see your goals.');
+
+                // Auto-redirect after 3 seconds
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 3000);
+
+            } catch (error) {
+                console.error('❌ Migration error:', error);
+                statusBox.className = 'status error';
+                statusBox.textContent = '❌ Error during migration: ' + error.message;
+                migrateBtn.disabled = false;
+                migrateBtn.textContent = 'Retry Migration';
+                addProgress('❌ Error: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>
