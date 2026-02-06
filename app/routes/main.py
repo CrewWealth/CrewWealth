@@ -32,6 +32,11 @@ def settings():
     """Settings page"""
     return render_template('settings.html')
 
+@main_bp.route('/migrate-goals')
+def migrate_goals():
+    """Goals Migration page"""
+    return render_template('migrate-goals.html')
+
 # ============================================
 # AUTH ROUTES
 # ============================================
