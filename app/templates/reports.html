@@ -227,6 +227,58 @@
         const db = firebase.firestore();
 
         let currentUser = null;
+        let userCurrency = 'EUR'; // global variable for currency
+
+        // ============================================
+        // CURRENCY FUNCTIONS
+        // ============================================
+        function formatCurrency(amount) {
+            const currencyConfig = {
+                'EUR': { symbol: '€', position: 'before' },
+                'USD': { symbol: '$', position: 'before' },
+                'GBP': { symbol: '£', position: 'before' },
+                'PHP': { symbol: '₱', position: 'before' },
+                'INR': { symbol: '₹', position: 'before' },
+                'AUD': { symbol: 'A$', position: 'before' },
+                'CAD': { symbol: 'C$', position: 'before' },
+                'SGD': { symbol: 'S$', position: 'before' }
+            };
+            
+            const config = currencyConfig[userCurrency] || currencyConfig['EUR'];
+            const formatted = (amount || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+            
+            return config.position === 'before' 
+                ? config.symbol + formatted 
+                : formatted + config.symbol;
+        }
+
+        function getCurrencySymbol() {
+            const symbols = {
+                'EUR': '€', 'USD': '$', 'GBP': '£', 'PHP': '₱',
+                'INR': '₹', 'AUD': 'A$', 'CAD': 'C$', 'SGD': 'S$'
+            };
+            return symbols[userCurrency] || '€';
+        }
+
+        function updateCurrencyLabels() {
+            document.querySelectorAll('.currency-symbol').forEach(el => {
+                el.textContent = getCurrencySymbol();
+            });
+        }
+
+        async function loadUserSettings() {
+            if (!currentUser) return;
+            
+            try {
+                const doc = await db.collection('users').doc(currentUser.uid).get();
+                if (doc.exists) {
+                    userCurrency = doc.data().settings?.currency || 'EUR';
+                    updateCurrencyLabels();
+                }
+            } catch (error) {
+                console.error('Error loading user settings:', error);
+            }
+        }
 
         // Authentication check
         auth.onAuthStateChanged(async (user) => {
@@ -235,6 +287,7 @@
                 return;
             }
             currentUser = user;
+            await loadUserSettings();
             await loadReportsData();
         });
 
@@ -398,13 +451,6 @@
                 document.getElementById('transactionsList').innerHTML = 
                     '<div class="empty-state">Error loading transactions</div>';
             }
-        }
-
-        function formatCurrency(amount) {
-            return '€' + amount.toLocaleString('nl-NL', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            });
         }
 
         function escapeHtml(text) {

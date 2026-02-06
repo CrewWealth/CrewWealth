@@ -746,9 +746,9 @@
                 </div>
             </div>
 
-            <!-- Quick Calculators Section -->
-            <div class="section-title">Quick Calculators</div>
-            <div class="calculator-grid">
+            <!-- Quick Calculators Section - Hidden until implemented -->
+            <div class="section-title" style="display: none;">Quick Calculators</div>
+            <div class="calculator-grid" style="display: none;">
                 <div class="calc-card" onclick="openIncomeCalculator()">
                     <div class="calc-icon">💰</div>
                     <div class="calc-title">Income</div>
@@ -861,6 +861,8 @@
                 </div>
             </div>
 
+            <!-- Calculator Modals - Hidden until implemented -->
+            <div style="display: none;">
             <!-- Income Calculator Modal -->
             <div class="modal" id="incomeCalculatorModal">
                 <div class="modal-content modal-large">
@@ -1115,6 +1117,7 @@
                     </form>
                 </div>
             </div>
+            </div> <!-- End hidden calculators -->
         </main>
     </div>
 
@@ -1144,6 +1147,62 @@
         // GLOBAL STATE
         // ============================================
         let currentUser = null;
+        let userCurrency = 'EUR'; // global variable for currency
+
+        // ============================================
+        // CURRENCY FUNCTIONS
+        // ============================================
+        function getMonthKey(date = new Date()) {
+            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        }
+
+        function formatCurrency(amount) {
+            const currencyConfig = {
+                'EUR': { symbol: '€', position: 'before' },
+                'USD': { symbol: '$', position: 'before' },
+                'GBP': { symbol: '£', position: 'before' },
+                'PHP': { symbol: '₱', position: 'before' },
+                'INR': { symbol: '₹', position: 'before' },
+                'AUD': { symbol: 'A$', position: 'before' },
+                'CAD': { symbol: 'C$', position: 'before' },
+                'SGD': { symbol: 'S$', position: 'before' }
+            };
+            
+            const config = currencyConfig[userCurrency] || currencyConfig['EUR'];
+            const formatted = (amount || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+            
+            return config.position === 'before' 
+                ? config.symbol + formatted 
+                : formatted + config.symbol;
+        }
+
+        function getCurrencySymbol() {
+            const symbols = {
+                'EUR': '€', 'USD': '$', 'GBP': '£', 'PHP': '₱',
+                'INR': '₹', 'AUD': 'A$', 'CAD': 'C$', 'SGD': 'S$'
+            };
+            return symbols[userCurrency] || '€';
+        }
+
+        function updateCurrencyLabels() {
+            document.querySelectorAll('.currency-symbol').forEach(el => {
+                el.textContent = getCurrencySymbol();
+            });
+        }
+
+        async function loadUserSettings() {
+            if (!currentUser) return;
+            
+            try {
+                const doc = await db.collection('users').doc(currentUser.uid).get();
+                if (doc.exists) {
+                    userCurrency = doc.data().settings?.currency || 'EUR';
+                    updateCurrencyLabels();
+                }
+            } catch (error) {
+                console.error('Error loading user settings:', error);
+            }
+        }
 
         // ============================================
         // AUTHENTICATION
@@ -1157,6 +1216,9 @@
 
             console.log('✅ User authenticated:', user.email);
             currentUser = user;
+
+            // Load user settings first
+            await loadUserSettings();
 
             // Update greeting
             const firstName = user.displayName 
@@ -1241,17 +1303,26 @@
                     }
                 });
 
-                // Load categories to calculate "To Budget" (unassigned money)
-                const categoriesSnapshot = await db.collection('users')
+                // Get current month budget to calculate "To Budget" (unassigned money)
+                const monthKey = getMonthKey();
+                
+                const budgetDoc = await db.collection('users')
                     .doc(currentUser.uid)
-                    .collection('categories')
+                    .collection('budgets')
+                    .doc(monthKey)
                     .get();
 
                 let totalBudgeted = 0;
-                categoriesSnapshot.docs.forEach(doc => {
-                    const category = doc.data();
-                    totalBudgeted += parseFloat(category.budgeted) || 0;
-                });
+                if (budgetDoc.exists) {
+                    const budgets = budgetDoc.data();
+                    // Sum all budgeted amounts (excluding metadata fields)
+                    totalBudgeted = Object.entries(budgets).reduce((sum, [key, val]) => {
+                        if (key !== 'createdAt' && key !== 'updatedAt') {
+                            return sum + (parseFloat(val) || 0);
+                        }
+                        return sum;
+                    }, 0);
+                }
 
                 // To Budget = On Budget Total - Total Budgeted
                 const toBudget = onBudgetTotal - totalBudgeted;
@@ -1267,19 +1338,13 @@
                 console.log('✅ Net worth calculated:', {
                     netWorth,
                     savings: offBudgetTotal,
-                    available: toBudget
+                    available: toBudget,
+                    totalBudgeted
                 });
 
             } catch (error) {
                 console.error('❌ Error calculating net worth:', error);
             }
-        }
-
-        function formatCurrency(amount) {
-            return '€' + amount.toLocaleString('nl-NL', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            });
         }
 
         function escapeHtml(text) {
@@ -1295,16 +1360,57 @@
             if (!currentUser) return;
 
             try {
+                // Initial load of all widgets
                 await Promise.all([
                     loadMonthOverview(),
                     loadRecentTransactions(),
                     loadGoalsProgress(),
                     loadUpcomingBills()
                 ]);
+                
+                // Set up real-time listeners for automatic updates
+                setupRealtimeListeners();
+                
                 console.log('✅ Dashboard widgets loaded');
             } catch (error) {
                 console.error('❌ Error loading dashboard data:', error);
             }
+        }
+
+        // ============================================
+        // REAL-TIME LISTENERS
+        // ============================================
+        function setupRealtimeListeners() {
+            if (!currentUser) return;
+
+            // Listen to accounts changes
+            db.collection('users').doc(currentUser.uid)
+                .collection('accounts')
+                .onSnapshot((snapshot) => {
+                    console.log('🔄 Accounts updated in real-time');
+                    calculateNetWorth();
+                });
+
+            // Listen to budget changes
+            const monthKey = getMonthKey();
+            
+            db.collection('users').doc(currentUser.uid)
+                .collection('budgets')
+                .doc(monthKey)
+                .onSnapshot((doc) => {
+                    console.log('🔄 Budget updated in real-time');
+                    calculateNetWorth();
+                    loadMonthOverview();
+                });
+
+            // Listen to transactions changes
+            db.collection('users').doc(currentUser.uid)
+                .collection('transactions')
+                .onSnapshot((snapshot) => {
+                    console.log('🔄 Transactions updated in real-time');
+                    loadRecentTransactions();
+                    loadMonthOverview();
+                });
         }
 
         async function loadMonthOverview() {
@@ -1315,18 +1421,26 @@
                 const now = new Date();
                 const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
                 const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+                const monthKey = getMonthKey();
 
-                // Get all categories
-                const categoriesSnapshot = await db.collection('users')
+                // Get budgets from budgets collection
+                const budgetDoc = await db.collection('users')
                     .doc(currentUser.uid)
-                    .collection('categories')
+                    .collection('budgets')
+                    .doc(monthKey)
                     .get();
 
                 let totalBudgeted = 0;
-                categoriesSnapshot.docs.forEach(doc => {
-                    const category = doc.data();
-                    totalBudgeted += parseFloat(category.budgeted) || 0;
-                });
+                if (budgetDoc.exists) {
+                    const budgets = budgetDoc.data();
+                    // Sum all budgeted amounts (excluding metadata fields)
+                    totalBudgeted = Object.entries(budgets).reduce((sum, [key, val]) => {
+                        if (key !== 'createdAt' && key !== 'updatedAt') {
+                            return sum + (parseFloat(val) || 0);
+                        }
+                        return sum;
+                    }, 0);
+                }
 
                 // Get transactions for current month
                 const transactionsSnapshot = await db.collection('users')
