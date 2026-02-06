@@ -23,3 +23,11 @@ CrewWealth is built for:
 CrewWealth is currently in **early development / MVP stage**.  
 The first version will focus on a simple web app with manual input and clear, easy-to-understand projections.
 
+## Documentation
+
+- **[TESTING_GUIDE.md](TESTING_GUIDE.md)** - Complete guide for testing the live application on render.com
+- **[FIREBASE_FAQ.md](FIREBASE_FAQ.md)** - FAQ for Firebase account management (Dutch/English)
+- **[SECURITY.md](SECURITY.md)** - Firebase security best practices and configuration
+- **[SETUP.md](SETUP.md)** - Development environment setup
+- **[DEVPLAN.md](DEVPLAN.md)** - Development roadmap and planning
+
