@@ -150,7 +150,7 @@
             margin-bottom: var(--spacing-lg);
         }
 
-        /* Quick Access Cards */
+        /* Section Title */
         .section-title {
             font-size: 14px;
             font-weight: 600;
@@ -160,47 +160,273 @@
             margin-bottom: var(--spacing-lg);
         }
 
-        .quick-access {
+        /* Dashboard Widgets */
+        .dashboard-widgets {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            grid-template-columns: repeat(2, 1fr);
             gap: var(--spacing-lg);
-            margin-bottom: var(--spacing-xl);
+            margin-bottom: var(--spacing-2xl);
         }
 
-        .quick-card {
+        .widget-card {
             background: var(--color-surface);
-            border-radius: var(--radius-xl);
+            border-radius: var(--radius-lg);
             padding: var(--spacing-xl);
             border: 2px solid var(--color-border);
-            cursor: pointer;
+            box-shadow: var(--shadow-sm);
             transition: all 0.3s;
-            text-decoration: none;
-            color: inherit;
-            display: block;
         }
 
-        .quick-card:hover {
-            transform: translateY(-4px);
-            box-shadow: var(--shadow-lg);
-            border-color: var(--color-primary);
+        .widget-card:hover {
+            box-shadow: var(--shadow-md);
         }
 
-        .quick-card-icon {
-            font-size: 40px;
-            margin-bottom: var(--spacing-md);
+        .widget-header {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            margin-bottom: var(--spacing-lg);
         }
 
-        .quick-card-title {
-            font-size: 18px;
+        .widget-icon {
+            font-size: 24px;
+        }
+
+        .widget-title {
+            font-size: 16px;
             font-weight: 700;
-            margin-bottom: var(--spacing-sm);
             color: var(--color-text);
         }
 
-        .quick-card-description {
+        .widget-content {
+            min-height: 120px;
+        }
+
+        .widget-footer {
+            margin-top: var(--spacing-lg);
+            padding-top: var(--spacing-md);
+            border-top: 1px solid var(--color-border);
+        }
+
+        .widget-link {
+            color: var(--color-primary);
+            text-decoration: none;
             font-size: 14px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+            transition: color 0.2s;
+        }
+
+        .widget-link:hover {
+            color: var(--color-primary-hover);
+        }
+
+        /* Month Overview Widget */
+        .budget-stat {
+            margin-bottom: var(--spacing-md);
+        }
+
+        .budget-stat-label {
+            font-size: 12px;
             color: var(--color-text-secondary);
-            line-height: 1.5;
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .budget-stat-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--color-text);
+        }
+
+        .budget-progress {
+            margin-top: var(--spacing-md);
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: var(--color-border);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--color-success);
+            border-radius: 4px;
+            transition: width 0.3s, background 0.3s;
+        }
+
+        .progress-fill.over-budget {
+            background: var(--color-danger);
+        }
+
+        .progress-label {
+            font-size: 12px;
+            color: var(--color-text-secondary);
+        }
+
+        /* Transaction Item */
+        .transaction-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--spacing-sm) 0;
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        .transaction-item:last-child {
+            border-bottom: none;
+        }
+
+        .transaction-info {
+            flex: 1;
+        }
+
+        .transaction-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--color-text);
+            margin-bottom: 2px;
+        }
+
+        .transaction-meta {
+            font-size: 12px;
+            color: var(--color-text-secondary);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+        }
+
+        .transaction-amount {
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .transaction-amount.expense {
+            color: var(--color-danger);
+        }
+
+        .transaction-amount.income {
+            color: var(--color-success);
+        }
+
+        /* Goal Item */
+        .goal-item {
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .goal-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .goal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .goal-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--color-text);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+        }
+
+        .goal-percentage {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--color-primary);
+        }
+
+        .goal-amounts {
+            font-size: 12px;
+            color: var(--color-text-secondary);
+            margin-bottom: var(--spacing-xs);
+        }
+
+        /* Bill Item */
+        .bill-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--spacing-sm) 0;
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        .bill-item:last-child {
+            border-bottom: none;
+        }
+
+        .bill-info {
+            flex: 1;
+        }
+
+        .bill-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--color-text);
+            margin-bottom: 2px;
+        }
+
+        .bill-due {
+            font-size: 12px;
+            color: var(--color-text-secondary);
+        }
+
+        .bill-due.upcoming {
+            color: var(--color-warning);
+            font-weight: 600;
+        }
+
+        .bill-due.overdue {
+            color: var(--color-danger);
+            font-weight: 600;
+        }
+
+        .bill-amount {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--color-text);
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: var(--spacing-xl);
+            color: var(--color-text-secondary);
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            opacity: 0.5;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .empty-state-text {
+            font-size: 14px;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .empty-state-cta {
+            display: inline-block;
+            padding: var(--spacing-sm) var(--spacing-lg);
+            background: var(--color-primary);
+            color: white;
+            text-decoration: none;
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+
+        .empty-state-cta:hover {
+            background: var(--color-primary-hover);
         }
 
         /* Net Worth Card */
@@ -470,6 +696,10 @@
                 grid-template-columns: repeat(2, 1fr);
             }
 
+            .dashboard-widgets {
+                grid-template-columns: 1fr;
+            }
+
             .modal-content {
                 max-width: 100%;
             }
@@ -550,32 +780,85 @@
                 </div>
             </div>
 
-            <!-- Quick Access -->
-            <div class="section-title">Quick Access</div>
-            <div class="quick-access">
-                <a href="/budget" class="quick-card">
-                    <div class="quick-card-icon">💰</div>
-                    <div class="quick-card-title">Budget & Accounts</div>
-                    <div class="quick-card-description">Manage your accounts, track transactions, and monitor spending across all categories</div>
-                </a>
+            <!-- Dashboard Widgets -->
+            <div class="section-title">Financial Overview</div>
+            <div class="dashboard-widgets">
+                <!-- Month Overview Widget -->
+                <div class="widget-card">
+                    <div class="widget-header">
+                        <span class="widget-icon">📊</span>
+                        <h3 class="widget-title">Month Overview</h3>
+                    </div>
+                    <div class="widget-content" id="monthOverviewContent">
+                        <div class="budget-stat">
+                            <div class="budget-stat-label">Total Budgeted</div>
+                            <div class="budget-stat-value" id="totalBudgeted">€0.00</div>
+                        </div>
+                        <div class="budget-stat">
+                            <div class="budget-stat-label">Total Spent</div>
+                            <div class="budget-stat-value" id="totalSpent">€0.00</div>
+                        </div>
+                        <div class="budget-progress">
+                            <div class="progress-bar">
+                                <div class="progress-fill" id="budgetProgressBar" style="width: 0%"></div>
+                            </div>
+                            <div class="progress-label" id="budgetProgressLabel">0% of budget used</div>
+                        </div>
+                    </div>
+                </div>
 
-                <a href="/goals" class="quick-card">
-                    <div class="quick-card-icon">🎯</div>
-                    <div class="quick-card-title">Savings Goals</div>
-                    <div class="quick-card-description">Set and track progress towards your financial goals and milestones</div>
-                </a>
+                <!-- Recent Transactions Widget -->
+                <div class="widget-card">
+                    <div class="widget-header">
+                        <span class="widget-icon">💳</span>
+                        <h3 class="widget-title">Recent Transactions</h3>
+                    </div>
+                    <div class="widget-content" id="recentTransactionsContent">
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📝</div>
+                            <div class="empty-state-text">No transactions yet</div>
+                        </div>
+                    </div>
+                    <div class="widget-footer">
+                        <a href="/budget" class="widget-link">View All →</a>
+                    </div>
+                </div>
 
-                <a href="/reports" class="quick-card">
-                    <div class="quick-card-icon">📊</div>
-                    <div class="quick-card-title">Reports</div>
-                    <div class="quick-card-description">View detailed spending reports, trends, and financial insights</div>
-                </a>
+                <!-- Savings Goals Widget -->
+                <div class="widget-card">
+                    <div class="widget-header">
+                        <span class="widget-icon">🎯</span>
+                        <h3 class="widget-title">Savings Goals</h3>
+                    </div>
+                    <div class="widget-content" id="goalsProgressContent">
+                        <div class="empty-state">
+                            <div class="empty-state-icon">🎯</div>
+                            <div class="empty-state-text">No active goals</div>
+                            <a href="/goals" class="empty-state-cta">Create your first goal</a>
+                        </div>
+                    </div>
+                    <div class="widget-footer">
+                        <a href="/goals" class="widget-link">View All Goals →</a>
+                    </div>
+                </div>
 
-                <a href="/settings" class="quick-card">
-                    <div class="quick-card-icon">⚙️</div>
-                    <div class="quick-card-title">Settings</div>
-                    <div class="quick-card-description">Configure your preferences, categories, and account settings</div>
-                </a>
+                <!-- Upcoming Bills Widget -->
+                <div class="widget-card">
+                    <div class="widget-header">
+                        <span class="widget-icon">📅</span>
+                        <h3 class="widget-title">Upcoming Bills</h3>
+                    </div>
+                    <div class="widget-content" id="upcomingBillsContent">
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📅</div>
+                            <div class="empty-state-text">No recurring bills set up</div>
+                            <a href="/budget" class="empty-state-cta">Set up recurring bills</a>
+                        </div>
+                    </div>
+                    <div class="widget-footer">
+                        <a href="/budget" class="widget-link">Manage Bills →</a>
+                    </div>
+                </div>
             </div>
 
             <!-- Income Calculator Modal -->
@@ -883,6 +1166,9 @@
 
             // Calculate and display net worth
             await calculateNetWorth();
+            
+            // Load dashboard data
+            await loadDashboardData();
         });
 
         // ============================================
@@ -967,17 +1253,300 @@
             });
         }
 
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // ============================================
+        // DASHBOARD WIDGETS
+        // ============================================
         async function loadDashboardData() {
             if (!currentUser) return;
 
             try {
-                // Dashboard now focuses on quick access navigation
-                // Account management has moved to the Budget page
-                console.log('✅ Dashboard loaded');
+                await Promise.all([
+                    loadMonthOverview(),
+                    loadRecentTransactions(),
+                    loadGoalsProgress(),
+                    loadUpcomingBills()
+                ]);
+                console.log('✅ Dashboard widgets loaded');
+            } catch (error) {
+                console.error('❌ Error loading dashboard data:', error);
+            }
+        }
+
+        async function loadMonthOverview() {
+            if (!currentUser) return;
+
+            try {
+                // Get current month's start and end
+                const now = new Date();
+                const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+                const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+
+                // Get all categories
+                const categoriesSnapshot = await db.collection('users')
+                    .doc(currentUser.uid)
+                    .collection('categories')
+                    .get();
+
+                let totalBudgeted = 0;
+                categoriesSnapshot.docs.forEach(doc => {
+                    const category = doc.data();
+                    totalBudgeted += parseFloat(category.budgeted) || 0;
+                });
+
+                // Get transactions for current month
+                const transactionsSnapshot = await db.collection('users')
+                    .doc(currentUser.uid)
+                    .collection('transactions')
+                    .where('date', '>=', firebase.firestore.Timestamp.fromDate(monthStart))
+                    .where('date', '<=', firebase.firestore.Timestamp.fromDate(monthEnd))
+                    .get();
+
+                let totalSpent = 0;
+                transactionsSnapshot.docs.forEach(doc => {
+                    const transaction = doc.data();
+                    if (transaction.type === 'expense') {
+                        totalSpent += Math.abs(parseFloat(transaction.amount) || 0);
+                    }
+                });
+
+                // Update UI
+                document.getElementById('totalBudgeted').textContent = formatCurrency(totalBudgeted);
+                document.getElementById('totalSpent').textContent = formatCurrency(totalSpent);
+
+                // Calculate progress
+                const percentage = totalBudgeted > 0 ? (totalSpent / totalBudgeted) * 100 : 0;
+                const progressBar = document.getElementById('budgetProgressBar');
+                progressBar.style.width = Math.min(percentage, 100) + '%';
+                
+                if (percentage > 100) {
+                    progressBar.classList.add('over-budget');
+                } else {
+                    progressBar.classList.remove('over-budget');
+                }
+
+                document.getElementById('budgetProgressLabel').textContent = 
+                    `${percentage.toFixed(1)}% of budget used`;
 
             } catch (error) {
-                console.error('❌ Error loading data:', error);
+                console.error('❌ Error loading month overview:', error);
             }
+        }
+
+        async function loadRecentTransactions() {
+            if (!currentUser) return;
+
+            try {
+                const transactionsSnapshot = await db.collection('users')
+                    .doc(currentUser.uid)
+                    .collection('transactions')
+                    .orderBy('date', 'desc')
+                    .limit(7)
+                    .get();
+
+                const container = document.getElementById('recentTransactionsContent');
+                
+                if (transactionsSnapshot.empty) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📝</div>
+                            <div class="empty-state-text">No transactions yet</div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                let html = '';
+                transactionsSnapshot.docs.forEach(doc => {
+                    const transaction = doc.data();
+                    const amount = parseFloat(transaction.amount) || 0;
+                    const date = transaction.date ? transaction.date.toDate() : new Date();
+                    const relativeDate = getRelativeDate(date);
+                    const amountClass = transaction.type === 'income' ? 'income' : 'expense';
+                    const amountFormatted = transaction.type === 'income' 
+                        ? '+' + formatCurrency(Math.abs(amount))
+                        : '-' + formatCurrency(Math.abs(amount));
+
+                    html += `
+                        <div class="transaction-item">
+                            <div class="transaction-info">
+                                <div class="transaction-name">${escapeHtml(transaction.description || 'Transaction')}</div>
+                                <div class="transaction-meta">
+                                    <span>${escapeHtml(transaction.category || 'Uncategorized')}</span>
+                                    <span>•</span>
+                                    <span>${relativeDate}</span>
+                                </div>
+                            </div>
+                            <div class="transaction-amount ${amountClass}">${amountFormatted}</div>
+                        </div>
+                    `;
+                });
+
+                container.innerHTML = html;
+
+            } catch (error) {
+                console.error('❌ Error loading recent transactions:', error);
+            }
+        }
+
+        async function loadGoalsProgress() {
+            if (!currentUser) return;
+
+            try {
+                const goalsSnapshot = await db.collection('users')
+                    .doc(currentUser.uid)
+                    .collection('goals')
+                    .where('status', '==', 'active')
+                    .orderBy('targetDate', 'asc')
+                    .limit(3)
+                    .get();
+
+                const container = document.getElementById('goalsProgressContent');
+                
+                if (goalsSnapshot.empty) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">🎯</div>
+                            <div class="empty-state-text">No active goals</div>
+                            <a href="/goals" class="empty-state-cta">Create your first goal</a>
+                        </div>
+                    `;
+                    return;
+                }
+
+                let html = '';
+                goalsSnapshot.docs.forEach(doc => {
+                    const goal = doc.data();
+                    const target = parseFloat(goal.targetAmount) || 0;
+                    const current = parseFloat(goal.currentAmount) || 0;
+                    const percentage = target > 0 ? (current / target) * 100 : 0;
+                    const icon = goal.icon || '🎯';
+
+                    html += `
+                        <div class="goal-item">
+                            <div class="goal-header">
+                                <div class="goal-name">${icon} ${escapeHtml(goal.name || 'Goal')}</div>
+                                <div class="goal-percentage">${percentage.toFixed(0)}%</div>
+                            </div>
+                            <div class="goal-amounts">${formatCurrency(current)} / ${formatCurrency(target)}</div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: ${Math.min(percentage, 100)}%"></div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                container.innerHTML = html;
+
+            } catch (error) {
+                console.error('❌ Error loading goals progress:', error);
+            }
+        }
+
+        async function loadUpcomingBills() {
+            if (!currentUser) return;
+
+            try {
+                const billsSnapshot = await db.collection('users')
+                    .doc(currentUser.uid)
+                    .collection('recurringTransactions')
+                    .where('isActive', '==', true)
+                    .get();
+
+                const container = document.getElementById('upcomingBillsContent');
+                
+                if (billsSnapshot.empty) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📅</div>
+                            <div class="empty-state-text">No recurring bills set up</div>
+                            <a href="/budget" class="empty-state-cta">Set up recurring bills</a>
+                        </div>
+                    `;
+                    return;
+                }
+
+                // Filter and sort bills due within 14 days
+                const now = new Date();
+                const fourteenDaysFromNow = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+                
+                const upcomingBills = billsSnapshot.docs
+                    .map(doc => {
+                        const bill = doc.data();
+                        const nextDueDate = bill.nextDueDate ? bill.nextDueDate.toDate() : null;
+                        return { id: doc.id, ...bill, nextDueDate };
+                    })
+                    .filter(bill => bill.nextDueDate && bill.nextDueDate <= fourteenDaysFromNow)
+                    .sort((a, b) => a.nextDueDate - b.nextDueDate);
+
+                if (upcomingBills.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">✅</div>
+                            <div class="empty-state-text">No bills due in the next 14 days</div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                let html = '';
+                upcomingBills.forEach(bill => {
+                    const daysUntilDue = Math.ceil((bill.nextDueDate - now) / (1000 * 60 * 60 * 24));
+                    let dueText = '';
+                    let dueClass = '';
+                    
+                    if (daysUntilDue < 0) {
+                        dueText = 'Overdue';
+                        dueClass = 'overdue';
+                    } else if (daysUntilDue === 0) {
+                        dueText = 'Due today';
+                        dueClass = 'overdue';
+                    } else if (daysUntilDue <= 7) {
+                        dueText = `Due in ${daysUntilDue} day${daysUntilDue > 1 ? 's' : ''}`;
+                        dueClass = 'upcoming';
+                    } else {
+                        dueText = `Due ${bill.nextDueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+                        dueClass = '';
+                    }
+
+                    html += `
+                        <div class="bill-item">
+                            <div class="bill-info">
+                                <div class="bill-name">${escapeHtml(bill.name || 'Bill')}</div>
+                                <div class="bill-due ${dueClass}">${dueText}</div>
+                            </div>
+                            <div class="bill-amount">${formatCurrency(Math.abs(bill.amount || 0))}</div>
+                        </div>
+                    `;
+                });
+
+                container.innerHTML = html;
+
+            } catch (error) {
+                console.error('❌ Error loading upcoming bills:', error);
+            }
+        }
+
+        function getRelativeDate(date) {
+            const now = new Date();
+            const diffMs = now - date;
+            const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+            
+            if (diffDays === 0) return 'Today';
+            if (diffDays === 1) return 'Yesterday';
+            if (diffDays < 7) return `${diffDays} days ago`;
+            if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+            
+            // Calculate actual month difference
+            const monthsDiff = (now.getFullYear() - date.getFullYear()) * 12 + (now.getMonth() - date.getMonth());
+            if (monthsDiff > 0 && monthsDiff < 12) return `${monthsDiff} month${monthsDiff > 1 ? 's' : ''} ago`;
+            
+            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
         }
 
         // ============================================

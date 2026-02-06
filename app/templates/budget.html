@@ -698,6 +698,139 @@
             color: var(--color-text-secondary);
         }
 
+        /* Recurring Bills Section */
+        .recurring-bills-section {
+            background: var(--color-surface);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-xl);
+            margin: var(--spacing-xl) var(--spacing-2xl);
+            border: 1px solid var(--color-border);
+        }
+
+        .recurring-bills-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .recurring-bills-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--color-text);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+
+        .add-recurring-btn {
+            padding: var(--spacing-sm) var(--spacing-lg);
+            background: var(--color-primary);
+            color: white;
+            border: none;
+            border-radius: var(--radius-md);
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .add-recurring-btn:hover {
+            background: var(--color-primary-hover);
+        }
+
+        .recurring-bills-list {
+            display: grid;
+            gap: var(--spacing-md);
+        }
+
+        .recurring-bill-item {
+            display: grid;
+            grid-template-columns: 1fr auto auto auto;
+            gap: var(--spacing-lg);
+            align-items: center;
+            padding: var(--spacing-lg);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            transition: all 0.2s;
+        }
+
+        .recurring-bill-item:hover {
+            box-shadow: var(--shadow-sm);
+        }
+
+        .recurring-bill-info {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-xs);
+        }
+
+        .recurring-bill-name {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--color-text);
+        }
+
+        .recurring-bill-meta {
+            font-size: 12px;
+            color: var(--color-text-secondary);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+
+        .recurring-bill-amount {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--color-text);
+        }
+
+        .recurring-bill-due {
+            font-size: 13px;
+            color: var(--color-text-secondary);
+        }
+
+        .recurring-bill-actions {
+            display: flex;
+            gap: var(--spacing-sm);
+        }
+
+        .bill-action-btn {
+            padding: var(--spacing-sm) var(--spacing-md);
+            border: 1px solid var(--color-border);
+            background: white;
+            border-radius: var(--radius-sm);
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .bill-action-btn:hover {
+            background: var(--color-background);
+        }
+
+        .bill-action-btn.delete {
+            color: var(--color-danger);
+            border-color: var(--color-danger);
+        }
+
+        .bill-action-btn.delete:hover {
+            background: var(--color-danger);
+            color: white;
+        }
+
+        .frequency-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            background: rgba(32, 128, 137, 0.1);
+            color: var(--color-primary);
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: capitalize;
+        }
+
         /* Responsive */
         @media (max-width: 1024px) {
             .accounts-sidebar {
@@ -803,6 +936,17 @@
                 <div class="to-budget">
                     <div class="to-budget-label">To Budget</div>
                     <div class="to-budget-value" id="toBudget">€0.00</div>
+                </div>
+            </div>
+
+            <!-- Recurring Bills Section -->
+            <div class="recurring-bills-section">
+                <div class="recurring-bills-header">
+                    <h2 class="recurring-bills-title">📅 Recurring Bills</h2>
+                    <button class="add-recurring-btn" onclick="openModal('addRecurringModal')">+ Add Recurring Bill</button>
+                </div>
+                <div id="recurringBillsContainer">
+                    <div class="loading">No recurring bills yet</div>
                 </div>
             </div>
 
@@ -1098,6 +1242,127 @@
         </div>
     </div>
 
+    <!-- Add Recurring Transaction Modal -->
+    <div class="modal" id="addRecurringModal">
+        <div class="modal-content">
+            <div class="modal-header">Add Recurring Bill</div>
+            <form onsubmit="saveRecurringTransaction(event)">
+                <div class="form-group">
+                    <label class="form-label">Bill Name *</label>
+                    <input type="text" class="form-input" id="recurringName" placeholder="e.g., Rent, Netflix" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Amount (€) *</label>
+                    <input type="number" class="form-input" id="recurringAmount" step="0.01" min="0.01" placeholder="0.00" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Category</label>
+                    <select class="form-select" id="recurringCategory">
+                        <option value="">Select category...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Frequency *</label>
+                    <select class="form-select" id="recurringFrequency" onchange="updateRecurringDateFields()" required>
+                        <option value="weekly">Weekly</option>
+                        <option value="biweekly">Bi-weekly</option>
+                        <option value="monthly" selected>Monthly</option>
+                        <option value="quarterly">Quarterly</option>
+                        <option value="yearly">Yearly</option>
+                    </select>
+                </div>
+                <div class="form-group" id="dayOfMonthGroup">
+                    <label class="form-label">Day of Month (1-31) *</label>
+                    <input type="number" class="form-input" id="recurringDayOfMonth" min="1" max="31" placeholder="1" value="1">
+                </div>
+                <div class="form-group" id="dayOfWeekGroup" style="display: none;">
+                    <label class="form-label">Day of Week *</label>
+                    <select class="form-select" id="recurringDayOfWeek">
+                        <option value="0">Sunday</option>
+                        <option value="1">Monday</option>
+                        <option value="2">Tuesday</option>
+                        <option value="3">Wednesday</option>
+                        <option value="4">Thursday</option>
+                        <option value="5">Friday</option>
+                        <option value="6">Saturday</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Next Due Date *</label>
+                    <input type="date" class="form-input" id="recurringNextDue" required>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('addRecurringModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Recurring Bill</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Recurring Transaction Modal -->
+    <div class="modal" id="editRecurringModal">
+        <div class="modal-content">
+            <div class="modal-header">Edit Recurring Bill</div>
+            <form onsubmit="updateRecurringTransaction(event)">
+                <input type="hidden" id="editRecurringId">
+                <div class="form-group">
+                    <label class="form-label">Bill Name *</label>
+                    <input type="text" class="form-input" id="editRecurringName" placeholder="e.g., Rent, Netflix" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Amount (€) *</label>
+                    <input type="number" class="form-input" id="editRecurringAmount" step="0.01" min="0.01" placeholder="0.00" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Category</label>
+                    <select class="form-select" id="editRecurringCategory">
+                        <option value="">Select category...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Frequency *</label>
+                    <select class="form-select" id="editRecurringFrequency" onchange="updateEditRecurringDateFields()" required>
+                        <option value="weekly">Weekly</option>
+                        <option value="biweekly">Bi-weekly</option>
+                        <option value="monthly">Monthly</option>
+                        <option value="quarterly">Quarterly</option>
+                        <option value="yearly">Yearly</option>
+                    </select>
+                </div>
+                <div class="form-group" id="editDayOfMonthGroup">
+                    <label class="form-label">Day of Month (1-31) *</label>
+                    <input type="number" class="form-input" id="editRecurringDayOfMonth" min="1" max="31" placeholder="1">
+                </div>
+                <div class="form-group" id="editDayOfWeekGroup" style="display: none;">
+                    <label class="form-label">Day of Week *</label>
+                    <select class="form-select" id="editRecurringDayOfWeek">
+                        <option value="0">Sunday</option>
+                        <option value="1">Monday</option>
+                        <option value="2">Tuesday</option>
+                        <option value="3">Wednesday</option>
+                        <option value="4">Thursday</option>
+                        <option value="5">Friday</option>
+                        <option value="6">Saturday</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Next Due Date *</label>
+                    <input type="date" class="form-input" id="editRecurringNextDue" required>
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-group">
+                        <input type="checkbox" id="editRecurringIsActive">
+                        <span>Active</span>
+                    </label>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('editRecurringModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
         // ============================================
         // FIREBASE CONFIGURATION
@@ -1203,6 +1468,10 @@
                     categories: categories.length,
                     transactions: transactions.length
                 });
+
+                // Load recurring transactions
+                await loadRecurringTransactions();
+
             } catch (error) {
                 console.error('❌ Error loading data:', error);
                 throw error;
@@ -1516,6 +1785,22 @@
         // MODAL FUNCTIONS
         // ============================================
         function openModal(modalId) {
+            // Populate category dropdown for recurring transaction modals
+            if (modalId === 'addRecurringModal') {
+                const categorySelect = document.getElementById('recurringCategory');
+                categorySelect.innerHTML = '<option value="">Select category...</option>';
+                categories.forEach(cat => {
+                    const option = document.createElement('option');
+                    option.value = cat.name;
+                    option.textContent = cat.name;
+                    categorySelect.appendChild(option);
+                });
+                
+                // Set default next due date to today
+                const today = new Date().toISOString().split('T')[0];
+                document.getElementById('recurringNextDue').value = today;
+            }
+            
             document.getElementById(modalId).classList.add('active');
         }
 
@@ -1719,7 +2004,7 @@
             const categorySelect = document.getElementById('paymentCategory');
             categorySelect.innerHTML = '<option value="">Uncategorized</option>';
             categories.filter(cat => cat.group === 'expenses' || cat.group === 'bills').forEach(cat => {
-                categorySelect.innerHTML += `<option value="${cat.id}">${cat.name}</option>`;
+                categorySelect.innerHTML += `<option value="${cat.id}">${escapeHtml(cat.name)}</option>`;
             });
             
             openModal('paymentModal');
@@ -1740,7 +2025,7 @@
             const categorySelect = document.getElementById('depositCategory');
             categorySelect.innerHTML = '<option value="">Uncategorized</option>';
             categories.filter(cat => cat.group === 'savings').forEach(cat => {
-                categorySelect.innerHTML += `<option value="${cat.id}">${cat.name}</option>`;
+                categorySelect.innerHTML += `<option value="${cat.id}">${escapeHtml(cat.name)}</option>`;
             });
             
             openModal('depositModal');
@@ -2465,6 +2750,288 @@
                 `;
                 container.appendChild(div);
             });
+        }
+
+        // ============================================
+        // RECURRING TRANSACTIONS
+        // ============================================
+        let recurringTransactions = [];
+
+        async function loadRecurringTransactions() {
+            if (!currentUser) return;
+
+            try {
+                const snapshot = await db.collection('users')
+                    .doc(currentUser.uid)
+                    .collection('recurringTransactions')
+                    .get();
+
+                recurringTransactions = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+
+                renderRecurringTransactions();
+                console.log('✅ Recurring transactions loaded:', recurringTransactions.length);
+
+            } catch (error) {
+                console.error('❌ Error loading recurring transactions:', error);
+            }
+        }
+
+        function renderRecurringTransactions() {
+            const container = document.getElementById('recurringBillsContainer');
+            
+            if (recurringTransactions.length === 0) {
+                container.innerHTML = '<div class="loading">No recurring bills yet</div>';
+                return;
+            }
+
+            container.innerHTML = '';
+            const billsList = document.createElement('div');
+            billsList.className = 'recurring-bills-list';
+
+            recurringTransactions.forEach(bill => {
+                const nextDue = bill.nextDueDate?.toDate ? bill.nextDueDate.toDate() : null;
+                const nextDueStr = nextDue ? nextDue.toLocaleDateString('en-GB', { 
+                    day: 'numeric', 
+                    month: 'short', 
+                    year: 'numeric' 
+                }) : 'Not set';
+
+                const div = document.createElement('div');
+                div.className = 'recurring-bill-item';
+                div.innerHTML = `
+                    <div class="recurring-bill-info">
+                        <div class="recurring-bill-name">${escapeHtml(bill.name || 'Bill')}</div>
+                        <div class="recurring-bill-meta">
+                            <span class="frequency-badge">${bill.frequency || 'monthly'}</span>
+                            <span>${escapeHtml(bill.category || 'Uncategorized')}</span>
+                        </div>
+                    </div>
+                    <div class="recurring-bill-amount">${formatCurrency(Math.abs(bill.amount || 0))}</div>
+                    <div class="recurring-bill-due">Due: ${nextDueStr}</div>
+                    <div class="recurring-bill-actions">
+                        <button class="bill-action-btn edit-btn">Edit</button>
+                        <button class="bill-action-btn delete delete-btn">Delete</button>
+                    </div>
+                `;
+                
+                // Add event listeners safely
+                const editBtn = div.querySelector('.edit-btn');
+                const deleteBtn = div.querySelector('.delete-btn');
+                editBtn.addEventListener('click', () => editRecurringTransaction(bill.id));
+                deleteBtn.addEventListener('click', () => deleteRecurringTransaction(bill.id));
+                
+                billsList.appendChild(div);
+            });
+
+            container.appendChild(billsList);
+        }
+
+        function updateRecurringDateFields() {
+            const frequency = document.getElementById('recurringFrequency').value;
+            const dayOfMonthGroup = document.getElementById('dayOfMonthGroup');
+            const dayOfWeekGroup = document.getElementById('dayOfWeekGroup');
+
+            if (frequency === 'weekly' || frequency === 'biweekly') {
+                dayOfMonthGroup.style.display = 'none';
+                dayOfWeekGroup.style.display = 'block';
+            } else {
+                dayOfMonthGroup.style.display = 'block';
+                dayOfWeekGroup.style.display = 'none';
+            }
+        }
+
+        function updateEditRecurringDateFields() {
+            const frequency = document.getElementById('editRecurringFrequency').value;
+            const dayOfMonthGroup = document.getElementById('editDayOfMonthGroup');
+            const dayOfWeekGroup = document.getElementById('editDayOfWeekGroup');
+
+            if (frequency === 'weekly' || frequency === 'biweekly') {
+                dayOfMonthGroup.style.display = 'none';
+                dayOfWeekGroup.style.display = 'block';
+            } else {
+                dayOfMonthGroup.style.display = 'block';
+                dayOfWeekGroup.style.display = 'none';
+            }
+        }
+
+        async function saveRecurringTransaction(event) {
+            event.preventDefault();
+            if (!currentUser) return;
+
+            try {
+                const name = document.getElementById('recurringName').value;
+                const amount = parseFloat(document.getElementById('recurringAmount').value);
+                const category = document.getElementById('recurringCategory').value;
+                const frequency = document.getElementById('recurringFrequency').value;
+                const nextDueDateStr = document.getElementById('recurringNextDue').value;
+                
+                let dayOfMonth = null;
+                let dayOfWeek = null;
+
+                if (frequency === 'weekly' || frequency === 'biweekly') {
+                    dayOfWeek = parseInt(document.getElementById('recurringDayOfWeek').value);
+                } else {
+                    dayOfMonth = parseInt(document.getElementById('recurringDayOfMonth').value);
+                }
+
+                const nextDueDate = new Date(nextDueDateStr);
+
+                const recurringData = {
+                    name: name,
+                    amount: amount,
+                    category: category,
+                    frequency: frequency,
+                    nextDueDate: firebase.firestore.Timestamp.fromDate(nextDueDate),
+                    dayOfMonth: dayOfMonth,
+                    dayOfWeek: dayOfWeek,
+                    isActive: true,
+                    autoCreate: false,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+
+                await db.collection('users')
+                    .doc(currentUser.uid)
+                    .collection('recurringTransactions')
+                    .add(recurringData);
+
+                console.log('✅ Recurring transaction added');
+                
+                // Reset form and close modal
+                document.getElementById('recurringName').value = '';
+                document.getElementById('recurringAmount').value = '';
+                document.getElementById('recurringCategory').value = '';
+                document.getElementById('recurringNextDue').value = '';
+                closeModal('addRecurringModal');
+
+                // Reload data
+                await loadRecurringTransactions();
+
+            } catch (error) {
+                console.error('❌ Error saving recurring transaction:', error);
+                alert('Failed to add recurring bill: ' + error.message);
+            }
+        }
+
+        function editRecurringTransaction(billId) {
+            const bill = recurringTransactions.find(b => b.id === billId);
+            if (!bill) return;
+
+            // Populate form fields
+            document.getElementById('editRecurringId').value = bill.id;
+            document.getElementById('editRecurringName').value = bill.name || '';
+            document.getElementById('editRecurringAmount').value = Math.abs(bill.amount || 0);
+            document.getElementById('editRecurringCategory').value = bill.category || '';
+            document.getElementById('editRecurringFrequency').value = bill.frequency || 'monthly';
+            document.getElementById('editRecurringIsActive').checked = bill.isActive !== false;
+
+            // Set day of month or week
+            if (bill.dayOfMonth !== null && bill.dayOfMonth !== undefined) {
+                document.getElementById('editRecurringDayOfMonth').value = bill.dayOfMonth;
+            }
+            if (bill.dayOfWeek !== null && bill.dayOfWeek !== undefined) {
+                document.getElementById('editRecurringDayOfWeek').value = bill.dayOfWeek;
+            }
+
+            // Set next due date
+            if (bill.nextDueDate?.toDate) {
+                const nextDue = bill.nextDueDate.toDate();
+                const dateStr = nextDue.toISOString().split('T')[0];
+                document.getElementById('editRecurringNextDue').value = dateStr;
+            }
+
+            // Populate category dropdown
+            const categorySelect = document.getElementById('editRecurringCategory');
+            categorySelect.innerHTML = '<option value="">Select category...</option>';
+            categories.forEach(cat => {
+                const option = document.createElement('option');
+                option.value = cat.name;
+                option.textContent = cat.name;
+                categorySelect.appendChild(option);
+            });
+            categorySelect.value = bill.category || '';
+
+            // Update visibility of date fields
+            updateEditRecurringDateFields();
+
+            // Open modal
+            openModal('editRecurringModal');
+        }
+
+        async function updateRecurringTransaction(event) {
+            event.preventDefault();
+            if (!currentUser) return;
+
+            try {
+                const billId = document.getElementById('editRecurringId').value;
+                const name = document.getElementById('editRecurringName').value;
+                const amount = parseFloat(document.getElementById('editRecurringAmount').value);
+                const category = document.getElementById('editRecurringCategory').value;
+                const frequency = document.getElementById('editRecurringFrequency').value;
+                const nextDueDateStr = document.getElementById('editRecurringNextDue').value;
+                const isActive = document.getElementById('editRecurringIsActive').checked;
+                
+                let dayOfMonth = null;
+                let dayOfWeek = null;
+
+                if (frequency === 'weekly' || frequency === 'biweekly') {
+                    dayOfWeek = parseInt(document.getElementById('editRecurringDayOfWeek').value);
+                } else {
+                    dayOfMonth = parseInt(document.getElementById('editRecurringDayOfMonth').value);
+                }
+
+                const nextDueDate = new Date(nextDueDateStr);
+
+                const updateData = {
+                    name: name,
+                    amount: amount,
+                    category: category,
+                    frequency: frequency,
+                    nextDueDate: firebase.firestore.Timestamp.fromDate(nextDueDate),
+                    dayOfMonth: dayOfMonth,
+                    dayOfWeek: dayOfWeek,
+                    isActive: isActive,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+
+                await db.collection('users')
+                    .doc(currentUser.uid)
+                    .collection('recurringTransactions')
+                    .doc(billId)
+                    .update(updateData);
+
+                console.log('✅ Recurring transaction updated');
+                
+                closeModal('editRecurringModal');
+                await loadRecurringTransactions();
+
+            } catch (error) {
+                console.error('❌ Error updating recurring transaction:', error);
+                alert('Failed to update recurring bill: ' + error.message);
+            }
+        }
+
+        async function deleteRecurringTransaction(billId) {
+            if (!confirm('Are you sure you want to delete this recurring bill?')) return;
+            if (!currentUser) return;
+
+            try {
+                await db.collection('users')
+                    .doc(currentUser.uid)
+                    .collection('recurringTransactions')
+                    .doc(billId)
+                    .delete();
+
+                console.log('✅ Recurring transaction deleted');
+                await loadRecurringTransactions();
+
+            } catch (error) {
+                console.error('❌ Error deleting recurring transaction:', error);
+                alert('Failed to delete recurring bill: ' + error.message);
+            }
         }
     </script>
 </body>
