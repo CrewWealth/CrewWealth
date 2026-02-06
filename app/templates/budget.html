@@ -94,6 +94,18 @@
             color: var(--color-text-secondary);
             font-weight: 600;
             margin-bottom: var(--spacing-sm);
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .account-section-header:hover {
+            background: rgba(32, 128, 137, 0.05);
+        }
+
+        .account-section-header.active {
+            background: rgba(32, 128, 137, 0.1);
+            color: var(--color-primary);
+            font-weight: 700;
         }
 
         .account-item {
@@ -114,6 +126,10 @@
 
         .account-item.active {
             background: var(--color-primary);
+            color: white;
+        }
+
+        .account-item.active .account-balance {
             color: white;
         }
 
@@ -455,6 +471,16 @@
             box-shadow: var(--shadow-md);
         }
 
+        .salary-btn {
+            background: #16a34a; /* Darker green than deposit */
+            color: white;
+        }
+
+        .salary-btn:hover {
+            background: #15803d;
+            box-shadow: var(--shadow-md);
+        }
+
         /* Transactions List */
         .transactions-section {
             background: var(--color-surface);
@@ -719,6 +745,9 @@
 
             <!-- Transaction Buttons -->
             <div class="transaction-buttons">
+                <button class="transaction-btn salary-btn" onclick="openSalaryModal()">
+                    💰 Add Salary
+                </button>
                 <button class="transaction-btn payment-btn" onclick="openPaymentModal()">
                     💸 New Payment
                 </button>
@@ -933,6 +962,37 @@
         </div>
     </div>
 
+    <!-- Salary Modal -->
+    <div class="modal" id="salaryModal">
+        <div class="modal-content">
+            <div class="modal-header">Add Salary</div>
+            <form onsubmit="saveSalary(event)">
+                <div class="form-group">
+                    <label class="form-label">Amount (€) *</label>
+                    <input type="number" class="form-input" id="salaryAmount" step="0.01" min="0.01" placeholder="0.00" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Account *</label>
+                    <select class="form-select" id="salaryAccount" required>
+                        <option value="">Select account...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Date *</label>
+                    <input type="date" class="form-input" id="salaryDate" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Note</label>
+                    <input type="text" class="form-input" id="salaryNote" placeholder="e.g., January 2026 Salary" value="Salary">
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('salaryModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Salary</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
         // ============================================
         // FIREBASE CONFIGURATION
@@ -959,6 +1019,7 @@
         let budgets = {};
         let transactions = [];
         let currentDate = new Date();
+        let selectedAccountId = null; // null = "All Accounts" view, else specific account ID
 
         // ============================================
         // AUTHENTICATION
@@ -1084,6 +1145,44 @@
         }
 
         // ============================================
+        // ACCOUNT SELECTION FUNCTIONS
+        // ============================================
+        function selectAccount(accountId) {
+            selectedAccountId = accountId;
+            updateAccountSelection();
+            renderTransactions();
+        }
+
+        function updateAccountSelection() {
+            // Remove .active from all account items
+            document.querySelectorAll('.account-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            // Remove .active from all section headers
+            document.querySelectorAll('.account-section-header').forEach(header => {
+                header.classList.remove('active');
+            });
+            
+            // Add .active to selected
+            if (selectedAccountId === null) {
+                // Highlight "All accounts" header
+                const allAccountsHeader = document.querySelector('.account-section-header');
+                if (allAccountsHeader) {
+                    allAccountsHeader.classList.add('active');
+                }
+            } else {
+                // Find and highlight specific account
+                const accountElements = document.querySelectorAll('.account-item');
+                accountElements.forEach(el => {
+                    if (el.dataset && el.dataset.accountId === selectedAccountId) {
+                        el.classList.add('active');
+                    }
+                });
+            }
+        }
+
+        // ============================================
         // RENDER FUNCTIONS
         // ============================================
         function renderAccounts() {
@@ -1101,11 +1200,38 @@
                 const balance = parseFloat(account.balance) || 0;
                 const div = document.createElement('div');
                 div.className = 'account-item';
-                div.innerHTML = `
-                    <span class="account-name">${escapeHtml(account.name)}</span>
-                    <span class="account-balance">${formatCurrency(balance)}</span>
-                    <span class="account-delete" onclick="deleteAccount('${account.id}')">×</span>
-                `;
+                div.dataset.accountId = account.id; // Add data attribute for selection
+                div.tabIndex = 0; // Make keyboard accessible
+                
+                // Create child elements safely
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'account-name';
+                nameSpan.textContent = account.name;
+                
+                const balanceSpan = document.createElement('span');
+                balanceSpan.className = 'account-balance';
+                balanceSpan.textContent = formatCurrency(balance);
+                
+                const deleteSpan = document.createElement('span');
+                deleteSpan.className = 'account-delete';
+                deleteSpan.textContent = '×';
+                deleteSpan.onclick = (e) => {
+                    e.stopPropagation();
+                    deleteAccount(account.id);
+                };
+                
+                div.appendChild(nameSpan);
+                div.appendChild(balanceSpan);
+                div.appendChild(deleteSpan);
+                
+                // Make account clickable with mouse and keyboard
+                div.onclick = () => selectAccount(account.id);
+                div.onkeydown = (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        selectAccount(account.id);
+                    }
+                };
 
                 if (account.offBudget) {
                     offBudgetContainer.appendChild(div);
@@ -1121,6 +1247,23 @@
             document.getElementById('allAccountsTotal').textContent = formatCurrency(allTotal);
             document.getElementById('onBudgetTotal').textContent = formatCurrency(onBudgetTotal);
             document.getElementById('offBudgetTotal').textContent = formatCurrency(offBudgetTotal);
+            
+            // Make "All accounts" header clickable with keyboard support
+            const allAccountsHeader = document.querySelector('.account-section-header');
+            if (allAccountsHeader) {
+                allAccountsHeader.style.cursor = 'pointer';
+                allAccountsHeader.tabIndex = 0;
+                allAccountsHeader.onclick = () => selectAccount(null);
+                allAccountsHeader.onkeydown = (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        selectAccount(null);
+                    }
+                };
+            }
+            
+            // Update visual selection
+            updateAccountSelection();
         }
 
         function renderCategories() {
@@ -1756,19 +1899,141 @@
         }
 
         // ============================================
+        // SALARY MODAL FUNCTIONS
+        // ============================================
+        function openSalaryModal() {
+            document.getElementById('salaryDate').valueAsDate = new Date();
+            
+            const accountSelect = document.getElementById('salaryAccount');
+            accountSelect.innerHTML = ''; // Clear existing options
+            
+            // Add default option
+            const defaultOption = document.createElement('option');
+            defaultOption.value = '';
+            defaultOption.textContent = 'Select account...';
+            accountSelect.appendChild(defaultOption);
+            
+            // Add account options safely
+            accounts.forEach(acc => {
+                const option = document.createElement('option');
+                option.value = acc.id;
+                option.textContent = acc.name;
+                accountSelect.appendChild(option);
+            });
+            
+            openModal('salaryModal');
+        }
+
+        async function saveSalary(event) {
+            event.preventDefault();
+
+            if (!currentUser) {
+                alert('You must be logged in');
+                return;
+            }
+
+            const amount = parseFloat(document.getElementById('salaryAmount').value);
+            const accountId = document.getElementById('salaryAccount').value;
+            const date = document.getElementById('salaryDate').value;
+            const note = document.getElementById('salaryNote').value.trim() || 'Salary';
+
+            // Validation
+            if (!amount || amount <= 0) {
+                alert('Please enter a valid amount');
+                return;
+            }
+            if (!accountId) {
+                alert('Please select an account');
+                return;
+            }
+            if (!date) {
+                alert('Please select a date');
+                return;
+            }
+
+            try {
+                // Create salary transaction (type: 'salary', no categoryId)
+                await db.collection('users').doc(currentUser.uid)
+                    .collection('transactions').add({
+                        type: 'salary',
+                        amount: amount,
+                        accountId: accountId,
+                        categoryId: null, // Salary is not categorized
+                        date: firebase.firestore.Timestamp.fromDate(new Date(date)),
+                        note: note,
+                        createdAt: firebase.firestore.Timestamp.now()
+                    });
+
+                // Update account balance (add salary)
+                const account = accounts.find(a => a.id === accountId);
+                if (account) {
+                    const newBalance = (parseFloat(account.balance) || 0) + amount;
+                    await db.collection('users').doc(currentUser.uid)
+                        .collection('accounts').doc(accountId).update({
+                            balance: newBalance
+                        });
+                }
+
+                // Reset form and close modal
+                document.getElementById('salaryAmount').value = '';
+                document.getElementById('salaryNote').value = 'Salary';
+                closeModal('salaryModal');
+
+                // Reload data and update UI
+                await loadAllData();
+                renderAccounts();
+                renderCategories();
+                renderTransactions();
+                updateOverview();
+
+                console.log('✅ Salary added successfully');
+            } catch (error) {
+                console.error('❌ Error adding salary:', error);
+                alert('Failed to add salary: ' + error.message);
+            }
+        }
+
+        // ============================================
         // RENDER TRANSACTIONS
         // ============================================
         function renderTransactions() {
             const container = document.getElementById('transactionsContainer');
+            let header = document.querySelector('.transactions-header');
+            
+            // Create header if it doesn't exist
+            if (!header) {
+                header = document.createElement('div');
+                header.className = 'transactions-header';
+                container.parentNode.insertBefore(header, container);
+            }
+            
             container.innerHTML = '';
 
-            if (transactions.length === 0) {
+            // Smart filtering based on selection
+            let filteredTransactions;
+            if (selectedAccountId === null) {
+                // All Accounts view: Show only budget-relevant transactions
+                // (categorized payments only - excludes salary, transfers, uncategorized)
+                filteredTransactions = transactions.filter(t => 
+                    t.type === 'payment' && t.categoryId !== null
+                );
+                header.textContent = 'Recent Transactions - Budget Overview';
+            } else {
+                // Specific account view: Show ALL transactions for that account
+                filteredTransactions = transactions.filter(t => 
+                    t.accountId === selectedAccountId
+                );
+                const account = accounts.find(a => a.id === selectedAccountId);
+                header.textContent = `Recent Transactions - ${account?.name || 'Account'}`;
+            }
+
+            if (filteredTransactions.length === 0) {
                 container.innerHTML = '<div class="loading">No transactions yet</div>';
                 return;
             }
 
             // Sort transactions by date (newest first)
-            const sortedTransactions = [...transactions].sort((a, b) => {
+            const sortedTransactions = [...filteredTransactions].sort((a, b) => {
                 const dateA = a.date?.toDate ? a.date.toDate() : new Date(a.date);
                 const dateB = b.date?.toDate ? b.date.toDate() : new Date(b.date);
                 return dateB - dateA;
@@ -1783,7 +2048,11 @@
                 
                 let icon, amountClass, description;
                 
-                if (tx.type === 'payment') {
+                if (tx.type === 'salary') {
+                    icon = '💰';
+                    amountClass = 'income';
+                    description = tx.note || 'Salary';
+                } else if (tx.type === 'payment') {
                     icon = '💸';
                     amountClass = 'expense';
                     description = tx.note || 'Payment';
@@ -1808,10 +2077,10 @@
                 div.className = 'transaction-item';
                 div.innerHTML = `
                     <div class="transaction-icon">${icon}</div>
-                    <div class="transaction-description">${description}</div>
+                    <div class="transaction-description">${escapeHtml(description)}</div>
                     <div class="transaction-category">${category?.name || '—'}</div>
                     <div class="transaction-amount ${amountClass}">
-                        ${tx.type === 'payment' ? '-' : tx.type === 'deposit' ? '+' : ''}${formatCurrency(tx.amount)}
+                        ${tx.type === 'payment' ? '-' : (tx.type === 'deposit' || tx.type === 'salary') ? '+' : ''}${formatCurrency(tx.amount)}
                     </div>
                     <div class="transaction-date">${formattedDate}</div>
                     <div class="transaction-account">${account?.name || 'Unknown'}</div>
