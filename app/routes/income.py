@@ -1,7 +1,5 @@
-from flask import Flask, Blueprint, render_template, request
+from flask import Blueprint, render_template, request
 from werkzeug.exceptions import BadRequest
-
-app = Flask(__name__)
 
 # Income Blueprint
 income_bp = Blueprint('income', __name__, url_prefix='/income')
@@ -9,15 +7,15 @@ income_bp = Blueprint('income', __name__, url_prefix='/income')
 def validate_float(value, field_name):
     """Validate and convert input to float"""
     try:
-        return max(0, float(value))  # Zorg dat het niet-negatief is
-    except ValueError:
+        return max(0, float(value))
+    except (ValueError, TypeError):
         raise BadRequest(f"Invalid value for {field_name}. Must be a positive number.")
 
 def validate_int(value, field_name):
     """Validate and convert input to int"""
     try:
-        return max(0, int(value))  # Zorg dat het niet-negatief is
-    except ValueError:
+        return max(0, int(value))
+    except (ValueError, TypeError):
         raise BadRequest(f"Invalid value for {field_name}. Must be a positive integer.")
 
 @income_bp.route('/calculate-income', methods=['POST'])
@@ -61,20 +59,3 @@ def calculate_income():
     except BadRequest as e:
         # Render template with error message
         return render_template('income.html', results=None, error=str(e))
-
-@income_bp.route('/', methods=['GET'])
-def income_form():
-    """Display income calculation form"""
-    return render_template('income.html', results=None, error=None)
-
-# Goals route
-@app.route('/goals', methods=['GET', 'POST'])
-def goals():
-    return render_template('goals.html')
-
-# Register Blueprint
-app.register_blueprint(income_bp)
-
-# Run app
-if __name__ == '__main__':
-    app.run(debug=True)

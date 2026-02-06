@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Budget - CrewWealth</title>
     <!-- Firebase SDKs -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <style>
         :root {
             --color-primary: #208089;
@@ -789,6 +789,12 @@
             return '€' + (amount || 0).toFixed(2);
         }
 
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
         function updateMonthDisplay() {
             const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
                 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -829,7 +835,7 @@
                 const div = document.createElement('div');
                 div.className = 'account-item';
                 div.innerHTML = `
-                    <span class="account-name">${account.name}</span>
+                    <span class="account-name">${escapeHtml(account.name)}</span>
                     <span class="account-balance">${formatCurrency(balance)}</span>
                     <span class="account-delete" onclick="deleteAccount('${account.id}')">×</span>
                 `;
@@ -909,7 +915,7 @@
                     const rowDiv = document.createElement('div');
                     rowDiv.className = 'category-row';
                     rowDiv.innerHTML = `
-                        <div class="category-name">${cat.name}</div>
+                        <div class="category-name">${escapeHtml(cat.name)}</div>
                         <div>
                             <input type="number" 
                                    class="budget-input" 

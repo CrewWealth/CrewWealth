@@ -606,7 +606,7 @@
                 return `
                     <div class="account-card">
                         <div class="account-card-header">
-                            <div class="account-card-name">${account.name}</div>
+                            <div class="account-card-name">${escapeHtml(account.name)}</div>
                             <div class="account-card-type">${typeLabel}</div>
                         </div>
                         <div class="account-card-balance ${balanceClass}">
@@ -654,15 +654,23 @@
             });
         }
 
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
         function showError(message) {
             const container = document.getElementById('accountsContainer');
-            container.innerHTML = `
-                <div class="empty-state">
-                    <div class="empty-state-icon">⚠️</div>
-                    <div class="empty-state-title">Error</div>
-                    <div class="empty-state-description">${message}</div>
-                </div>
-            `;
+            container.innerHTML = '';
+            const div = document.createElement('div');
+            div.className = 'empty-state';
+            div.innerHTML = '<div class="empty-state-icon">⚠️</div><div class="empty-state-title">Error</div>';
+            const desc = document.createElement('div');
+            desc.className = 'empty-state-description';
+            desc.textContent = message;
+            div.appendChild(desc);
+            container.appendChild(div);
         }
     </script>
 </body>

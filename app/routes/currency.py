@@ -32,13 +32,13 @@ def get_exchange_rates():
             'rates': target_currencies
         })
     
-    except requests.exceptions.RequestException as req_err:
+    except requests.exceptions.RequestException:
         return jsonify({
             'success': False,
-            'error': f'API error: {req_err}'
+            'error': 'Failed to fetch exchange rates. Please try again later.'
         }), 500
-    except Exception as e:
+    except Exception:
         return jsonify({
             'success': False,
-            'error': str(e)
+            'error': 'An unexpected error occurred.'
         }), 500
