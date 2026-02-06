@@ -7,13 +7,18 @@ def create_app(config_name='development'):
     app = Flask(__name__)
     app.config.from_object(config[config_name])
     
-    # Register blueprints - alleen main_bp nodig
+    # Register blueprints
     from app.routes.main import main_bp
     app.register_blueprint(main_bp)
     
-    # Optioneel: Currency API behouden als je live wisselkoersen wilt
-    # from app.routes.currency import currency_bp
-    # app.register_blueprint(currency_bp)
+    # Security headers
+    @app.after_request
+    def set_security_headers(response):
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+        response.headers['X-XSS-Protection'] = '1; mode=block'
+        response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+        return response
     
     # Error handlers
     @app.errorhandler(404)

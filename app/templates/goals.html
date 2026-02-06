@@ -523,6 +523,12 @@
         // Goals data management - use localStorage for permanent storage
         let goals = JSON.parse(localStorage.getItem('goals') || '[]');
 
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
         // Initialize
         document.getElementById('goalForm').addEventListener('submit', addGoal);
         renderGoals();
@@ -599,9 +605,9 @@
                     <div class="goal-card">
                         <div class="goal-header">
                             <div class="goal-info">
-                                <span class="goal-category">${categoryEmoji[goal.category] || '📌'} ${goal.category}</span>
-                                <h3>${goal.name}</h3>
-                                ${goal.description ? `<p class="goal-description">${goal.description}</p>` : ''}
+                                <span class="goal-category">${categoryEmoji[goal.category] || '📌'} ${escapeHtml(goal.category)}</span>
+                                <h3>${escapeHtml(goal.name)}</h3>
+                                ${goal.description ? `<p class="goal-description">${escapeHtml(goal.description)}</p>` : ''}
                             </div>
                             <button class="btn btn-danger" onclick="deleteGoal(${goal.id})">Delete</button>
                         </div>
