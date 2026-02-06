@@ -4,7 +4,7 @@ from flask import Blueprint, render_template, redirect, url_for
 main_bp = Blueprint('main', __name__)
 
 # ============================================
-# MAIN ROUTES (Protected by Firebase Auth in frontend)
+# MAIN ROUTES
 # ============================================
 
 @main_bp.route('/')
@@ -14,7 +14,7 @@ def index():
 
 @main_bp.route('/budget')
 def budget():
-    """Budget & Accounts management page"""
+    """Budget & Accounts page"""
     return render_template('budget.html')
 
 @main_bp.route('/goals')
@@ -24,16 +24,16 @@ def goals():
 
 @main_bp.route('/reports')
 def reports():
-    """Reports and Analytics page"""
+    """Reports page"""
     return render_template('reports.html')
 
 @main_bp.route('/settings')
 def settings():
-    """User Settings page"""
+    """Settings page"""
     return render_template('settings.html')
 
 # ============================================
-# AUTH ROUTES (Handled by Firebase Auth in frontend)
+# AUTH ROUTES
 # ============================================
 
 @main_bp.route('/login')
@@ -47,12 +47,12 @@ def register():
     return render_template('register.html')
 
 # ============================================
-# REDIRECT ROUTES (For convenience)
+# REDIRECTS
 # ============================================
 
 @main_bp.route('/logout')
 def logout():
-    """Redirect to login - actual logout handled by Firebase in frontend"""
+    """Redirect to login (Firebase handles actual logout)"""
     return redirect(url_for('main.login'))
 
 @main_bp.route('/dashboard')
@@ -60,7 +60,7 @@ def dashboard():
     """Redirect /dashboard to /"""
     return redirect(url_for('main.index'))
 
-@main_bp.route('/accounts')
-def accounts():
-    """Redirect /accounts to /budget"""
-    return redirect(url_for('main.budget'))
+@main_bp.route('/income')
+def income_redirect():
+    """Redirect old /income to dashboard"""
+    return redirect(url_for('main.index'))
