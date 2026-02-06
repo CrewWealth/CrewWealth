@@ -8,13 +8,28 @@
     <style>
         :root {
             --color-primary: #208089;
+            --color-primary-hover: #1a6670;
             --color-accent: #32b8c6;
             --color-background: #fcfcf9;
             --color-surface: #ffffff;
             --color-text: #134252;
+            --color-text-secondary: #626c71;
             --color-border: #e8e8e0;
+            --color-success: #22c55e;
+            --color-danger: #ef4444;
+            --spacing-xs: 4px;
+            --spacing-sm: 8px;
             --spacing-md: 16px;
+            --spacing-lg: 24px;
+            --spacing-xl: 32px;
+            --spacing-2xl: 48px;
+            --radius-sm: 6px;
+            --radius-md: 8px;
             --radius-lg: 12px;
+            --radius-xl: 16px;
+            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.04);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
         }
 
         * {
@@ -35,38 +50,351 @@
             min-height: 100vh;
         }
 
+        /* Sidebar Styles */
         .sidebar {
             width: 280px;
             background: var(--color-text);
             color: white;
-            padding: var(--spacing-md);
+            padding: var(--spacing-lg);
             display: flex;
             flex-direction: column;
+        }
+
+        .sidebar-header {
+            margin-bottom: var(--spacing-xl);
+        }
+
+        .sidebar-title {
+            font-size: 22px;
+            font-weight: 700;
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .sidebar-subtitle {
+            font-size: 13px;
+            opacity: 0.7;
+        }
+
+        .sidebar .menu {
+            flex: 1;
         }
 
         .sidebar .menu a {
             color: white;
             text-decoration: none;
-            padding: var(--spacing-md) 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            display: block;
+            padding: var(--spacing-md);
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            margin-bottom: var(--spacing-xs);
+            transition: all 0.2s;
         }
 
         .sidebar .menu a:hover {
+            background: rgba(255, 255, 255, 0.1);
             color: var(--color-accent);
         }
 
-        .main {
-            flex: 1;
-            padding: var(--spacing-md);
+        .sidebar .menu a.active {
+            background: rgba(255, 255, 255, 0.15);
+            color: var(--color-accent);
         }
 
-        .hero {
-            background: var(--color-accent);
-            color: white;
+        .logout-btn {
+            margin-top: auto;
             padding: var(--spacing-md);
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: var(--radius-sm);
+            color: white;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--spacing-sm);
+        }
+
+        .logout-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Main Content */
+        .main {
+            flex: 1;
+            padding: var(--spacing-2xl);
+            overflow-y: auto;
+        }
+
+        /* Hero Section */
+        .hero {
+            background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%);
+            color: white;
+            padding: var(--spacing-2xl);
+            border-radius: var(--radius-xl);
+            margin-bottom: var(--spacing-xl);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .hero-greeting {
+            font-size: 16px;
+            opacity: 0.9;
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .hero-title {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .hero-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--spacing-lg);
+        }
+
+        .hero-stat {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
             border-radius: var(--radius-lg);
+            padding: var(--spacing-lg);
+            text-align: center;
+        }
+
+        .hero-stat-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            opacity: 0.9;
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .hero-stat-value {
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        /* Quick Access Cards */
+        .section-title {
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--color-text-secondary);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .quick-access {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: var(--spacing-lg);
+            margin-bottom: var(--spacing-xl);
+        }
+
+        .quick-card {
+            background: var(--color-surface);
+            border-radius: var(--radius-xl);
+            padding: var(--spacing-xl);
+            border: 2px solid var(--color-border);
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+
+        .quick-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lg);
+            border-color: var(--color-primary);
+        }
+
+        .quick-card-icon {
+            font-size: 40px;
             margin-bottom: var(--spacing-md);
+        }
+
+        .quick-card-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: var(--spacing-sm);
+            color: var(--color-text);
+        }
+
+        .quick-card-description {
+            font-size: 14px;
+            color: var(--color-text-secondary);
+            line-height: 1.5;
+        }
+
+        /* Accounts Section */
+        .accounts-section {
+            margin-top: var(--spacing-xl);
+        }
+
+        .accounts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: var(--spacing-lg);
+        }
+
+        .account-card {
+            background: var(--color-surface);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-lg);
+            border: 1px solid var(--color-border);
+            box-shadow: var(--shadow-sm);
+            transition: all 0.2s;
+        }
+
+        .account-card:hover {
+            box-shadow: var(--shadow-md);
+            transform: translateY(-2px);
+        }
+
+        .account-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .account-card-name {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .account-card-type {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: var(--spacing-xs) var(--spacing-sm);
+            border-radius: var(--radius-sm);
+            background: rgba(32, 128, 137, 0.1);
+            color: var(--color-primary);
+        }
+
+        .account-card-balance {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--color-text);
+        }
+
+        .account-card-balance.positive {
+            color: var(--color-success);
+        }
+
+        .account-card-balance.negative {
+            color: var(--color-danger);
+        }
+
+        /* Loading State */
+        .loading {
+            text-align: center;
+            padding: var(--spacing-xl);
+            color: var(--color-text-secondary);
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--color-border);
+            border-top-color: var(--color-primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto var(--spacing-md);
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: var(--spacing-2xl);
+            color: var(--color-text-secondary);
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .empty-state-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: var(--spacing-sm);
+            color: var(--color-text);
+        }
+
+        .empty-state-description {
+            font-size: 14px;
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .empty-state-btn {
+            display: inline-block;
+            padding: var(--spacing-md) var(--spacing-xl);
+            background: var(--color-primary);
+            color: white;
+            border-radius: var(--radius-md);
+            text-decoration: none;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+
+        .empty-state-btn:hover {
+            background: var(--color-primary-hover);
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .hero-stats {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .layout {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                padding: var(--spacing-md);
+            }
+
+            .sidebar .menu {
+                display: flex;
+                flex-wrap: wrap;
+                gap: var(--spacing-sm);
+            }
+
+            .sidebar .menu a {
+                flex: 1;
+                min-width: 120px;
+                justify-content: center;
+            }
+
+            .main {
+                padding: var(--spacing-lg);
+            }
+
+            .hero {
+                padding: var(--spacing-lg);
+            }
+
+            .hero-title {
+                font-size: 22px;
+            }
+
+            .hero-stat-value {
+                font-size: 20px;
+            }
         }
     </style>
 </head>
@@ -74,24 +402,83 @@
     <div class="layout">
         <!-- Sidebar -->
         <aside class="sidebar">
-            <h1>💰 CrewWealth</h1>
+            <div class="sidebar-header">
+                <div class="sidebar-title">💰 CrewWealth</div>
+                <div class="sidebar-subtitle">Financial Management</div>
+            </div>
+
             <nav class="menu">
-                <a href="budget">Budgets & Accounts</a>
-                <a href="goals">Goals</a>
-                <a href="reports">Reports</a>
-                <a href="settings">Settings</a>
+                <a href="/" class="active">🏠 Dashboard</a>
+                <a href="/budget">💳 Budget & Accounts</a>
+                <a href="/goals">🎯 Goals</a>
+                <a href="/reports">📊 Reports</a>
+                <a href="/settings">⚙️ Settings</a>
             </nav>
+
+            <button class="logout-btn" id="logoutBtn">
+                🚪 Logout
+            </button>
         </aside>
 
         <!-- Main Content -->
         <main class="main">
+            <!-- Hero Section -->
             <div class="hero">
-                <h2>Welcome to CrewWealth</h2>
-                <p>Your financial overview at a glance.</p>
+                <div class="hero-greeting" id="heroGreeting">Welcome back 👋</div>
+                <h1 class="hero-title">Your Financial Overview</h1>
+                <div class="hero-stats">
+                    <div class="hero-stat">
+                        <div class="hero-stat-label">Total Net Worth</div>
+                        <div class="hero-stat-value" id="netWorth">€0.00</div>
+                    </div>
+                    <div class="hero-stat">
+                        <div class="hero-stat-label">On Budget</div>
+                        <div class="hero-stat-value" id="onBudget">€0.00</div>
+                    </div>
+                    <div class="hero-stat">
+                        <div class="hero-stat-label">Off Budget</div>
+                        <div class="hero-stat-value" id="offBudget">€0.00</div>
+                    </div>
+                </div>
             </div>
-            <!-- Content dynamically injected here -->
-            <div id="content">
-                Loading data...
+
+            <!-- Quick Access -->
+            <div class="section-title">Quick Access</div>
+            <div class="quick-access">
+                <a href="/budget" class="quick-card">
+                    <div class="quick-card-icon">💰</div>
+                    <div class="quick-card-title">Budget & Accounts</div>
+                    <div class="quick-card-description">Manage your accounts, track transactions, and monitor spending across all categories</div>
+                </a>
+
+                <a href="/goals" class="quick-card">
+                    <div class="quick-card-icon">🎯</div>
+                    <div class="quick-card-title">Savings Goals</div>
+                    <div class="quick-card-description">Set and track progress towards your financial goals and milestones</div>
+                </a>
+
+                <a href="/reports" class="quick-card">
+                    <div class="quick-card-icon">📊</div>
+                    <div class="quick-card-title">Reports</div>
+                    <div class="quick-card-description">View detailed spending reports, trends, and financial insights</div>
+                </a>
+
+                <a href="/settings" class="quick-card">
+                    <div class="quick-card-icon">⚙️</div>
+                    <div class="quick-card-title">Settings</div>
+                    <div class="quick-card-description">Configure your preferences, categories, and account settings</div>
+                </a>
+            </div>
+
+            <!-- Accounts Section -->
+            <div class="accounts-section">
+                <div class="section-title">Your Accounts</div>
+                <div id="accountsContainer" class="accounts-grid">
+                    <div class="loading">
+                        <div class="loading-spinner"></div>
+                        <p>Loading accounts...</p>
+                    </div>
+                </div>
             </div>
         </main>
     </div>
@@ -102,96 +489,181 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 
     <script>
-        /* Firebase Config */
+        // ============================================
+        // FIREBASE CONFIGURATION
+        // ============================================
         const firebaseConfig = {
-            apiKey: "AIzaSyBccv9...Lo",
+            apiKey: "AIzaSyBccv9C4CpjZFeE2HGBKKfUiV9jUw8CZLo",
             authDomain: "crewwealth-cbe02.firebaseapp.com",
             projectId: "crewwealth-cbe02",
-            storageBucket: "crewwealth-cbe02.appspot.com",
+            storageBucket: "crewwealth-cbe02.firebasestorage.app",
             messagingSenderId: "852834158589",
             appId: "1:852834158589:web:8201ed1d9327841773bb94"
         };
+
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.firestore();
 
+        // ============================================
+        // GLOBAL STATE
+        // ============================================
         let currentUser = null;
+        let accounts = [];
 
-        // Initialize Dashboard
-        function init() {
-            // Check Authentication
-            auth.onAuthStateChanged(user => {
-                if (user) {
-                    currentUser = user;
-                    document.querySelector('.hero h2').textContent = `Welcome back, ${user.displayName || user.email.split('@')[0]}!`;
-                    loadDashboardData();
-                } else {
-                    // Redirect to login
-                    window.location.href = '/login';
-                }
-            });
-        }
-async function loadDashboardData() {
-    const content = document.getElementById('content');
-    content.innerHTML = '<p>Loading data...</p>'; // Laadstatus tonen
+        // ============================================
+        // AUTHENTICATION
+        // ============================================
+        auth.onAuthStateChanged(async (user) => {
+            if (!user) {
+                console.log('❌ Not authenticated, redirecting to login...');
+                window.location.href = '/login';
+                return;
+            }
 
-    if (!currentUser) {
-        content.innerHTML = '<p>Error: User not authenticated. Please log in.</p>';
-        return;
-    }
+            console.log('✅ User authenticated:', user.email);
+            currentUser = user;
 
-    try {
-        const accountsRef = db.collection('users').doc(currentUser.uid).collection('accounts');
-        const snapshot = await accountsRef.get();
+            // Update greeting
+            const firstName = user.displayName 
+                ? user.displayName.split(' ')[0] 
+                : user.email.split('@')[0];
+            document.getElementById('heroGreeting').textContent = `Welcome back, ${firstName} 👋`;
 
-        if (snapshot.empty) {
-            content.innerHTML = '<p>No accounts found. Add a new account to get started.</p>';
-        } else {
-            const accounts = snapshot.docs.map(doc => doc.data());
-            content.innerHTML = accounts.map(acc => `
-                <div class="card">
-                    <h3>${acc.name}</h3>
-                    <p>Balance: €${acc.balance || '0.00'}</p>
-                </div>
-            `).join('');
-        }
-    } catch (error) {
-        console.error('Error loading accounts:', error);
-        content.innerHTML = '<p>Error loading accounts. Please try again later.</p>';
-    }
-}
-
-        // Event listeners for navigation
-        document.querySelectorAll('.menu a').forEach(link => {
-            link.addEventListener('click', e => {
-                e.preventDefault();
-                const path = e.target.getAttribute('href');
-                navigateTo(path);
-            });
+            // Load dashboard data
+            await loadDashboardData();
         });
 
-        function navigateTo(path) {
-    const content = document.getElementById('content');
-    switch (path) {
-        case 'budget':
-            content.innerHTML = '<h2>Budgets & Accounts</h2><p>Manage your accounts and transactions from here.</p>';
-            break;
-        case 'goals':
-            content.innerHTML = '<h2>Goals</h2><p>Track and manage your financial goals effectively.</p>';
-            break;
-        case 'reports':
-            content.innerHTML = '<h2>Reports</h2><p>View detailed spending reports.</p>';
-            break;
-        case 'settings':
-            content.innerHTML = '<h2>Settings</h2><p>Update your account and app preferences.</p>';
-            break;
-        default:
-            content.innerHTML = '<h2>404</h2><p>Page not found.</p>';
-            break;
-    }
-}
+        // ============================================
+        // LOGOUT FUNCTIONALITY
+        // ============================================
+        document.getElementById('logoutBtn').addEventListener('click', async () => {
+            try {
+                await auth.signOut();
+                console.log('✅ Logged out successfully');
+                window.location.href = '/login';
+            } catch (error) {
+                console.error('❌ Logout error:', error);
+                alert('Failed to logout. Please try again.');
+            }
+        });
 
-        init();
+        // ============================================
+        // DATA LOADING
+        // ============================================
+        async function loadDashboardData() {
+            if (!currentUser) return;
+
+            try {
+                // Load accounts
+                const accountsSnapshot = await db.collection('users')
+                    .doc(currentUser.uid)
+                    .collection('accounts')
+                    .get();
+
+                accounts = accountsSnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+
+                console.log('✅ Accounts loaded:', accounts.length);
+
+                // Update UI
+                renderAccounts();
+                updateNetWorth();
+
+            } catch (error) {
+                console.error('❌ Error loading data:', error);
+                showError('Failed to load data. Please refresh the page.');
+            }
+        }
+
+        // ============================================
+        // RENDER FUNCTIONS
+        // ============================================
+        function renderAccounts() {
+            const container = document.getElementById('accountsContainer');
+
+            if (accounts.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">🏦</div>
+                        <div class="empty-state-title">No accounts yet</div>
+                        <div class="empty-state-description">
+                            Add your first account to start tracking your finances
+                        </div>
+                        <a href="/budget" class="empty-state-btn">+ Add Account</a>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = accounts.map(account => {
+                const balance = parseFloat(account.balance) || 0;
+                const balanceClass = balance >= 0 ? 'positive' : 'negative';
+                const typeLabel = account.offBudget ? 'Off Budget' : 'On Budget';
+
+                return `
+                    <div class="account-card">
+                        <div class="account-card-header">
+                            <div class="account-card-name">${account.name}</div>
+                            <div class="account-card-type">${typeLabel}</div>
+                        </div>
+                        <div class="account-card-balance ${balanceClass}">
+                            ${formatCurrency(balance)}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateNetWorth() {
+            let totalNetWorth = 0;
+            let onBudgetTotal = 0;
+            let offBudgetTotal = 0;
+
+            accounts.forEach(account => {
+                const balance = parseFloat(account.balance) || 0;
+                totalNetWorth += balance;
+
+                if (account.offBudget) {
+                    offBudgetTotal += balance;
+                } else {
+                    onBudgetTotal += balance;
+                }
+            });
+
+            document.getElementById('netWorth').textContent = formatCurrency(totalNetWorth);
+            document.getElementById('onBudget').textContent = formatCurrency(onBudgetTotal);
+            document.getElementById('offBudget').textContent = formatCurrency(offBudgetTotal);
+
+            console.log('✅ Net worth updated:', {
+                total: totalNetWorth,
+                onBudget: onBudgetTotal,
+                offBudget: offBudgetTotal
+            });
+        }
+
+        // ============================================
+        // UTILITY FUNCTIONS
+        // ============================================
+        function formatCurrency(amount) {
+            return '€' + amount.toLocaleString('nl-NL', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        }
+
+        function showError(message) {
+            const container = document.getElementById('accountsContainer');
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">⚠️</div>
+                    <div class="empty-state-title">Error</div>
+                    <div class="empty-state-description">${message}</div>
+                </div>
+            `;
+        }
     </script>
 </body>
 </html>
