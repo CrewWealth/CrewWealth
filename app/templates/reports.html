@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Reports - CrewWealth</title>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <style>
         :root {
             --color-primary: #208089;
@@ -12,6 +16,9 @@
             --color-text: #134252;
             --color-text-secondary: #626c71;
             --color-border: #e8e8e0;
+            --color-success: #22c55e;
+            --color-danger: #ef4444;
+            --spacing-sm: 8px;
             --spacing-md: 16px;
             --spacing-lg: 24px;
             --spacing-xl: 32px;
@@ -63,17 +70,347 @@
             color: var(--color-text-secondary);
             font-size: 14px;
         }
+
+        .reports-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: var(--spacing-lg);
+            margin-bottom: var(--spacing-xl);
+        }
+
+        .report-card {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-lg);
+        }
+
+        .report-card h3 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: var(--spacing-md);
+            color: var(--color-text);
+        }
+
+        .report-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--color-primary);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .report-subtitle {
+            font-size: 13px;
+            color: var(--color-text-secondary);
+        }
+
+        .transactions-section {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-lg);
+            margin-top: var(--spacing-lg);
+        }
+
+        .transactions-section h2 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .transaction-item {
+            display: flex;
+            justify-content: space-between;
+            padding: var(--spacing-md);
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        .transaction-item:last-child {
+            border-bottom: none;
+        }
+
+        .transaction-info {
+            flex: 1;
+        }
+
+        .transaction-category {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--color-text);
+        }
+
+        .transaction-payee {
+            font-size: 12px;
+            color: var(--color-text-secondary);
+        }
+
+        .transaction-amount {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .transaction-amount.outflow {
+            color: var(--color-danger);
+        }
+
+        .transaction-amount.inflow {
+            color: var(--color-success);
+        }
+
+        .loading {
+            text-align: center;
+            padding: var(--spacing-xl);
+            color: var(--color-text-secondary);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: var(--spacing-xl);
+            color: var(--color-text-secondary);
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <a href="/" class="nav-back">← Back to Dashboard</a>
         <h1>📊 Reports</h1>
-        <div class="placeholder-card">
-            <div class="placeholder-icon">📊</div>
-            <div class="placeholder-title">Reports Coming Soon</div>
-            <p class="placeholder-text">Detailed spending reports, trends, and financial insights will be available here.</p>
+        
+        <div id="loadingState" class="loading">
+            Loading reports data...
+        </div>
+
+        <div id="reportsContent" style="display: none;">
+            <!-- Summary Cards -->
+            <div class="reports-grid">
+                <div class="report-card">
+                    <h3>💰 Net Worth</h3>
+                    <div class="report-value" id="netWorthValue">€0.00</div>
+                    <div class="report-subtitle" id="netWorthSubtitle">Savings + Available</div>
+                </div>
+
+                <div class="report-card">
+                    <h3>💵 Total Income</h3>
+                    <div class="report-value" id="totalIncomeValue">€0.00</div>
+                    <div class="report-subtitle">This month</div>
+                </div>
+
+                <div class="report-card">
+                    <h3>💸 Total Spending</h3>
+                    <div class="report-value" id="totalSpendingValue">€0.00</div>
+                    <div class="report-subtitle">This month</div>
+                </div>
+            </div>
+
+            <!-- Recent Transactions -->
+            <div class="transactions-section">
+                <h2>Recent Transactions</h2>
+                <div id="transactionsList">
+                    <div class="empty-state">No transactions found</div>
+                </div>
+            </div>
         </div>
     </div>
+
+    <script>
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBccv9C4CpjZFeE2HGBKKfUiV9jUw8CZLo",
+            authDomain: "crewwealth-cbe02.firebaseapp.com",
+            projectId: "crewwealth-cbe02",
+            storageBucket: "crewwealth-cbe02.firebasestorage.app",
+            messagingSenderId: "852834158589",
+            appId: "1:852834158589:web:8201ed1d9327841773bb94"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        let currentUser = null;
+
+        // Authentication check
+        auth.onAuthStateChanged(async (user) => {
+            if (!user) {
+                window.location.href = '/login';
+                return;
+            }
+            currentUser = user;
+            await loadReportsData();
+        });
+
+        async function loadReportsData() {
+            try {
+                // Calculate Net Worth (same as index.html)
+                await calculateNetWorth();
+
+                // Load transactions for monthly stats
+                await loadMonthlyStats();
+
+                // Load recent transactions
+                await loadRecentTransactions();
+
+                // Hide loading, show content
+                document.getElementById('loadingState').style.display = 'none';
+                document.getElementById('reportsContent').style.display = 'block';
+            } catch (error) {
+                console.error('Error loading reports data:', error);
+                document.getElementById('loadingState').innerHTML = 'Error loading data. Please try again.';
+            }
+        }
+
+        async function calculateNetWorth() {
+            if (!currentUser) return;
+
+            try {
+                // Load accounts from Firebase
+                const accountsSnapshot = await db.collection('users')
+                    .doc(currentUser.uid)
+                    .collection('accounts')
+                    .get();
+
+                let offBudgetTotal = 0; // Savings
+                let onBudgetTotal = 0;  // All on-budget money
+                
+                accountsSnapshot.docs.forEach(doc => {
+                    const account = doc.data();
+                    const balance = parseFloat(account.balance) || 0;
+                    
+                    if (account.offBudget) {
+                        offBudgetTotal += balance;
+                    } else {
+                        onBudgetTotal += balance;
+                    }
+                });
+
+                // Load categories to calculate "To Budget" (unassigned money)
+                const categoriesSnapshot = await db.collection('users')
+                    .doc(currentUser.uid)
+                    .collection('categories')
+                    .get();
+
+                let totalBudgeted = 0;
+                categoriesSnapshot.docs.forEach(doc => {
+                    const category = doc.data();
+                    totalBudgeted += parseFloat(category.budgeted) || 0;
+                });
+
+                // To Budget = On Budget Total - Total Budgeted
+                const toBudget = onBudgetTotal - totalBudgeted;
+
+                // Net Worth = Off Budget (Savings) + To Budget (Available)
+                const netWorth = offBudgetTotal + toBudget;
+
+                // Update UI
+                document.getElementById('netWorthValue').textContent = formatCurrency(netWorth);
+                document.getElementById('netWorthSubtitle').textContent = 
+                    formatCurrency(offBudgetTotal) + ' Savings + ' + formatCurrency(toBudget) + ' Available';
+
+                console.log('✅ Net worth calculated:', {
+                    netWorth,
+                    savings: offBudgetTotal,
+                    available: toBudget
+                });
+
+            } catch (error) {
+                console.error('❌ Error calculating net worth:', error);
+            }
+        }
+
+        async function loadMonthlyStats() {
+            if (!currentUser) return;
+
+            try {
+                const now = new Date();
+                const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+                const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+
+                const transactionsSnapshot = await db.collection('users')
+                    .doc(currentUser.uid)
+                    .collection('transactions')
+                    .where('date', '>=', firebase.firestore.Timestamp.fromDate(monthStart))
+                    .where('date', '<=', firebase.firestore.Timestamp.fromDate(monthEnd))
+                    .get();
+
+                let totalIncome = 0;
+                let totalSpending = 0;
+
+                transactionsSnapshot.docs.forEach(doc => {
+                    const transaction = doc.data();
+                    const inflow = parseFloat(transaction.inflow) || 0;
+                    const outflow = parseFloat(transaction.outflow) || 0;
+
+                    totalIncome += inflow;
+                    totalSpending += outflow;
+                });
+
+                document.getElementById('totalIncomeValue').textContent = formatCurrency(totalIncome);
+                document.getElementById('totalSpendingValue').textContent = formatCurrency(totalSpending);
+
+            } catch (error) {
+                console.error('Error loading monthly stats:', error);
+            }
+        }
+
+        async function loadRecentTransactions() {
+            if (!currentUser) return;
+
+            try {
+                const transactionsSnapshot = await db.collection('users')
+                    .doc(currentUser.uid)
+                    .collection('transactions')
+                    .orderBy('date', 'desc')
+                    .limit(20)
+                    .get();
+
+                const transactionsList = document.getElementById('transactionsList');
+
+                if (transactionsSnapshot.empty) {
+                    transactionsList.innerHTML = '<div class="empty-state">No transactions found</div>';
+                    return;
+                }
+
+                const transactionsHTML = transactionsSnapshot.docs.map(doc => {
+                    const transaction = doc.data();
+                    const inflow = parseFloat(transaction.inflow) || 0;
+                    const outflow = parseFloat(transaction.outflow) || 0;
+                    const amount = inflow > 0 ? inflow : -outflow;
+                    const amountClass = inflow > 0 ? 'inflow' : 'outflow';
+                    const amountSign = inflow > 0 ? '+' : '-';
+
+                    return `
+                        <div class="transaction-item">
+                            <div class="transaction-info">
+                                <div class="transaction-category">${escapeHtml(transaction.category || 'Uncategorized')}</div>
+                                <div class="transaction-payee">${escapeHtml(transaction.payee || 'Unknown')}</div>
+                            </div>
+                            <div class="transaction-amount ${amountClass}">
+                                ${amountSign}${formatCurrency(Math.abs(amount))}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                transactionsList.innerHTML = transactionsHTML;
+
+            } catch (error) {
+                console.error('Error loading recent transactions:', error);
+                document.getElementById('transactionsList').innerHTML = 
+                    '<div class="empty-state">Error loading transactions</div>';
+            }
+        }
+
+        function formatCurrency(amount) {
+            return '€' + amount.toLocaleString('nl-NL', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
 </body>
 </html>
