@@ -171,16 +171,25 @@ async function loadDashboardData() {
         });
 
         function navigateTo(path) {
-            console.log(`Navigating to ${path}`);
-            // Logic for loading other sections dynamically
-            if (path === 'budget') {
-                document.getElementById('content').innerHTML = '<h2>Budgets</h2><p>Details about your budgets.</p>';
-            } else if (path === 'goals') {
-                document.getElementById('content').innerHTML = '<h2>Goals</h2><p>Your financial goals overview.</p>';
-            } else {
-                document.getElementById('content').innerHTML = `<h2>${path}</h2><p>Section under development.</p>`;
-            }
-        }
+    const content = document.getElementById('content');
+    switch (path) {
+        case 'budget':
+            content.innerHTML = '<h2>Budgets & Accounts</h2><p>Manage your accounts and transactions from here.</p>';
+            break;
+        case 'goals':
+            content.innerHTML = '<h2>Goals</h2><p>Track and manage your financial goals effectively.</p>';
+            break;
+        case 'reports':
+            content.innerHTML = '<h2>Reports</h2><p>View detailed spending reports.</p>';
+            break;
+        case 'settings':
+            content.innerHTML = '<h2>Settings</h2><p>Update your account and app preferences.</p>';
+            break;
+        default:
+            content.innerHTML = '<h2>404</h2><p>Page not found.</p>';
+            break;
+    }
+}
 
         init();
     </script>
