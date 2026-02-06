@@ -443,19 +443,19 @@
                         </div>
 
                         <div class="form-group">
-                            <label for="targetAmount">Target Amount (€) *</label>
+                            <label for="targetAmount">Target Amount (<span class="currency-symbol">€</span>) *</label>
                             <input type="number" id="targetAmount" placeholder="50000" min="0" step="0.01" required>
                         </div>
                     </div>
 
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="currentAmount">Current Savings (€)</label>
+                            <label for="currentAmount">Current Savings (<span class="currency-symbol">€</span>)</label>
                             <input type="number" id="currentAmount" placeholder="0" min="0" step="0.01" value="0">
                         </div>
 
                         <div class="form-group">
-                            <label for="monthlyContribution">Monthly Contribution (€)</label>
+                            <label for="monthlyContribution">Monthly Contribution (<span class="currency-symbol">€</span>)</label>
                             <input type="number" id="monthlyContribution" placeholder="500" min="0" step="0.01" value="0">
                         </div>
                     </div>
@@ -540,6 +540,58 @@
 
         let currentUser = null;
         let goals = [];
+        let userCurrency = 'EUR'; // global variable for currency
+
+        // ============================================
+        // CURRENCY FUNCTIONS
+        // ============================================
+        function formatCurrency(amount) {
+            const currencyConfig = {
+                'EUR': { symbol: '€', position: 'before' },
+                'USD': { symbol: '$', position: 'before' },
+                'GBP': { symbol: '£', position: 'before' },
+                'PHP': { symbol: '₱', position: 'before' },
+                'INR': { symbol: '₹', position: 'before' },
+                'AUD': { symbol: 'A$', position: 'before' },
+                'CAD': { symbol: 'C$', position: 'before' },
+                'SGD': { symbol: 'S$', position: 'before' }
+            };
+            
+            const config = currencyConfig[userCurrency] || currencyConfig['EUR'];
+            const formatted = (amount || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+            
+            return config.position === 'before' 
+                ? config.symbol + formatted 
+                : formatted + config.symbol;
+        }
+
+        function getCurrencySymbol() {
+            const symbols = {
+                'EUR': '€', 'USD': '$', 'GBP': '£', 'PHP': '₱',
+                'INR': '₹', 'AUD': 'A$', 'CAD': 'C$', 'SGD': 'S$'
+            };
+            return symbols[userCurrency] || '€';
+        }
+
+        function updateCurrencyLabels() {
+            document.querySelectorAll('.currency-symbol').forEach(el => {
+                el.textContent = getCurrencySymbol();
+            });
+        }
+
+        async function loadUserSettings() {
+            if (!currentUser) return;
+            
+            try {
+                const doc = await db.collection('users').doc(currentUser.uid).get();
+                if (doc.exists) {
+                    userCurrency = doc.data().settings?.currency || 'EUR';
+                    updateCurrencyLabels();
+                }
+            } catch (error) {
+                console.error('Error loading user settings:', error);
+            }
+        }
 
         // Authentication check
         auth.onAuthStateChanged(async (user) => {
@@ -548,6 +600,7 @@
                 return;
             }
             currentUser = user;
+            await loadUserSettings();
             await loadGoals();
         });
 
@@ -590,14 +643,32 @@
                 return;
             }
 
+            const category = document.getElementById('goalCategory').value;
+            const deadline = document.getElementById('deadline').value;
+            
+            // Map category to icon
+            const categoryIcons = {
+                'House': '🏠',
+                'Car': '🚗',
+                'Vacation': '✈️',
+                'Education': '📚',
+                'Investment': '💼',
+                'Emergency': '🆘',
+                'Retirement': '🏖️',
+                'Other': '📌'
+            };
+
             const goal = {
                 name: document.getElementById('goalName').value,
-                category: document.getElementById('goalCategory').value,
+                category: category,
+                icon: categoryIcons[category] || '🎯',
                 targetAmount: parseFloat(document.getElementById('targetAmount').value),
                 currentAmount: parseFloat(document.getElementById('currentAmount').value) || 0,
                 monthlyContribution: parseFloat(document.getElementById('monthlyContribution').value) || 0,
-                deadline: document.getElementById('deadline').value,
+                deadline: deadline,
+                targetDate: deadline,
                 description: document.getElementById('goalDescription').value,
+                status: 'active',
                 createdDate: firebase.firestore.FieldValue.serverTimestamp()
             };
 
@@ -690,11 +761,11 @@
                         <div class="goal-amounts">
                             <div class="amount-item">
                                 <div class="amount-label">Current Savings</div>
-                                <div class="amount-value">€${goal.currentAmount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</div>
+                                <div class="amount-value">${formatCurrency(goal.currentAmount)}</div>
                             </div>
                             <div class="amount-item">
                                 <div class="amount-label">Target Amount</div>
-                                <div class="amount-value">€${goal.targetAmount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</div>
+                                <div class="amount-value">${formatCurrency(goal.targetAmount)}</div>
                             </div>
                         </div>
 
@@ -710,22 +781,22 @@
 
                         ${goal.monthlyContribution > 0 ? `
                             <div class="timeline-info">
-                                📅 At €${goal.monthlyContribution.toFixed(2)}/month, you'll reach this goal in <strong>${monthsToGoal === '∞' ? 'N/A' : monthsToGoal + ' months'}</strong> (${completionDate})
+                                📅 At ${formatCurrency(goal.monthlyContribution)}/month, you'll reach this goal in <strong>${monthsToGoal === '∞' ? 'N/A' : monthsToGoal + ' months'}</strong> (${completionDate})
                             </div>
                         ` : `
                             <div class="timeline-info">
-                                📅 No monthly contribution set. Remaining: <strong>€${remaining.toFixed(2)}</strong>
+                                📅 No monthly contribution set. Remaining: <strong>${formatCurrency(remaining)}</strong>
                             </div>
                         `}
 
                         <div class="goal-amounts">
                             <div class="amount-item">
                                 <div class="amount-label">Monthly Contribution</div>
-                                <div class="amount-value">€${goal.monthlyContribution.toFixed(2)}</div>
+                                <div class="amount-value">${formatCurrency(goal.monthlyContribution)}</div>
                             </div>
                             <div class="amount-item">
                                 <div class="amount-label">Remaining</div>
-                                <div class="amount-value">€${remaining.toFixed(2)}</div>
+                                <div class="amount-value">${formatCurrency(remaining)}</div>
                             </div>
                         </div>
                     </div>
@@ -741,9 +812,9 @@
             const overallProgress = totalTarget > 0 ? (totalSaved / totalTarget) * 100 : 0;
 
             document.getElementById('totalGoals').textContent = totalGoals;
-            document.getElementById('totalTarget').textContent = '€' + totalTarget.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-            document.getElementById('totalSaved').textContent = '€' + totalSaved.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-            document.getElementById('monthlySavings').textContent = '€' + monthlySavings.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+            document.getElementById('totalTarget').textContent = formatCurrency(totalTarget);
+            document.getElementById('totalSaved').textContent = formatCurrency(totalSaved);
+            document.getElementById('monthlySavings').textContent = formatCurrency(monthlySavings);
             document.getElementById('progressPercent').textContent = overallProgress.toFixed(1);
             document.getElementById('overallProgress').style.width = Math.min(overallProgress, 100) + '%';
         }
