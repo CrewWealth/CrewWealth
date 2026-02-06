@@ -547,24 +547,24 @@
         // ============================================
         function formatCurrency(amount) {
             const currencyConfig = {
-                'EUR': { symbol: '€', position: 'before' },
-                'USD': { symbol: '$', position: 'before' },
-                'GBP': { symbol: '£', position: 'before' },
-                'PHP': { symbol: '₱', position: 'before' },
-                'INR': { symbol: '₹', position: 'before' },
-                'AUD': { symbol: 'A$', position: 'before' },
-                'CAD': { symbol: 'C$', position: 'before' },
-                'SGD': { symbol: 'S$', position: 'before' },
-                'NOK': { symbol: 'kr', position: 'after' },
-                'JPY': { symbol: '¥', position: 'before' }
+                'USD': { symbol: '$', decimals: 2 },
+                'EUR': { symbol: '€', decimals: 2 },
+                'GBP': { symbol: '£', decimals: 2 },
+                'PHP': { symbol: '₱', decimals: 2 },
+                'INR': { symbol: '₹', decimals: 2 },
+                'IDR': { symbol: 'Rp', decimals: 0 },
+                'SGD': { symbol: 'S$', decimals: 2 },
+                'NOK': { symbol: 'kr', decimals: 2 },
+                'AUD': { symbol: 'A$', decimals: 2 },
+                'CAD': { symbol: 'C$', decimals: 2 },
+                'JPY': { symbol: '¥', decimals: 0 }
             };
             
             const config = currencyConfig[userCurrency] || currencyConfig['EUR'];
-            const formatted = (amount || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+            const formatted = (amount || 0).toFixed(config.decimals)
+                .replace(/\B(?=(\d{3})+(?!\d))/g, ',');
             
-            return config.position === 'before' 
-                ? config.symbol + formatted 
-                : formatted + config.symbol;
+            return config.symbol + formatted;
         }
 
         function getCurrencySymbol() {
