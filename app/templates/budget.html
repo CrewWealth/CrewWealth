@@ -2046,7 +2046,7 @@
             const totalSpent = categories.reduce((sum, cat) => sum + calculateSpent(cat.id, monthKey), 0);
 
             // Calculate to budget
-            const toBudget = availableFunds - totalBudgeted;
+            const toBudget = availableFunds - totalBudgeted + totalSpent;
 
             // Calculate overspent
             const overspent = categories.reduce((sum, cat) => {
