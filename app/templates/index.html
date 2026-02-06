@@ -1186,6 +1186,19 @@
         });
 
         // ============================================
+        // PAGE VISIBILITY HANDLING
+        // ============================================
+        // Refresh dashboard data when user returns to the page
+        // This ensures deleted transactions and updated data are reflected
+        document.addEventListener('visibilitychange', async () => {
+            if (!document.hidden && currentUser) {
+                console.log('🔄 Page became visible, refreshing dashboard data...');
+                await calculateNetWorth();
+                await loadDashboardData();
+            }
+        });
+
+        // ============================================
         // DATA LOADING
         // ============================================
         async function calculateNetWorth() {
