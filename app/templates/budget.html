@@ -501,15 +501,17 @@
 
         .transaction-item {
             display: grid;
-            grid-template-columns: 40px 2fr 1fr 1fr 1fr 80px;
+            grid-template-columns: 40px 2fr 1fr 1fr 1fr 80px 40px;
             gap: var(--spacing-md);
             padding: var(--spacing-md) var(--spacing-lg);
             border-top: 1px solid var(--color-border);
             align-items: center;
+            cursor: pointer;
+            transition: background 0.2s;
         }
 
         .transaction-item:hover {
-            background: rgba(32, 128, 137, 0.03);
+            background: rgba(32, 128, 137, 0.05);
         }
 
         .transaction-icon {
@@ -550,6 +552,26 @@
         .transaction-account {
             font-size: 12px;
             color: var(--color-text-secondary);
+        }
+
+        .transaction-delete {
+            color: var(--color-danger, #ef4444);
+            font-size: 24px;
+            font-weight: 700;
+            cursor: pointer;
+            padding: 0 var(--spacing-sm);
+            opacity: 0;
+            transition: opacity 0.2s;
+            text-align: center;
+        }
+
+        .transaction-item:hover .transaction-delete {
+            opacity: 1;
+        }
+
+        .transaction-delete:hover {
+            color: #dc2626;
+            transform: scale(1.2);
         }
 
         .form-textarea {
@@ -988,6 +1010,89 @@
                 <div class="modal-actions">
                     <button type="button" class="btn btn-secondary" onclick="closeModal('salaryModal')">Cancel</button>
                     <button type="submit" class="btn btn-primary">Add Salary</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Transaction Modal -->
+    <div class="modal" id="editTransactionModal">
+        <div class="modal-content">
+            <div class="modal-header" id="editModalHeader">Edit Transaction</div>
+            <form onsubmit="saveEditedTransaction(event)">
+                <input type="hidden" id="editTransactionId">
+                <input type="hidden" id="editTransactionType">
+                <input type="hidden" id="editOriginalAmount">
+                <input type="hidden" id="editOriginalAccountId">
+                <input type="hidden" id="editOriginalToAccountId">
+
+                <!-- Payment/Deposit/Salary Fields -->
+                <div id="editStandardFields">
+                    <div class="form-group">
+                        <label class="form-label">Amount (€) *</label>
+                        <input type="number" class="form-input" id="editAmount" step="0.01" min="0.01" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Account *</label>
+                        <select class="form-select" id="editAccount" required>
+                            <option value="">Select account...</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group" id="editCategoryGroup">
+                        <label class="form-label">Category</label>
+                        <select class="form-select" id="editCategory">
+                            <option value="">Select category...</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Date *</label>
+                        <input type="date" class="form-input" id="editDate" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Note</label>
+                        <textarea class="form-textarea" id="editNote" placeholder="Description"></textarea>
+                    </div>
+                </div>
+
+                <!-- Transfer Fields -->
+                <div id="editTransferFields" style="display: none;">
+                    <div class="form-group">
+                        <label class="form-label">Amount (€) *</label>
+                        <input type="number" class="form-input" id="editTransferAmount" step="0.01" min="0.01">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">From Account *</label>
+                        <select class="form-select" id="editFromAccount">
+                            <option value="">Select account...</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">To Account *</label>
+                        <select class="form-select" id="editToAccount">
+                            <option value="">Select account...</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Date *</label>
+                        <input type="date" class="form-input" id="editTransferDate">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Note</label>
+                        <textarea class="form-textarea" id="editTransferNote" placeholder="Description"></textarea>
+                    </div>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('editTransactionModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
                 </div>
             </form>
         </div>
@@ -1994,6 +2099,277 @@
         }
 
         // ============================================
+        // DELETE TRANSACTION
+        // ============================================
+        async function deleteTransaction(transactionId, type, amount, accountId, toAccountId) {
+            // Confirmation dialog
+            if (!confirm('Are you sure you want to delete this transaction?')) {
+                return;
+            }
+
+            if (!currentUser) {
+                alert('You must be logged in');
+                return;
+            }
+
+            try {
+                // Delete transaction from Firestore
+                await db.collection('users').doc(currentUser.uid)
+                    .collection('transactions').doc(transactionId).delete();
+
+                // Update account balances based on transaction type
+                if (type === 'payment') {
+                    // Payment: Add back to account balance (we subtracted it before)
+                    const account = accounts.find(a => a.id === accountId);
+                    if (account) {
+                        const newBalance = (parseFloat(account.balance) || 0) + amount;
+                        await db.collection('users').doc(currentUser.uid)
+                            .collection('accounts').doc(accountId).update({
+                                balance: newBalance
+                            });
+                    }
+                } else if (type === 'deposit' || type === 'salary') {
+                    // Deposit/Salary: Subtract from account balance (we added it before)
+                    const account = accounts.find(a => a.id === accountId);
+                    if (account) {
+                        const newBalance = (parseFloat(account.balance) || 0) - amount;
+                        await db.collection('users').doc(currentUser.uid)
+                            .collection('accounts').doc(accountId).update({
+                                balance: newBalance
+                            });
+                    }
+                } else if (type === 'transfer') {
+                    // Transfer: Reverse both account changes
+                    const fromAccount = accounts.find(a => a.id === accountId);
+                    const toAccount = accounts.find(a => a.id === toAccountId);
+                    
+                    if (fromAccount) {
+                        const newBalance = (parseFloat(fromAccount.balance) || 0) + amount;
+                        await db.collection('users').doc(currentUser.uid)
+                            .collection('accounts').doc(accountId).update({
+                                balance: newBalance
+                            });
+                    }
+                    
+                    if (toAccount) {
+                        const newBalance = (parseFloat(toAccount.balance) || 0) - amount;
+                        await db.collection('users').doc(currentUser.uid)
+                            .collection('accounts').doc(toAccountId).update({
+                                balance: newBalance
+                            });
+                    }
+                }
+
+                console.log('✅ Transaction deleted successfully');
+
+                // Reload data and update UI
+                await loadAllData();
+                renderAccounts();
+                renderCategories();
+                renderTransactions();
+                updateOverview();
+
+            } catch (error) {
+                console.error('❌ Error deleting transaction:', error);
+                alert('Failed to delete transaction: ' + error.message);
+            }
+        }
+
+        // ============================================
+        // EDIT TRANSACTION
+        // ============================================
+        function editTransaction(transaction) {
+            // Store original values for balance calculation
+            document.getElementById('editTransactionId').value = transaction.id;
+            document.getElementById('editTransactionType').value = transaction.type;
+            document.getElementById('editOriginalAmount').value = transaction.amount;
+            document.getElementById('editOriginalAccountId').value = transaction.accountId;
+            document.getElementById('editOriginalToAccountId').value = transaction.toAccountId || '';
+
+            // Populate account dropdowns
+            const accountSelects = ['editAccount', 'editFromAccount', 'editToAccount'];
+            accountSelects.forEach(selectId => {
+                const select = document.getElementById(selectId);
+                select.innerHTML = '<option value="">Select account...</option>';
+                accounts.forEach(acc => {
+                    select.innerHTML += `<option value="${acc.id}">${escapeHtml(acc.name)}</option>`;
+                });
+            });
+
+            // Populate category dropdown
+            const categorySelect = document.getElementById('editCategory');
+            categorySelect.innerHTML = '<option value="">Select category...</option>';
+            categories.forEach(cat => {
+                categorySelect.innerHTML += `<option value="${cat.id}">${escapeHtml(cat.name)}</option>`;
+            });
+
+            const txDate = transaction.date?.toDate ? transaction.date.toDate() : new Date(transaction.date);
+            const dateString = txDate.toISOString().split('T')[0];
+
+            if (transaction.type === 'transfer') {
+                // Show transfer fields
+                document.getElementById('editStandardFields').style.display = 'none';
+                document.getElementById('editTransferFields').style.display = 'block';
+                document.getElementById('editModalHeader').textContent = 'Edit Transfer';
+
+                document.getElementById('editTransferAmount').value = transaction.amount;
+                document.getElementById('editFromAccount').value = transaction.accountId;
+                document.getElementById('editToAccount').value = transaction.toAccountId || '';
+                document.getElementById('editTransferDate').value = dateString;
+                document.getElementById('editTransferNote').value = transaction.note || '';
+            } else {
+                // Show standard fields
+                document.getElementById('editStandardFields').style.display = 'block';
+                document.getElementById('editTransferFields').style.display = 'none';
+
+                if (transaction.type === 'payment') {
+                    document.getElementById('editModalHeader').textContent = 'Edit Payment';
+                    document.getElementById('editCategoryGroup').style.display = 'block';
+                } else if (transaction.type === 'salary') {
+                    document.getElementById('editModalHeader').textContent = 'Edit Salary';
+                    document.getElementById('editCategoryGroup').style.display = 'none';
+                } else if (transaction.type === 'deposit') {
+                    document.getElementById('editModalHeader').textContent = 'Edit Deposit';
+                    document.getElementById('editCategoryGroup').style.display = 'block';
+                }
+
+                document.getElementById('editAmount').value = transaction.amount;
+                document.getElementById('editAccount').value = transaction.accountId;
+                document.getElementById('editCategory').value = transaction.categoryId || '';
+                document.getElementById('editDate').value = dateString;
+                document.getElementById('editNote').value = transaction.note || '';
+            }
+
+            openModal('editTransactionModal');
+        }
+
+        async function saveEditedTransaction(event) {
+            event.preventDefault();
+
+            if (!currentUser) {
+                alert('You must be logged in');
+                return;
+            }
+
+            const transactionId = document.getElementById('editTransactionId').value;
+            const type = document.getElementById('editTransactionType').value;
+            const originalAmount = parseFloat(document.getElementById('editOriginalAmount').value);
+            const originalAccountId = document.getElementById('editOriginalAccountId').value;
+            const originalToAccountId = document.getElementById('editOriginalToAccountId').value;
+
+            try {
+                let newAmount, newAccountId, newToAccountId, newCategoryId, newDate, newNote;
+
+                if (type === 'transfer') {
+                    newAmount = parseFloat(document.getElementById('editTransferAmount').value);
+                    newAccountId = document.getElementById('editFromAccount').value;
+                    newToAccountId = document.getElementById('editToAccount').value;
+                    newDate = document.getElementById('editTransferDate').value;
+                    newNote = document.getElementById('editTransferNote').value.trim();
+                    newCategoryId = null;
+                } else {
+                    newAmount = parseFloat(document.getElementById('editAmount').value);
+                    newAccountId = document.getElementById('editAccount').value;
+                    newCategoryId = document.getElementById('editCategory').value || null;
+                    newDate = document.getElementById('editDate').value;
+                    newNote = document.getElementById('editNote').value.trim();
+                    newToAccountId = null;
+                }
+
+                // Validation
+                if (!newAmount || newAmount <= 0) {
+                    alert('Please enter a valid amount');
+                    return;
+                }
+
+                // Step 1: Reverse original transaction's effect on balances
+                if (type === 'payment') {
+                    const account = accounts.find(a => a.id === originalAccountId);
+                    if (account) {
+                        const balance = (parseFloat(account.balance) || 0) + originalAmount;
+                        await db.collection('users').doc(currentUser.uid)
+                            .collection('accounts').doc(originalAccountId).update({ balance });
+                    }
+                } else if (type === 'deposit' || type === 'salary') {
+                    const account = accounts.find(a => a.id === originalAccountId);
+                    if (account) {
+                        const balance = (parseFloat(account.balance) || 0) - originalAmount;
+                        await db.collection('users').doc(currentUser.uid)
+                            .collection('accounts').doc(originalAccountId).update({ balance });
+                    }
+                } else if (type === 'transfer') {
+                    const fromAccount = accounts.find(a => a.id === originalAccountId);
+                    const toAccount = accounts.find(a => a.id === originalToAccountId);
+                    if (fromAccount) {
+                        const balance = (parseFloat(fromAccount.balance) || 0) + originalAmount;
+                        await db.collection('users').doc(currentUser.uid)
+                            .collection('accounts').doc(originalAccountId).update({ balance });
+                    }
+                    if (toAccount) {
+                        const balance = (parseFloat(toAccount.balance) || 0) - originalAmount;
+                        await db.collection('users').doc(currentUser.uid)
+                            .collection('accounts').doc(originalToAccountId).update({ balance });
+                    }
+                }
+
+                // Step 2: Update transaction in Firestore
+                await db.collection('users').doc(currentUser.uid)
+                    .collection('transactions').doc(transactionId).update({
+                        amount: newAmount,
+                        accountId: newAccountId,
+                        toAccountId: newToAccountId,
+                        categoryId: newCategoryId,
+                        date: firebase.firestore.Timestamp.fromDate(new Date(newDate)),
+                        note: newNote
+                    });
+
+                // Step 3: Apply new transaction's effect on balances
+                if (type === 'payment') {
+                    const account = accounts.find(a => a.id === newAccountId);
+                    if (account) {
+                        const balance = (parseFloat(account.balance) || 0) - newAmount;
+                        await db.collection('users').doc(currentUser.uid)
+                            .collection('accounts').doc(newAccountId).update({ balance });
+                    }
+                } else if (type === 'deposit' || type === 'salary') {
+                    const account = accounts.find(a => a.id === newAccountId);
+                    if (account) {
+                        const balance = (parseFloat(account.balance) || 0) + newAmount;
+                        await db.collection('users').doc(currentUser.uid)
+                            .collection('accounts').doc(newAccountId).update({ balance });
+                    }
+                } else if (type === 'transfer') {
+                    const fromAccount = accounts.find(a => a.id === newAccountId);
+                    const toAccount = accounts.find(a => a.id === newToAccountId);
+                    if (fromAccount) {
+                        const balance = (parseFloat(fromAccount.balance) || 0) - newAmount;
+                        await db.collection('users').doc(currentUser.uid)
+                            .collection('accounts').doc(newAccountId).update({ balance });
+                    }
+                    if (toAccount) {
+                        const balance = (parseFloat(toAccount.balance) || 0) + newAmount;
+                        await db.collection('users').doc(currentUser.uid)
+                            .collection('accounts').doc(newToAccountId).update({ balance });
+                    }
+                }
+
+                console.log('✅ Transaction updated successfully');
+
+                // Close modal and reload
+                closeModal('editTransactionModal');
+                await loadAllData();
+                renderAccounts();
+                renderCategories();
+                renderTransactions();
+                updateOverview();
+
+            } catch (error) {
+                console.error('❌ Error updating transaction:', error);
+                alert('Failed to update transaction: ' + error.message);
+            }
+        }
+
+        // ============================================
         // RENDER TRANSACTIONS
         // ============================================
         function renderTransactions() {
@@ -2075,6 +2451,7 @@
 
                 const div = document.createElement('div');
                 div.className = 'transaction-item';
+                div.onclick = () => editTransaction(tx); // Click to edit
                 div.innerHTML = `
                     <div class="transaction-icon">${icon}</div>
                     <div class="transaction-description">${escapeHtml(description)}</div>
@@ -2084,6 +2461,7 @@
                     </div>
                     <div class="transaction-date">${formattedDate}</div>
                     <div class="transaction-account">${account?.name || 'Unknown'}</div>
+                    <div class="transaction-delete" onclick="event.stopPropagation(); deleteTransaction('${tx.id}', '${tx.type}', ${tx.amount}, '${tx.accountId}', '${tx.toAccountId || ''}')">×</div>
                 `;
                 container.appendChild(div);
             });
