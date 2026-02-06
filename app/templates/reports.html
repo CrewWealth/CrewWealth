@@ -338,17 +338,20 @@
                     }
                 });
 
-                // Load categories to calculate "To Budget" (unassigned money)
-                const categoriesSnapshot = await db.collection('users')
+                // Get budgets from correct collection
+                const monthKey = getCurrentMonthKey();  // e.g., "2026-02"
+                const budgetDoc = await db.collection('users')
                     .doc(currentUser.uid)
-                    .collection('categories')
+                    .collection('budgets')
+                    .doc(monthKey)
                     .get();
 
                 let totalBudgeted = 0;
-                categoriesSnapshot.docs.forEach(doc => {
-                    const category = doc.data();
-                    totalBudgeted += parseFloat(category.budgeted) || 0;
-                });
+                if (budgetDoc.exists) {
+                    const budgets = budgetDoc.data();
+                    totalBudgeted = Object.values(budgets).reduce((sum, val) => 
+                        sum + (parseFloat(val) || 0), 0);
+                }
 
                 // To Budget = On Budget Total - Total Budgeted
                 const toBudget = onBudgetTotal - totalBudgeted;
@@ -392,11 +395,13 @@
 
                 transactionsSnapshot.docs.forEach(doc => {
                     const transaction = doc.data();
-                    const inflow = parseFloat(transaction.inflow) || 0;
-                    const outflow = parseFloat(transaction.outflow) || 0;
-
-                    totalIncome += inflow;
-                    totalSpending += outflow;
+                    const amount = parseFloat(transaction.amount) || 0;
+                    
+                    if (transaction.type === 'salary' || transaction.type === 'deposit') {
+                        totalIncome += amount;
+                    } else if (transaction.type === 'payment') {
+                        totalSpending += amount;
+                    }
                 });
 
                 document.getElementById('totalIncomeValue').textContent = formatCurrency(totalIncome);
@@ -411,6 +416,14 @@
             if (!currentUser) return;
 
             try {
+                // Load categories first
+                let categories = [];
+                const categoriesSnapshot = await db.collection('users')
+                    .doc(currentUser.uid)
+                    .collection('categories')
+                    .get();
+                categories = categoriesSnapshot.docs.map(doc => ({id: doc.id, ...doc.data()}));
+
                 const transactionsSnapshot = await db.collection('users')
                     .doc(currentUser.uid)
                     .collection('transactions')
@@ -427,21 +440,25 @@
 
                 const transactionsHTML = transactionsSnapshot.docs.map(doc => {
                     const transaction = doc.data();
-                    const inflow = parseFloat(transaction.inflow) || 0;
-                    const outflow = parseFloat(transaction.outflow) || 0;
-                    const amount = inflow > 0 ? inflow : -outflow;
-                    // amountClass is controlled and only contains 'inflow' or 'outflow'
-                    const amountClass = inflow > 0 ? 'inflow' : 'outflow';
-                    const amountSign = inflow > 0 ? '+' : '-';
+                    const amount = parseFloat(transaction.amount) || 0;
+                    const isIncome = transaction.type === 'salary' || transaction.type === 'deposit';
+                    const amountClass = isIncome ? 'inflow' : 'outflow';
+                    const amountSign = isIncome ? '+' : '-';
+                    
+                    let categoryName = 'Uncategorized';
+                    if (transaction.categoryId) {
+                        const cat = categories.find(c => c.id === transaction.categoryId);
+                        categoryName = cat ? cat.name : 'Uncategorized';
+                    }
 
                     return `
                         <div class="transaction-item">
                             <div class="transaction-info">
-                                <div class="transaction-category">${escapeHtml(transaction.category || 'Uncategorized')}</div>
-                                <div class="transaction-payee">${escapeHtml(transaction.payee || 'Unknown')}</div>
+                                <div class="transaction-category">${escapeHtml(categoryName)}</div>
+                                <div class="transaction-payee">${escapeHtml(transaction.note || transaction.type)}</div>
                             </div>
                             <div class="transaction-amount ${amountClass}">
-                                ${amountSign}${formatCurrency(Math.abs(amount))}
+                                ${amountSign}${formatCurrency(amount)}
                             </div>
                         </div>
                     `;
@@ -460,6 +477,13 @@
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        }
+
+        function getCurrentMonthKey() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            return `${year}-${month}`;
         }
     </script>
 </body>

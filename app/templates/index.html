@@ -1251,6 +1251,7 @@
         // ============================================
         auth.onAuthStateChanged(async (user) => {
             if (!user) {
+                cleanupListeners();
                 console.log('❌ Not authenticated, redirecting to login...');
                 window.location.href = '/login';
                 return;
@@ -1425,34 +1426,60 @@
         function setupRealtimeListeners() {
             if (!currentUser) return;
 
-            // Listen to accounts changes
-            db.collection('users').doc(currentUser.uid)
+            // Accounts
+            unsubscribeAccounts = db.collection('users')
+                .doc(currentUser.uid)
                 .collection('accounts')
-                .onSnapshot((snapshot) => {
+                .onSnapshot(() => {
                     console.log('🔄 Accounts updated in real-time');
                     calculateNetWorth();
                 });
 
-            // Listen to budget changes
+            // Budgets
             const monthKey = getMonthKey();
-            
-            db.collection('users').doc(currentUser.uid)
+            unsubscribeBudgets = db.collection('users')
+                .doc(currentUser.uid)
                 .collection('budgets')
                 .doc(monthKey)
-                .onSnapshot((doc) => {
+                .onSnapshot(() => {
                     console.log('🔄 Budget updated in real-time');
-                    calculateNetWorth();
                     loadMonthOverview();
+                    calculateNetWorth();
                 });
 
-            // Listen to transactions changes
-            db.collection('users').doc(currentUser.uid)
+            // Transactions
+            const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+            const monthEnd = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0, 23, 59, 59);
+            
+            unsubscribeTransactions = db.collection('users')
+                .doc(currentUser.uid)
                 .collection('transactions')
-                .onSnapshot((snapshot) => {
+                .where('date', '>=', firebase.firestore.Timestamp.fromDate(monthStart))
+                .where('date', '<=', firebase.firestore.Timestamp.fromDate(monthEnd))
+                .onSnapshot(() => {
                     console.log('🔄 Transactions updated in real-time');
                     loadRecentTransactions();
                     loadMonthOverview();
                 });
+
+            // Goals
+            unsubscribeGoals = db.collection('users')
+                .doc(currentUser.uid)
+                .collection('goals')
+                .where('status', '==', 'active')
+                .orderBy('targetDate', 'asc')
+                .limit(3)
+                .onSnapshot(() => {
+                    console.log('🔄 Goals updated in real-time');
+                    loadGoalsProgress();
+                });
+        }
+
+        function cleanupListeners() {
+            if (unsubscribeAccounts) unsubscribeAccounts();
+            if (unsubscribeBudgets) unsubscribeBudgets();
+            if (unsubscribeTransactions) unsubscribeTransactions();
+            if (unsubscribeGoals) unsubscribeGoals();
         }
 
         async function loadMonthOverview() {
@@ -1495,7 +1522,7 @@
                 let totalSpent = 0;
                 transactionsSnapshot.docs.forEach(doc => {
                     const transaction = doc.data();
-                    if (transaction.type === 'expense') {
+                    if (transaction.type === 'payment') {
                         totalSpent += Math.abs(parseFloat(transaction.amount) || 0);
                     }
                 });
@@ -1552,10 +1579,10 @@
                     const amount = parseFloat(transaction.amount) || 0;
                     const date = transaction.date ? transaction.date.toDate() : new Date();
                     const relativeDate = getRelativeDate(date);
-                    const amountClass = transaction.type === 'income' ? 'income' : 'expense';
-                    const amountFormatted = transaction.type === 'income' 
-                        ? '+' + formatCurrency(Math.abs(amount))
-                        : '-' + formatCurrency(Math.abs(amount));
+                    const isIncome = transaction.type === 'salary' || transaction.type === 'deposit';
+                    const amountClass = isIncome ? 'income' : 'expense';
+                    const amountSign = isIncome ? '+' : '-';
+                    const amountFormatted = amountSign + formatCurrency(Math.abs(amount));
 
                     html += `
                         <div class="transaction-item">

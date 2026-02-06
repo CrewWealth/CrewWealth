@@ -2068,6 +2068,10 @@
                 .filter(t => {
                     if (!t.date || t.categoryId !== categoryId || t.type !== 'payment') return false;
                     
+                    // Account filter - only include if no specific account selected or matches selected account
+                    const accountMatch = selectedAccountId === null || t.accountId === selectedAccountId;
+                    if (!accountMatch) return false;
+                    
                     // Convert Firestore timestamp to Date if needed
                     let txDate;
                     if (t.date.toDate) {
@@ -2098,7 +2102,7 @@
             const totalSpent = categories.reduce((sum, cat) => sum + calculateSpent(cat.id, monthKey), 0);
 
             // Calculate to budget
-            const toBudget = availableFunds - totalBudgeted + totalSpent;
+            const toBudget = availableFunds - totalBudgeted;
 
             // Calculate overspent
             const overspent = categories.reduce((sum, cat) => {
