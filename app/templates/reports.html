@@ -374,6 +374,7 @@
                     const inflow = parseFloat(transaction.inflow) || 0;
                     const outflow = parseFloat(transaction.outflow) || 0;
                     const amount = inflow > 0 ? inflow : -outflow;
+                    // amountClass is controlled and only contains 'inflow' or 'outflow'
                     const amountClass = inflow > 0 ? 'inflow' : 'outflow';
                     const amountSign = inflow > 0 ? '+' : '-';
 
