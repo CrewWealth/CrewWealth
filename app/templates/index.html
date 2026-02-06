@@ -1165,7 +1165,9 @@
                 'INR': { symbol: '₹', position: 'before' },
                 'AUD': { symbol: 'A$', position: 'before' },
                 'CAD': { symbol: 'C$', position: 'before' },
-                'SGD': { symbol: 'S$', position: 'before' }
+                'SGD': { symbol: 'S$', position: 'before' },
+                'NOK': { symbol: 'kr', position: 'after' },
+                'JPY': { symbol: '¥', position: 'before' }
             };
             
             const config = currencyConfig[userCurrency] || currencyConfig['EUR'];
@@ -1179,7 +1181,8 @@
         function getCurrencySymbol() {
             const symbols = {
                 'EUR': '€', 'USD': '$', 'GBP': '£', 'PHP': '₱',
-                'INR': '₹', 'AUD': 'A$', 'CAD': 'C$', 'SGD': 'S$'
+                'INR': '₹', 'AUD': 'A$', 'CAD': 'C$', 'SGD': 'S$',
+                'NOK': 'kr', 'JPY': '¥'
             };
             return symbols[userCurrency] || '€';
         }
