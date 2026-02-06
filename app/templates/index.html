@@ -1,41 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
-<!-- Firebase SDK -->
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - CrewWealth</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;700&display=swap">
     <style>
         :root {
             --color-primary: #208089;
-            --color-primary-hover: #1a6670;
-            --color-primary-active: #1a5460;
-            --color-secondary: #5e5240;
+            --color-accent: #32b8c6;
             --color-background: #fcfcf9;
             --color-surface: #ffffff;
             --color-text: #134252;
-            --color-text-secondary: #626c71;
             --color-border: #e8e8e0;
-            --color-success: #22c55e;
-            --color-warning: #f59e61;
-            --color-danger: #ef4444;
-            --color-accent: #32b8c6;
-            --spacing-xs: 4px;
-            --spacing-sm: 8px;
             --spacing-md: 16px;
-            --spacing-lg: 24px;
-            --spacing-xl: 32px;
-            --spacing-2xl: 48px;
-            --radius-sm: 6px;
-            --radius-md: 8px;
             --radius-lg: 12px;
-            --radius-xl: 16px;
-            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04);
-            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.04);
-            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
         }
 
         * {
@@ -45,7 +24,7 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: 'Poppins', sans-serif;
             background: var(--color-background);
             color: var(--color-text);
             line-height: 1.6;
@@ -60,779 +39,147 @@
             width: 280px;
             background: var(--color-text);
             color: white;
-            padding: var(--spacing-lg);
-            position: sticky;
-            top: 0;
-            height: 100vh;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .sidebar-header {
-            margin-bottom: var(--spacing-xl);
-        }
-
-        .sidebar-title {
-            font-size: 22px;
-            font-weight: 700;
-            margin-bottom: var(--spacing-xs);
-        }
-
-        .sidebar-subtitle {
-            font-size: 13px;
-            opacity: 0.7;
-        }
-
-        .sidebar-tools {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: var(--spacing-lg);
-        }
-
-        .sidebar-tool {
-            background: rgba(255, 255, 255, 0.08);
-            border-radius: var(--radius-lg);
-            padding: var(--spacing-lg);
-        }
-
-        .sidebar-tool-title {
-            font-size: 14px;
-            font-weight: 600;
-            margin-bottom: var(--spacing-md);
-            opacity: 0.9;
-        }
-
-        .tool-input-group {
-            margin-bottom: var(--spacing-md);
-        }
-
-        .tool-label {
-            display: block;
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            opacity: 0.7;
-            margin-bottom: var(--spacing-xs);
-            font-weight: 600;
-        }
-
-        .tool-input, .tool-select {
-            width: 100%;
-            padding: var(--spacing-sm);
-            background: rgba(255, 255, 255, 0.15);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: var(--radius-sm);
-            color: white;
-            font-size: 14px;
-            font-family: inherit;
-        }
-
-        .tool-input:focus, .tool-select:focus {
-            outline: none;
-            background: rgba(255, 255, 255, 0.2);
-            border-color: var(--color-accent);
-        }
-
-        .tool-slider {
-            -webkit-appearance: none;
-            appearance: none;
-            height: 6px;
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 3px;
-            outline: none;
-            cursor: pointer;
-        }
-
-        .tool-slider::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 18px;
-            height: 18px;
-            background: var(--color-accent);
-            border-radius: 50%;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .tool-slider::-webkit-slider-thumb:hover {
-            transform: scale(1.2);
-            background: #3dd4e4;
-        }
-
-        .tool-slider::-moz-range-thumb {
-            width: 18px;
-            height: 18px;
-            background: var(--color-accent);
-            border-radius: 50%;
-            cursor: pointer;
-            border: none;
-            transition: all 0.2s;
-        }
-
-        .tool-slider::-moz-range-thumb:hover {
-            transform: scale(1.2);
-            background: #3dd4e4;
-        }
-
-        .tool-result {
-            background: rgba(50, 184, 198, 0.15);
-            border: 1px solid rgba(50, 184, 198, 0.3);
-            border-radius: var(--radius-md);
             padding: var(--spacing-md);
-            margin-top: var(--spacing-md);
+            display: flex;
+            flex-direction: column;
         }
 
-        .tool-result-label {
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            opacity: 0.8;
-            margin-bottom: var(--spacing-xs);
+        .sidebar .menu a {
+            color: white;
+            text-decoration: none;
+            padding: var(--spacing-md) 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: block;
         }
 
-        .tool-result-value {
-            font-size: 20px;
-            font-weight: 700;
+        .sidebar .menu a:hover {
             color: var(--color-accent);
         }
 
-        .main-content {
+        .main {
             flex: 1;
-            padding: var(--spacing-2xl);
-            overflow-y: auto;
+            padding: var(--spacing-md);
         }
 
         .hero {
-            background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%);
-            border-radius: var(--radius-xl);
-            padding: var(--spacing-2xl);
+            background: var(--color-accent);
             color: white;
-            margin-bottom: var(--spacing-xl);
-            box-shadow: var(--shadow-lg);
-        }
-
-        .hero-greeting {
-            font-size: 16px;
-            opacity: 0.9;
-            margin-bottom: var(--spacing-xs);
-        }
-
-        .hero-title {
-            font-size: 32px;
-            font-weight: 700;
-            margin-bottom: var(--spacing-md);
-        }
-
-        .hero-networth {
-            background: rgba(255, 255, 255, 0.15);
-            backdrop-filter: blur(10px);
+            padding: var(--spacing-md);
             border-radius: var(--radius-lg);
-            padding: var(--spacing-lg);
-            display: inline-block;
-        }
-
-        .hero-networth-label {
-            font-size: 13px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            opacity: 0.9;
-            margin-bottom: var(--spacing-xs);
-        }
-
-        .hero-networth-value {
-            font-size: 48px;
-            font-weight: 700;
-            letter-spacing: -1px;
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: var(--spacing-lg);
-            margin-bottom: var(--spacing-xl);
-        }
-
-        .stat-card {
-            background: var(--color-surface);
-            border-radius: var(--radius-lg);
-            padding: var(--spacing-lg);
-            border: 1px solid var(--color-border);
-            box-shadow: var(--shadow-sm);
-            transition: all 0.2s;
-        }
-
-        .stat-card:hover {
-            box-shadow: var(--shadow-md);
-            transform: translateY(-2px);
-        }
-
-        .stat-icon {
-            font-size: 28px;
-            margin-bottom: var(--spacing-sm);
-        }
-
-        .stat-label {
-            font-size: 13px;
-            color: var(--color-text-secondary);
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: var(--spacing-xs);
-        }
-
-        .stat-value {
-            font-size: 28px;
-            font-weight: 700;
-            color: var(--color-text);
-        }
-
-        .stat-change {
-            font-size: 12px;
-            margin-top: var(--spacing-xs);
-            font-weight: 600;
-        }
-
-        .stat-change.positive {
-            color: var(--color-success);
-        }
-
-        .stat-change.negative {
-            color: var(--color-danger);
-        }
-
-        .nav-section-title {
-            font-size: 14px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: var(--color-text-secondary);
-            margin-bottom: var(--spacing-lg);
-        }
-
-        .nav-cards {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: var(--spacing-lg);
-        }
-
-        .nav-card {
-            background: var(--color-surface);
-            border-radius: var(--radius-xl);
-            padding: var(--spacing-xl);
-            border: 2px solid var(--color-border);
-            cursor: pointer;
-            transition: all 0.3s;
-            text-decoration: none;
-            color: inherit;
-            display: block;
-        }
-
-        .nav-card:hover {
-            transform: translateY(-4px);
-            box-shadow: var(--shadow-lg);
-            border-color: var(--color-primary);
-        }
-
-        .nav-card-icon {
-            font-size: 48px;
             margin-bottom: var(--spacing-md);
-        }
-
-        .nav-card-title {
-            font-size: 20px;
-            font-weight: 700;
-            margin-bottom: var(--spacing-sm);
-            color: var(--color-text);
-        }
-
-        .nav-card-description {
-            font-size: 14px;
-            color: var(--color-text-secondary);
-            line-height: 1.5;
-        }
-
-        @media (max-width: 1200px) {
-            .layout {
-                flex-direction: column;
-            }
-
-            .sidebar {
-                width: 100%;
-                height: auto;
-                position: relative;
-            }
-
-            .stats-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        @media (max-width: 768px) {
-            .main-content {
-                padding: var(--spacing-lg);
-            }
-
-            .hero {
-                padding: var(--spacing-lg);
-            }
-
-            .hero-networth-value {
-                font-size: 36px;
-            }
         }
     </style>
 </head>
 <body>
     <div class="layout">
+        <!-- Sidebar -->
         <aside class="sidebar">
-            <div class="sidebar-header">
-                <div class="sidebar-title">💰 CrewWealth</div>
-                <div class="sidebar-subtitle">Financial Management</div>
-                <button id="logoutBtn" style="margin-top: 16px; padding: 8px 16px; background: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 6px; color: white; font-size: 13px; cursor: pointer; transition: all 0.2s; width: 100%;">
-                    🚪 Logout
-                </button>
-
-            </div>
-
-            <div class="sidebar-tools">
-                <div class="sidebar-tool">
-                    <div class="sidebar-tool-title">💱 Currency Converter</div>
-                    <div class="tool-input-group">
-                        <label class="tool-label">Amount</label>
-                        <input type="number" class="tool-input" id="currencyAmount" value="1000" step="0.01">
-                    </div>
-                    <div class="tool-input-group">
-                        <label class="tool-label">From</label>
-                        <select class="tool-select" id="currencyFrom">
-                            <option value="USD">USD ($)</option>
-                            <option value="EUR" selected>EUR (€)</option>
-                            <option value="GBP">GBP (£)</option>
-                        </select>
-                    </div>
-                    <div class="tool-input-group">
-                        <label class="tool-label">To</label>
-                        <select class="tool-select" id="currencyTo">
-                            <option value="USD" selected>USD ($)</option>
-                            <option value="EUR">EUR (€)</option>
-                            <option value="GBP">GBP (£)</option>
-                        </select>
-                    </div>
-                    <div class="tool-result">
-                        <div class="tool-result-label">Converted Amount</div>
-                        <div class="tool-result-value" id="currencyResult">$1,086.96</div>
-                    </div>
-                </div>
-
-                <div class="sidebar-tool">
-                    <div class="sidebar-tool-title">💼 Income Calculator</div>
-                    <div class="tool-input-group">
-                        <label class="tool-label">Monthly Salary (€)</label>
-                        <input type="number" class="tool-input" id="monthlySalary" value="3500" step="100">
-                    </div>
-                    <div class="tool-input-group">
-                        <label class="tool-label">Tax Rate (%)</label>
-                        <input type="number" class="tool-input" id="taxRate" value="25" step="1" min="0" max="100">
-                    </div>
-                    <div class="tool-result">
-                        <div class="tool-result-label">Net Monthly</div>
-                        <div class="tool-result-value" id="netIncome">€2,625</div>
-                    </div>
-
-                    <div style="margin-top: var(--spacing-md); padding-top: var(--spacing-md); border-top: 1px solid rgba(255,255,255,0.1);">
-                        <div class="tool-input-group" style="margin-bottom: var(--spacing-sm);">
-                            <label style="display: flex; align-items: center; gap: var(--spacing-sm); cursor: pointer;">
-                                <input type="checkbox" id="enableSavings" style="cursor: pointer;">
-                                <span class="tool-label" style="margin: 0;">💰 Sparen</span>
-                            </label>
-                        </div>
-                        <div id="savingsFields" style="display: none; margin-left: var(--spacing-lg); margin-bottom: var(--spacing-md);">
-                            <div class="tool-input-group">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-xs);">
-                                    <label class="tool-label" style="margin: 0;">Spaar %</label>
-                                    <span class="tool-label" style="margin: 0; color: var(--color-accent); font-size: 14px;" id="savingsPercentDisplay">20</span>
-                                </div>
-                                <input type="range" class="tool-input tool-slider" id="savingsPercent" value="20" min="0" max="100" step="1">
-                            </div>
-                            <div class="tool-result" style="margin-top: var(--spacing-sm);">
-                                <div class="tool-result-label">Spaar Bedrag</div>
-                                <div class="tool-result-value" id="savingsAmount">€525</div>
-                            </div>
-                        </div>
-
-                        <div class="tool-input-group" style="margin-bottom: var(--spacing-sm);">
-                            <label style="display: flex; align-items: center; gap: var(--spacing-sm); cursor: pointer;">
-                                <input type="checkbox" id="enableFamily" style="cursor: pointer;">
-                                <span class="tool-label" style="margin: 0;">👨‍👩‍👧 Familie</span>
-                            </label>
-                        </div>
-                        <div id="familyFields" style="display: none; margin-left: var(--spacing-lg); margin-bottom: var(--spacing-md);">
-                            <div class="tool-input-group">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-xs);">
-                                    <label class="tool-label" style="margin: 0;">Familie %</label>
-                                    <span class="tool-label" style="margin: 0; color: var(--color-accent); font-size: 14px;" id="familyPercentDisplay">10</span>
-                                </div>
-                                <input type="range" class="tool-input tool-slider" id="familyPercent" value="10" min="0" max="100" step="1">
-                            </div>
-                            <div class="tool-result" style="margin-top: var(--spacing-sm);">
-                                <div class="tool-result-label">Familie Bedrag</div>
-                                <div class="tool-result-value" id="familyAmount">€262</div>
-                            </div>
-                        </div>
-
-                        <div class="tool-input-group" style="margin-bottom: var(--spacing-sm);">
-                            <label style="display: flex; align-items: center; gap: var(--spacing-sm); cursor: pointer;">
-                                <input type="checkbox" id="enableInvesting" style="cursor: pointer;">
-                                <span class="tool-label" style="margin: 0;">📈 Investeren</span>
-                            </label>
-                        </div>
-                        <div id="investingFields" style="display: none; margin-left: var(--spacing-lg); margin-bottom: var(--spacing-md);">
-                            <div class="tool-input-group">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-xs);">
-                                    <label class="tool-label" style="margin: 0;">Investeren %</label>
-                                    <span class="tool-label" style="margin: 0; color: var(--color-accent); font-size: 14px;" id="investingPercentDisplay">15</span>
-                                </div>
-                                <input type="range" class="tool-input tool-slider" id="investingPercent" value="15" min="0" max="100" step="1">
-                            </div>
-                            <div class="tool-result" style="margin-top: var(--spacing-sm);">
-                                <div class="tool-result-label">Investeren Bedrag</div>
-                                <div class="tool-result-value" id="investingAmount">€393</div>
-                            </div>
-                        </div>
-
-                        <div class="tool-result" style="margin-top: var(--spacing-md);">
-                            <div class="tool-result-label">Overblijft voor Uitgaven</div>
-                            <div class="tool-result-value" id="remainingAmount">€2,625</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <h1>💰 CrewWealth</h1>
+            <nav class="menu">
+                <a href="budget">Budgets & Accounts</a>
+                <a href="goals">Goals</a>
+                <a href="reports">Reports</a>
+                <a href="settings">Settings</a>
+            </nav>
         </aside>
 
-        <main class="main-content">
+        <!-- Main Content -->
+        <main class="main">
             <div class="hero">
-                <div class="hero-greeting" id="heroGreeting">Welcome back 👋</div>
-                <div class="hero-title">Your Financial Overview</div>
-                <div class="hero-networth">
-                    <div class="hero-networth-label">Total Net Worth</div>
-                    <div class="hero-networth-value" id="totalNetWorth">€0.00</div>
-                </div>
+                <h2>Welcome to CrewWealth</h2>
+                <p>Your financial overview at a glance.</p>
             </div>
-
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-icon">🏦</div>
-                    <div class="stat-label">On Budget</div>
-                    <div class="stat-value" id="onBudgetTotal">€18,100.00</div>
-                    <div class="stat-change positive">↑ Available to budget</div>
-                </div>
-
-                <div class="stat-card">
-                    <div class="stat-icon">📈</div>
-                    <div class="stat-label">Investments</div>
-                    <div class="stat-value" id="investmentsTotal">€0.00</div>
-                    <div class="stat-change positive">↑ 8.2% this month</div>
-                </div>
-            </div>
-
-            <div class="nav-section-title">Quick Access</div>
-            <div class="nav-cards">
-                <a href="budget" class="nav-card">
-                    <div class="nav-card-icon">💰</div>
-                    <div class="nav-card-title">Budget & Accounts</div>
-                    <div class="nav-card-description">Manage your accounts, track transactions, and monitor spending across all categories</div>
-                </a>
-
-                <a href="goals" class="nav-card">
-                    <div class="nav-card-icon">🎯</div>
-                    <div class="nav-card-title">Savings Goals</div>
-                    <div class="nav-card-description">Set and track progress towards your financial goals and milestones</div>
-                </a>
-
-                <a href="reports" class="nav-card">
-                    <div class="nav-card-icon">📊</div>
-                    <div class="nav-card-title">Reports</div>
-                    <div class="nav-card-description">View detailed spending reports, trends, and financial insights</div>
-                </a>
-
-                <a href="settings" class="nav-card">
-                    <div class="nav-card-icon">⚙️</div>
-                    <div class="nav-card-title">Settings</div>
-                    <div class="nav-card-description">Configure your preferences, categories, and account settings</div>
-                </a>
+            <!-- Content dynamically injected here -->
+            <div id="content">
+                Loading data...
             </div>
         </main>
     </div>
 
-  <script>
-    // Firebase Configuration
-    const firebaseConfig = {
-        apiKey: "AIzaSyBccv9C4CpjZFeE2HGBKKfUiV9jUw8CZLo",
-        authDomain: "crewwealth-cbe02.firebaseapp.com",
-        projectId: "crewwealth-cbe02",
-        storageBucket: "crewwealth-cbe02.firebasestorage.app",
-        messagingSenderId: "852834158589",
-        appId: "1:852834158589:web:8201ed1d9327841773bb94"
-    };
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 
-    // Initialize Firebase
-    firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
-    const db = firebase.firestore();
+    <script>
+        /* Firebase Config */
+        const firebaseConfig = {
+            apiKey: "AIzaSyBccv9...Lo",
+            authDomain: "crewwealth-cbe02.firebaseapp.com",
+            projectId: "crewwealth-cbe02",
+            storageBucket: "crewwealth-cbe02.appspot.com",
+            messagingSenderId: "852834158589",
+            appId: "1:852834158589:web:8201ed1d9327841773bb94"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
 
-    // 🔐 GLOBAL: Current user object
-    let currentUser = null;
+        let currentUser = null;
 
-    const exchangeRates = {
-        USD: 1,
-        EUR: 0.92,
-        GBP: 0.79
-    };
-
-    function init() {
-        // 🔐 CHECK AUTHENTICATION FIRST
-        auth.onAuthStateChanged(user => {
-            if (user) {
-                // ✅ User is logged in
-                currentUser = user;
-                console.log('✅ Logged in as:', user.email);
-                
-                // Update greeting with user's first name
-                const firstName = user.displayName ? user.displayName.split(' ')[0] : user.email.split('@')[0];
-                document.getElementById('heroGreeting').textContent = `Welcome back, ${firstName} 👋`;
-                
-                // Load user's accounts
-                loadNetWorth();
-                updateCurrencyConverter();
-                updateIncomeCalculator();
-            } else {
-                // ❌ Not logged in → redirect to login
-                console.log('❌ Not authenticated. Redirecting to login...');
-                window.location.href = '/login';
-            }
-        });
-
-        // Event listeners
-        document.getElementById('currencyAmount').addEventListener('input', updateCurrencyConverter);
-        document.getElementById('currencyFrom').addEventListener('change', updateCurrencyConverter);
-        document.getElementById('currencyTo').addEventListener('change', updateCurrencyConverter);
-        document.getElementById('monthlySalary').addEventListener('input', updateIncomeCalculator);
-        document.getElementById('taxRate').addEventListener('input', updateIncomeCalculator);
-        
-        // Logout button
-        document.getElementById('logoutBtn').addEventListener('click', async () => {
-            try {
-                await auth.signOut();
-                console.log('✅ Logged out successfully');
-                window.location.href = '/login';
-            } catch (error) {
-                console.error('❌ Logout error:', error);
-            }
-        });
-    }
-
-async function loadNetWorth() {
-    if (!currentUser) {
-        console.log('⚠️ No user logged in');
-        return;
-    }
-
-    try {
-        console.log('🔍 DEBUG: Loading accounts for user:', currentUser.uid);
-        console.log('🔍 DEBUG: User email:', currentUser.email);
-        
-        // 🔥 FIREBASE: Load accounts from USER-SPECIFIC subcollection
-        const accountsRef = db.collection('users').doc(currentUser.uid).collection('accounts');
-        console.log('🔍 DEBUG: Fetching from path: users/' + currentUser.uid + '/accounts');
-        
-        const accountsSnapshot = await accountsRef.get();
-        
-        console.log('🔍 DEBUG: Snapshot received');
-        console.log('🔍 DEBUG: Snapshot size:', accountsSnapshot.size);
-        console.log('🔍 DEBUG: Snapshot empty?', accountsSnapshot.empty);
-        
-        const accounts = [];
-        
-        accountsSnapshot.forEach(doc => {
-            const data = doc.data();
-            console.log('🔍 DEBUG: Raw account data from Firebase:', {
-                id: doc.id,
-                 data
+        // Initialize Dashboard
+        function init() {
+            // Check Authentication
+            auth.onAuthStateChanged(user => {
+                if (user) {
+                    currentUser = user;
+                    document.querySelector('.hero h2').textContent = `Welcome back, ${user.displayName || user.email.split('@')[0]}!`;
+                    loadDashboardData();
+                } else {
+                    // Redirect to login
+                    window.location.href = '/login';
+                }
             });
-            
-            const account = {
-                id: doc.id,
-                name: data.name || 'Unnamed Account',
-                balance: parseFloat(data.balance) || 0,
-                offBudget: data.offBudget || false
-            };
-            
-            console.log('🔍 DEBUG: Parsed account:', account);
-            accounts.push(account);
+        }
+
+        async function loadDashboardData() {
+            if (!currentUser) return;
+
+            try {
+                // Load Budgets
+                const accountsRef = db.collection('users').doc(currentUser.uid).collection('accounts');
+                const accountsSnapshot = await accountsRef.get();
+                const accounts = [];
+                accountsSnapshot.forEach(doc => accounts.push(doc.data()));
+
+                const content = document.getElementById('content');
+                if (accounts.length > 0) {
+                    content.innerHTML = accounts.map(account => `
+                        <div class="card">
+                            <h3>${account.name}</h3>
+                            <p>Balance: €${account.balance}</p>
+                        </div>
+                    `).join('');
+                } else {
+                    content.innerHTML = '<p>No accounts found.</p>';
+                }
+            } catch (err) {
+                console.error('Error loading data:', err);
+            }
+        }
+
+        // Event listeners for navigation
+        document.querySelectorAll('.menu a').forEach(link => {
+            link.addEventListener('click', e => {
+                e.preventDefault();
+                const path = e.target.getAttribute('href');
+                navigateTo(path);
+            });
         });
 
-        console.log('🔍 DEBUG: Total accounts loaded:', accounts.length);
-        console.log('🔍 DEBUG: Full accounts array:', accounts);
-
-        if (accounts.length === 0) {
-            console.log('⚠️ No accounts found for user:', currentUser.email);
-            updateDashboardNumbers([]);
-        } else {
-            console.log('✅ Calling updateDashboardNumbers with', accounts.length, 'accounts');
-            updateDashboardNumbers(accounts);
-        }
-    } catch (error) {
-        console.error('❌ Error loading accounts from Firebase:', error);
-        console.error('❌ Error message:', error.message);
-        console.error('❌ Error code:', error.code);
-        updateDashboardNumbers([]);
-    }
-}
-
-
-function updateDashboardNumbers(accounts) {
-    console.log('🎯 updateDashboardNumbers called');
-    console.log('🔍 Received accounts:', accounts);
-    console.log('🔍 Accounts length:', accounts ? accounts.length : 'null/undefined');
-    
-    // Check if DOM elements exist
-    const netWorthEl = document.getElementById('totalNetWorth');
-    const onBudgetEl = document.getElementById('onBudgetTotal');
-    const investmentsEl = document.getElementById('investmentsTotal');
-    
-    console.log('🔍 DOM elements found:', {
-        totalNetWorth: !!netWorthEl,
-        onBudgetTotal: !!onBudgetEl,
-        investmentsTotal: !!investmentsEl
-    });
-    
-    if (!accounts || accounts.length === 0) {
-        console.log('⚠️ No accounts, setting all to €0.00');
-        if (netWorthEl) netWorthEl.textContent = '€0.00';
-        if (onBudgetEl) onBudgetEl.textContent = '€0.00';
-        if (investmentsEl) investmentsEl.textContent = '€0.00';
-        return;
-    }
-    
-    // Calculate totals
-    let totalNetWorth = 0;
-    let onBudget = 0;
-    let investments = 0;
-    
-    accounts.forEach(acc => {
-        const balance = parseFloat(acc.balance) || 0;
-        console.log(`🔍 Processing "${acc.name}": €${balance}, offBudget=${acc.offBudget}`);
-        
-        totalNetWorth += balance;
-        
-        if (acc.offBudget) {
-            investments += balance;
-        } else {
-            onBudget += balance;
-        }
-    });
-
-    console.log('✅ CALCULATED:');
-    console.log('   Total Net Worth: €' + totalNetWorth);
-    console.log('   On Budget: €' + onBudget);
-    console.log('   Investments: €' + investments);
-
-    // Update DOM
-    if (netWorthEl) {
-        const formatted = '€' + totalNetWorth.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        netWorthEl.textContent = formatted;
-        console.log('✅ Set totalNetWorth to:', formatted);
-    }
-    
-    if (onBudgetEl) {
-        const formatted = '€' + onBudget.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        onBudgetEl.textContent = formatted;
-        console.log('✅ Set onBudgetTotal to:', formatted);
-    }
-    
-    if (investmentsEl) {
-        const formatted = '€' + investments.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        investmentsEl.textContent = formatted;
-        console.log('✅ Set investmentsTotal to:', formatted);
-    }
-    
-    console.log('🎉 Update complete!');
-}
-
-
-    function updateCurrencyConverter() {
-        const amount = parseFloat(document.getElementById('currencyAmount').value) || 0;
-        const from = document.getElementById('currencyFrom').value;
-        const to = document.getElementById('currencyTo').value;
-
-        const amountInUSD = amount / exchangeRates[from];
-        const converted = amountInUSD * exchangeRates[to];
-
-        const symbols = { USD: '$', EUR: '€', GBP: '£' };
-        document.getElementById('currencyResult').textContent = 
-            symbols[to] + converted.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    }
-
-    function updateIncomeCalculator() {
-        const monthlySalary = parseFloat(document.getElementById('monthlySalary').value) || 0;
-        const taxRate = parseFloat(document.getElementById('taxRate').value) || 0;
-        const netMonthly = monthlySalary * (1 - taxRate / 100);
-
-        document.getElementById('netIncome').textContent = '€' + netMonthly.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-
-        let totalAllocated = 0;
-
-        if (document.getElementById('enableSavings').checked) {
-            const savingsPercent = parseFloat(document.getElementById('savingsPercent').value) || 0;
-            const savingsAmount = netMonthly * (savingsPercent / 100);
-            document.getElementById('savingsPercentDisplay').textContent = savingsPercent;
-            document.getElementById('savingsAmount').textContent = '€' + savingsAmount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-            totalAllocated += savingsAmount;
+        function navigateTo(path) {
+            console.log(`Navigating to ${path}`);
+            // Logic for loading other sections dynamically
+            if (path === 'budget') {
+                document.getElementById('content').innerHTML = '<h2>Budgets</h2><p>Details about your budgets.</p>';
+            } else if (path === 'goals') {
+                document.getElementById('content').innerHTML = '<h2>Goals</h2><p>Your financial goals overview.</p>';
+            } else {
+                document.getElementById('content').innerHTML = `<h2>${path}</h2><p>Section under development.</p>`;
+            }
         }
 
-        if (document.getElementById('enableFamily').checked) {
-            const familyPercent = parseFloat(document.getElementById('familyPercent').value) || 0;
-            const familyAmount = netMonthly * (familyPercent / 100);
-            document.getElementById('familyPercentDisplay').textContent = familyPercent;
-            document.getElementById('familyAmount').textContent = '€' + familyAmount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-            totalAllocated += familyAmount;
-        }
-
-        if (document.getElementById('enableInvesting').checked) {
-            const investingPercent = parseFloat(document.getElementById('investingPercent').value) || 0;
-            const investingAmount = netMonthly * (investingPercent / 100);
-            document.getElementById('investingPercentDisplay').textContent = investingPercent;
-            document.getElementById('investingAmount').textContent = '€' + investingAmount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-            totalAllocated += investingAmount;
-        }
-
-        const remaining = netMonthly - totalAllocated;
-        document.getElementById('remainingAmount').textContent = '€' + remaining.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-    }
-
-    function setupAllocationToggles() {
-        document.getElementById('enableSavings').addEventListener('change', function() {
-            document.getElementById('savingsFields').style.display = this.checked ? 'block' : 'none';
-            updateIncomeCalculator();
-        });
-
-        document.getElementById('enableFamily').addEventListener('change', function() {
-            document.getElementById('familyFields').style.display = this.checked ? 'block' : 'none';
-            updateIncomeCalculator();
-        });
-
-        document.getElementById('enableInvesting').addEventListener('change', function() {
-            document.getElementById('investingFields').style.display = this.checked ? 'block' : 'none';
-            updateIncomeCalculator();
-        });
-
-        document.getElementById('savingsPercent').addEventListener('input', updateIncomeCalculator);
-        document.getElementById('familyPercent').addEventListener('input', updateIncomeCalculator);
-        document.getElementById('investingPercent').addEventListener('input', updateIncomeCalculator);
-    }
-
-    init();
-    setupAllocationToggles();
-</script>
-
+        init();
+    </script>
+</body>
+</html>
