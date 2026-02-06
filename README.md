@@ -25,9 +25,13 @@ The first version will focus on a simple web app with manual input and clear, ea
 
 ## Documentation
 
-- **[TESTING_GUIDE.md](TESTING_GUIDE.md)** - Complete guide for testing the live application on render.com
-- **[FIREBASE_FAQ.md](FIREBASE_FAQ.md)** - FAQ for Firebase account management (Dutch/English)
-- **[SECURITY.md](SECURITY.md)** - Firebase security best practices and configuration
-- **[SETUP.md](SETUP.md)** - Development environment setup
-- **[DEVPLAN.md](DEVPLAN.md)** - Development roadmap and planning
+📚 **[View Complete Documentation Index](DOCS_INDEX.md)**
+
+### Quick Links
+- **🚀 [Quick Start Testing Guide](QUICK_START_TESTING.md)** - Just deployed? Start here! (Dutch)
+- **⚠️ [Security Guide](SECURITY.md)** - Important security configuration (READ BEFORE LAUNCH)
+- **[Testing Guide](TESTING_GUIDE.md)** - Complete testing procedures for render.com
+- **[Firebase FAQ](FIREBASE_FAQ.md)** - Account management questions (Dutch/English)
+- **[Setup Guide](SETUP.md)** - Development environment setup
+- **[Development Plan](DEVPLAN.md)** - Project roadmap
 
