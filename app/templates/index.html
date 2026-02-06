@@ -203,6 +203,230 @@
             line-height: 1.5;
         }
 
+        /* Net Worth Card */
+        .net-worth-card {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-xl);
+            text-align: center;
+            margin-top: var(--spacing-lg);
+        }
+
+        .net-worth-label {
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            opacity: 0.9;
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .net-worth-amount {
+            font-size: 42px;
+            font-weight: 700;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .net-worth-breakdown {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .net-worth-breakdown .divider {
+            margin: 0 var(--spacing-sm);
+        }
+
+        /* Calculator Grid */
+        .calculator-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-2xl);
+        }
+
+        .calc-card {
+            background: var(--color-surface);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-lg);
+            border: 2px solid var(--color-border);
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+        }
+
+        .calc-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lg);
+            border-color: var(--color-primary);
+        }
+
+        .calc-icon {
+            font-size: 32px;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .calc-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: var(--spacing-xs);
+            color: var(--color-text);
+        }
+
+        .calc-description {
+            font-size: 12px;
+            color: var(--color-text-secondary);
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: var(--spacing-lg);
+        }
+
+        .modal-content {
+            background: var(--color-surface);
+            border-radius: var(--radius-xl);
+            max-width: 500px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .modal-large {
+            max-width: 600px;
+        }
+
+        .modal-header {
+            font-size: 20px;
+            font-weight: 700;
+            padding: var(--spacing-xl);
+            border-bottom: 2px solid var(--color-border);
+            color: var(--color-text);
+        }
+
+        .modal form {
+            padding: var(--spacing-xl);
+        }
+
+        .form-group {
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: var(--spacing-xs);
+            color: var(--color-text);
+        }
+
+        .form-input,
+        .form-select {
+            width: 100%;
+            padding: var(--spacing-md);
+            border: 2px solid var(--color-border);
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            font-family: 'Poppins', sans-serif;
+            color: var(--color-text);
+            transition: border-color 0.2s;
+        }
+
+        .form-input:focus,
+        .form-select:focus {
+            outline: none;
+            border-color: var(--color-primary);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--spacing-md);
+        }
+
+        .calculator-results {
+            background: rgba(32, 128, 137, 0.05);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-lg);
+            margin: var(--spacing-lg) 0;
+        }
+
+        .calculator-results h3 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: var(--spacing-md);
+            color: var(--color-text);
+        }
+
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            padding: var(--spacing-sm) 0;
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        .result-row.highlight {
+            background: rgba(32, 128, 137, 0.1);
+            padding: var(--spacing-md);
+            border-radius: var(--radius-sm);
+            border-bottom: none;
+            margin-top: var(--spacing-sm);
+            font-size: 16px;
+        }
+
+        .result-row strong {
+            color: var(--color-primary);
+            font-weight: 600;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: var(--spacing-md);
+            justify-content: flex-end;
+            padding-top: var(--spacing-lg);
+            border-top: 2px solid var(--color-border);
+        }
+
+        .btn {
+            padding: var(--spacing-md) var(--spacing-xl);
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .btn-primary {
+            background: var(--color-primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--color-primary-hover);
+        }
+
+        .btn-secondary {
+            background: var(--color-border);
+            color: var(--color-text);
+        }
+
+        .btn-secondary:hover {
+            background: var(--color-text-secondary);
+            color: white;
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
             .layout {
@@ -237,6 +461,18 @@
             .hero-title {
                 font-size: 22px;
             }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .calculator-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .modal-content {
+                max-width: 100%;
+            }
         }
     </style>
 </head>
@@ -267,7 +503,51 @@
             <!-- Hero Section -->
             <div class="hero">
                 <div class="hero-greeting" id="heroGreeting">Welcome back 👋</div>
-                <h1 class="hero-title">Your Financial Dashboard</h1>
+                <h1 class="hero-title">Your Financial Overview</h1>
+                
+                <div class="net-worth-card">
+                    <div class="net-worth-label">Net Worth</div>
+                    <div class="net-worth-amount" id="netWorthAmount">€0.00</div>
+                    <div class="net-worth-breakdown">
+                        <span id="savingsAmount">€0 Savings</span>
+                        <span class="divider">•</span>
+                        <span id="toBudgetAmount">€0 Available</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Calculators Section -->
+            <div class="section-title">Quick Calculators</div>
+            <div class="calculator-grid">
+                <div class="calc-card" onclick="openIncomeCalculator()">
+                    <div class="calc-icon">💰</div>
+                    <div class="calc-title">Income</div>
+                    <div class="calc-description">Calculate contract earnings</div>
+                </div>
+
+                <div class="calc-card" onclick="openTaxCalculator()">
+                    <div class="calc-icon">💼</div>
+                    <div class="calc-title">Tax</div>
+                    <div class="calc-description">Estimate your taxes</div>
+                </div>
+
+                <div class="calc-card" onclick="openFamilyCalculator()">
+                    <div class="calc-icon">👨‍👩‍👧‍👦</div>
+                    <div class="calc-title">Family</div>
+                    <div class="calc-description">Support calculator</div>
+                </div>
+
+                <div class="calc-card" onclick="openSavingsCalculator()">
+                    <div class="calc-icon">🏦</div>
+                    <div class="calc-title">Savings</div>
+                    <div class="calc-description">Plan your savings</div>
+                </div>
+
+                <div class="calc-card" onclick="openInvestmentCalculator()">
+                    <div class="calc-icon">📈</div>
+                    <div class="calc-title">Investment</div>
+                    <div class="calc-description">Returns calculator</div>
+                </div>
             </div>
 
             <!-- Quick Access -->
@@ -296,6 +576,261 @@
                     <div class="quick-card-title">Settings</div>
                     <div class="quick-card-description">Configure your preferences, categories, and account settings</div>
                 </a>
+            </div>
+
+            <!-- Income Calculator Modal -->
+            <div class="modal" id="incomeCalculatorModal">
+                <div class="modal-content modal-large">
+                    <div class="modal-header">💰 Maritime Income Calculator</div>
+                    <form id="incomeCalcForm">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Monthly Salary (€)</label>
+                                <input type="number" class="form-input" id="monthlyIncome" step="0.01" min="0" placeholder="3000" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Contract Months</label>
+                                <input type="number" class="form-input" id="contractMonths" min="1" max="24" placeholder="6" required>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Allowances (€/month)</label>
+                                <input type="number" class="form-input" id="allowances" step="0.01" min="0" placeholder="0">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Contract Bonus (€)</label>
+                                <input type="number" class="form-input" id="contractBonus" step="0.01" min="0" placeholder="0">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Tax Rate (%)</label>
+                            <input type="number" class="form-input" id="taxRate" step="0.1" min="0" max="100" placeholder="19" value="19">
+                        </div>
+
+                        <div class="calculator-results" id="incomeResults" style="display: none;">
+                            <h3>Results</h3>
+                            <div class="result-row">
+                                <span>Gross Monthly Income:</span>
+                                <strong id="grossMonthly">€0.00</strong>
+                            </div>
+                            <div class="result-row">
+                                <span>Gross Contract Income:</span>
+                                <strong id="grossContract">€0.00</strong>
+                            </div>
+                            <div class="result-row">
+                                <span>Estimated Taxes:</span>
+                                <strong id="estimatedTax">€0.00</strong>
+                            </div>
+                            <div class="result-row highlight">
+                                <span>Net Contract Income:</span>
+                                <strong id="netContract">€0.00</strong>
+                            </div>
+                        </div>
+
+                        <div class="modal-actions">
+                            <button type="button" class="btn btn-secondary" onclick="closeCalculator('incomeCalculatorModal')">Close</button>
+                            <button type="button" class="btn btn-primary" onclick="calculateIncome()">Calculate</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Tax Calculator Modal -->
+            <div class="modal" id="taxCalculatorModal">
+                <div class="modal-content">
+                    <div class="modal-header">💼 Tax Calculator</div>
+                    <form id="taxCalcForm">
+                        <div class="form-group">
+                            <label class="form-label">Annual Income (€)</label>
+                            <input type="number" class="form-input" id="annualIncome" step="0.01" min="0" placeholder="45000" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Tax Bracket</label>
+                            <select class="form-select" id="taxBracket">
+                                <option value="37.07">Up to €73,031 - 37.07%</option>
+                                <option value="49.5">Above €73,031 - 49.5%</option>
+                            </select>
+                        </div>
+
+                        <div class="calculator-results" id="taxResults" style="display: none;">
+                            <h3>Tax Breakdown</h3>
+                            <div class="result-row">
+                                <span>Gross Annual Income:</span>
+                                <strong id="taxGrossAnnual">€0.00</strong>
+                            </div>
+                            <div class="result-row">
+                                <span>Income Tax:</span>
+                                <strong id="incomeTax">€0.00</strong>
+                            </div>
+                            <div class="result-row highlight">
+                                <span>Net Annual Income:</span>
+                                <strong id="taxNetAnnual">€0.00</strong>
+                            </div>
+                            <div class="result-row">
+                                <span>Net Monthly:</span>
+                                <strong id="taxNetMonthly">€0.00</strong>
+                            </div>
+                        </div>
+
+                        <div class="modal-actions">
+                            <button type="button" class="btn btn-secondary" onclick="closeCalculator('taxCalculatorModal')">Close</button>
+                            <button type="button" class="btn btn-primary" onclick="calculateTax()">Calculate</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Family Support Calculator Modal -->
+            <div class="modal" id="familyCalculatorModal">
+                <div class="modal-content">
+                    <div class="modal-header">👨‍👩‍👧‍👦 Family Support Calculator</div>
+                    <form id="familyCalcForm">
+                        <div class="form-group">
+                            <label class="form-label">Monthly Income (€)</label>
+                            <input type="number" class="form-input" id="familyIncome" step="0.01" min="0" placeholder="3000" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Family Members to Support</label>
+                            <input type="number" class="form-input" id="familyMembers" min="1" max="20" placeholder="4" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Support Percentage (%)</label>
+                            <input type="number" class="form-input" id="supportPercentage" min="0" max="100" placeholder="30" value="30">
+                        </div>
+
+                        <div class="calculator-results" id="familyResults" style="display: none;">
+                            <h3>Support Plan</h3>
+                            <div class="result-row">
+                                <span>Monthly Income:</span>
+                                <strong id="familyMonthlyIncome">€0.00</strong>
+                            </div>
+                            <div class="result-row highlight">
+                                <span>Total Family Support:</span>
+                                <strong id="totalFamilySupport">€0.00</strong>
+                            </div>
+                            <div class="result-row">
+                                <span>Per Family Member:</span>
+                                <strong id="perMember">€0.00</strong>
+                            </div>
+                            <div class="result-row">
+                                <span>Remaining Income:</span>
+                                <strong id="remainingIncome">€0.00</strong>
+                            </div>
+                        </div>
+
+                        <div class="modal-actions">
+                            <button type="button" class="btn btn-secondary" onclick="closeCalculator('familyCalculatorModal')">Close</button>
+                            <button type="button" class="btn btn-primary" onclick="calculateFamilySupport()">Calculate</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Savings Calculator Modal -->
+            <div class="modal" id="savingsCalculatorModal">
+                <div class="modal-content">
+                    <div class="modal-header">🏦 Savings Calculator</div>
+                    <form id="savingsCalcForm">
+                        <div class="form-group">
+                            <label class="form-label">Savings Goal (€)</label>
+                            <input type="number" class="form-input" id="savingsGoal" step="0.01" min="0" placeholder="10000" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Current Savings (€)</label>
+                            <input type="number" class="form-input" id="currentSavings" step="0.01" min="0" placeholder="0">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Monthly Contribution (€)</label>
+                            <input type="number" class="form-input" id="monthlySavings" step="0.01" min="0" placeholder="500" required>
+                        </div>
+
+                        <div class="calculator-results" id="savingsResults" style="display: none;">
+                            <h3>Savings Plan</h3>
+                            <div class="result-row">
+                                <span>Savings Goal:</span>
+                                <strong id="savingsGoalAmount">€0.00</strong>
+                            </div>
+                            <div class="result-row">
+                                <span>Amount Needed:</span>
+                                <strong id="amountNeeded">€0.00</strong>
+                            </div>
+                            <div class="result-row highlight">
+                                <span>Months to Goal:</span>
+                                <strong id="monthsToGoal">0 months</strong>
+                            </div>
+                            <div class="result-row">
+                                <span>Target Date:</span>
+                                <strong id="targetDate">-</strong>
+                            </div>
+                        </div>
+
+                        <div class="modal-actions">
+                            <button type="button" class="btn btn-secondary" onclick="closeCalculator('savingsCalculatorModal')">Close</button>
+                            <button type="button" class="btn btn-primary" onclick="calculateSavings()">Calculate</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Investment Calculator Modal -->
+            <div class="modal" id="investmentCalculatorModal">
+                <div class="modal-content">
+                    <div class="modal-header">📈 Investment Calculator</div>
+                    <form id="investmentCalcForm">
+                        <div class="form-group">
+                            <label class="form-label">Initial Investment (€)</label>
+                            <input type="number" class="form-input" id="initialInvestment" step="0.01" min="0" placeholder="5000" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Monthly Contribution (€)</label>
+                            <input type="number" class="form-input" id="monthlyInvestment" step="0.01" min="0" placeholder="200">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Annual Return Rate (%)</label>
+                            <input type="number" class="form-input" id="returnRate" step="0.1" min="0" max="100" placeholder="7" value="7">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Investment Period (years)</label>
+                            <input type="number" class="form-input" id="investmentYears" min="1" max="50" placeholder="10" required>
+                        </div>
+
+                        <div class="calculator-results" id="investmentResults" style="display: none;">
+                            <h3>Investment Projection</h3>
+                            <div class="result-row">
+                                <span>Total Invested:</span>
+                                <strong id="totalInvested">€0.00</strong>
+                            </div>
+                            <div class="result-row highlight">
+                                <span>Future Value:</span>
+                                <strong id="futureValue">€0.00</strong>
+                            </div>
+                            <div class="result-row">
+                                <span>Total Returns:</span>
+                                <strong id="totalReturns">€0.00</strong>
+                            </div>
+                            <div class="result-row">
+                                <span>Return on Investment:</span>
+                                <strong id="roiPercentage">0%</strong>
+                            </div>
+                        </div>
+
+                        <div class="modal-actions">
+                            <button type="button" class="btn btn-secondary" onclick="closeCalculator('investmentCalculatorModal')">Close</button>
+                            <button type="button" class="btn btn-primary" onclick="calculateInvestment()">Calculate</button>
+                        </div>
+                    </form>
+                </div>
             </div>
         </main>
     </div>
@@ -346,8 +881,8 @@
                 : user.email.split('@')[0];
             document.getElementById('heroGreeting').textContent = `Welcome back, ${firstName} 👋`;
 
-            // Load dashboard data
-            await loadDashboardData();
+            // Calculate and display net worth
+            await calculateNetWorth();
         });
 
         // ============================================
@@ -367,6 +902,71 @@
         // ============================================
         // DATA LOADING
         // ============================================
+        async function calculateNetWorth() {
+            if (!currentUser) return;
+
+            try {
+                // Load accounts from Firebase
+                const accountsSnapshot = await db.collection('users')
+                    .doc(currentUser.uid)
+                    .collection('accounts')
+                    .get();
+
+                let offBudgetTotal = 0; // Savings
+                let onBudgetTotal = 0;  // All on-budget money
+                
+                accountsSnapshot.docs.forEach(doc => {
+                    const account = doc.data();
+                    const balance = parseFloat(account.balance) || 0;
+                    
+                    if (account.offBudget) {
+                        offBudgetTotal += balance;
+                    } else {
+                        onBudgetTotal += balance;
+                    }
+                });
+
+                // Load categories to calculate "To Budget" (unassigned money)
+                const categoriesSnapshot = await db.collection('users')
+                    .doc(currentUser.uid)
+                    .collection('categories')
+                    .get();
+
+                let totalBudgeted = 0;
+                categoriesSnapshot.docs.forEach(doc => {
+                    const category = doc.data();
+                    totalBudgeted += parseFloat(category.budgeted) || 0;
+                });
+
+                // To Budget = On Budget Total - Total Budgeted
+                const toBudget = onBudgetTotal - totalBudgeted;
+
+                // Net Worth = Off Budget (Savings) + To Budget (Available)
+                const netWorth = offBudgetTotal + toBudget;
+
+                // Update UI
+                document.getElementById('netWorthAmount').textContent = formatCurrency(netWorth);
+                document.getElementById('savingsAmount').textContent = formatCurrency(offBudgetTotal) + ' Savings';
+                document.getElementById('toBudgetAmount').textContent = formatCurrency(toBudget) + ' Available';
+
+                console.log('✅ Net worth calculated:', {
+                    netWorth,
+                    savings: offBudgetTotal,
+                    available: toBudget
+                });
+
+            } catch (error) {
+                console.error('❌ Error calculating net worth:', error);
+            }
+        }
+
+        function formatCurrency(amount) {
+            return '€' + amount.toLocaleString('nl-NL', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        }
+
         async function loadDashboardData() {
             if (!currentUser) return;
 
@@ -378,6 +978,165 @@
             } catch (error) {
                 console.error('❌ Error loading data:', error);
             }
+        }
+
+        // ============================================
+        // CALCULATOR MODAL CONTROLS
+        // ============================================
+        function openIncomeCalculator() {
+            openModal('incomeCalculatorModal');
+        }
+
+        function openTaxCalculator() {
+            openModal('taxCalculatorModal');
+        }
+
+        function openFamilyCalculator() {
+            openModal('familyCalculatorModal');
+        }
+
+        function openSavingsCalculator() {
+            openModal('savingsCalculatorModal');
+        }
+
+        function openInvestmentCalculator() {
+            openModal('investmentCalculatorModal');
+        }
+
+        function openModal(modalId) {
+            document.getElementById(modalId).style.display = 'flex';
+        }
+
+        function closeCalculator(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+            // Reset form and hide results
+            const modal = document.getElementById(modalId);
+            const form = modal.querySelector('form');
+            const results = modal.querySelector('.calculator-results');
+            if (form) form.reset();
+            if (results) results.style.display = 'none';
+        }
+
+        // Close modal when clicking outside
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('.modal').forEach(modal => {
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        closeCalculator(modal.id);
+                    }
+                });
+            });
+        });
+
+        // ============================================
+        // CALCULATOR LOGIC
+        // ============================================
+        function calculateIncome() {
+            const monthlyIncome = parseFloat(document.getElementById('monthlyIncome').value) || 0;
+            const contractMonths = parseInt(document.getElementById('contractMonths').value) || 0;
+            const allowances = parseFloat(document.getElementById('allowances').value) || 0;
+            const contractBonus = parseFloat(document.getElementById('contractBonus').value) || 0;
+            const taxRate = parseFloat(document.getElementById('taxRate').value) || 0;
+
+            const grossMonthly = monthlyIncome + allowances;
+            const grossContract = (grossMonthly * contractMonths) + contractBonus;
+            const estimatedTax = (grossContract * taxRate) / 100;
+            const netContract = grossContract - estimatedTax;
+
+            document.getElementById('grossMonthly').textContent = formatCurrency(grossMonthly);
+            document.getElementById('grossContract').textContent = formatCurrency(grossContract);
+            document.getElementById('estimatedTax').textContent = formatCurrency(estimatedTax);
+            document.getElementById('netContract').textContent = formatCurrency(netContract);
+
+            document.getElementById('incomeResults').style.display = 'block';
+        }
+
+        function calculateTax() {
+            const annualIncome = parseFloat(document.getElementById('annualIncome').value) || 0;
+            const taxRate = parseFloat(document.getElementById('taxBracket').value) || 0;
+
+            const incomeTax = (annualIncome * taxRate) / 100;
+            const netAnnual = annualIncome - incomeTax;
+            const netMonthly = netAnnual / 12;
+
+            document.getElementById('taxGrossAnnual').textContent = formatCurrency(annualIncome);
+            document.getElementById('incomeTax').textContent = formatCurrency(incomeTax);
+            document.getElementById('taxNetAnnual').textContent = formatCurrency(netAnnual);
+            document.getElementById('taxNetMonthly').textContent = formatCurrency(netMonthly);
+
+            document.getElementById('taxResults').style.display = 'block';
+        }
+
+        function calculateFamilySupport() {
+            const income = parseFloat(document.getElementById('familyIncome').value) || 0;
+            const members = parseInt(document.getElementById('familyMembers').value) || 1;
+            const percentage = parseFloat(document.getElementById('supportPercentage').value) || 0;
+
+            const totalSupport = (income * percentage) / 100;
+            const perMember = totalSupport / members;
+            const remaining = income - totalSupport;
+
+            document.getElementById('familyMonthlyIncome').textContent = formatCurrency(income);
+            document.getElementById('totalFamilySupport').textContent = formatCurrency(totalSupport);
+            document.getElementById('perMember').textContent = formatCurrency(perMember);
+            document.getElementById('remainingIncome').textContent = formatCurrency(remaining);
+
+            document.getElementById('familyResults').style.display = 'block';
+        }
+
+        function calculateSavings() {
+            const goal = parseFloat(document.getElementById('savingsGoal').value) || 0;
+            const current = parseFloat(document.getElementById('currentSavings').value) || 0;
+            const monthly = parseFloat(document.getElementById('monthlySavings').value) || 0;
+
+            const needed = goal - current;
+            const months = monthly > 0 ? Math.ceil(needed / monthly) : 0;
+            
+            const targetDate = new Date();
+            targetDate.setMonth(targetDate.getMonth() + months);
+
+            document.getElementById('savingsGoalAmount').textContent = formatCurrency(goal);
+            document.getElementById('amountNeeded').textContent = formatCurrency(needed);
+            document.getElementById('monthsToGoal').textContent = months + ' months';
+            document.getElementById('targetDate').textContent = targetDate.toLocaleDateString('en-GB', {
+                month: 'long',
+                year: 'numeric'
+            });
+
+            document.getElementById('savingsResults').style.display = 'block';
+        }
+
+        function calculateInvestment() {
+            const initial = parseFloat(document.getElementById('initialInvestment').value) || 0;
+            const monthly = parseFloat(document.getElementById('monthlyInvestment').value) || 0;
+            const rate = parseFloat(document.getElementById('returnRate').value) || 0;
+            const years = parseInt(document.getElementById('investmentYears').value) || 0;
+
+            const monthlyRate = rate / 100 / 12;
+            const months = years * 12;
+
+            // Future value of initial investment
+            const fvInitial = initial * Math.pow(1 + monthlyRate, months);
+
+            // Future value of monthly contributions
+            let fvMonthly = 0;
+            if (monthly > 0 && monthlyRate > 0) {
+                fvMonthly = monthly * ((Math.pow(1 + monthlyRate, months) - 1) / monthlyRate);
+            } else {
+                fvMonthly = monthly * months;
+            }
+
+            const futureValue = fvInitial + fvMonthly;
+            const totalInvested = initial + (monthly * months);
+            const totalReturns = futureValue - totalInvested;
+            const roiPercentage = totalInvested > 0 ? ((totalReturns / totalInvested) * 100).toFixed(2) : 0;
+
+            document.getElementById('totalInvested').textContent = formatCurrency(totalInvested);
+            document.getElementById('futureValue').textContent = formatCurrency(futureValue);
+            document.getElementById('totalReturns').textContent = formatCurrency(totalReturns);
+            document.getElementById('roiPercentage').textContent = roiPercentage + '%';
+
+            document.getElementById('investmentResults').style.display = 'block';
         }
     </script>
 </body>
