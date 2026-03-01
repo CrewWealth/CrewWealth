@@ -1,10 +1,59 @@
-from flask import Blueprint, render_template, redirect, url_for
+from flask import Blueprint, render_template, redirect, url_for, request
+from twilio.twiml.messaging_response import MessagingResponse
+import firebase_admin
+from firebase_admin import firestore
 
-# Create Blueprint
+# Create Blueprint (EÉN KEER)
 main_bp = Blueprint('main', __name__)
 
 # ============================================
-# MAIN ROUTES
+# WHATSAPP BOT ROUTES (NIEUW)
+# ============================================
+
+@main_bp.route('/whatsapp', methods=['POST'])
+def whatsapp_webhook():
+    """WhatsApp webhook endpoint"""
+    incoming = request.form.get('Body', '').strip().lower()
+    phone = request.form.get('From', '')
+    
+    if incoming.startswith('link '):
+        email = incoming[5:].strip()
+        users_ref = firestore.client().collection('users')
+        user_query = users_ref.where('email', '==', email).limit(1)
+        user_doc = user_query.stream()
+        
+        for doc in user_doc:
+            user_data = doc.to_dict()
+            doc.reference.update({
+                'phone': phone,
+                'linkedAt': firestore.SERVER_TIMESTAMP
+            })
+            resp = MessagingResponse()
+            resp.message(f"✅ Linked! Welcome to CrewWealth, {user_data.get('name', 'Crew')}!\nSend *balance* to see your budget. 🚢")
+            return str(resp)
+        
+        resp = MessagingResponse()
+        resp.message("❌ No account found. Register at crewwealth.onrender.com first.")
+        return str(resp)
+    
+    elif incoming == 'balance':
+        resp = MessagingResponse()
+        resp.message("💰 Balance: €1,234.56\n*spent €15 lunch* to log expenses!")
+        return str(resp)
+    
+    resp = MessagingResponse()
+    resp.message("""
+🚢 CrewWealth Bot
+    
+• *balance* - See balance
+• *link email@crewwealth.app* - Link account  
+• *spent €15 lunch* - Log expense
+• *help* - Show this
+    """)
+    return str(resp)
+
+# ============================================
+# MAIN ROUTES (je bestaande code)
 # ============================================
 
 @main_bp.route('/')
