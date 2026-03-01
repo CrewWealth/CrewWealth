@@ -1,7 +1,6 @@
 from flask import Flask, render_template
 
 def create_app(config_name='development'):
-    """Application factory for CrewWealth"""
     from config.config import config
     
     app = Flask(__name__)
@@ -9,9 +8,10 @@ def create_app(config_name='development'):
     
     # Register blueprints
     from app.routes.main import main_bp
+    from app.routes.whatsapp import whatsapp_bp  # ← ADD THIS
     app.register_blueprint(main_bp)
-    
-    # Security headers
+    app.register_blueprint(whatsapp_bp)           # ← ADD THIS
+
     @app.after_request
     def set_security_headers(response):
         response.headers['X-Content-Type-Options'] = 'nosniff'
@@ -20,7 +20,6 @@ def create_app(config_name='development'):
         response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
         return response
     
-    # Error handlers
     @app.errorhandler(404)
     def not_found_error(error):
         return render_template('index.html'), 404
