@@ -17,24 +17,24 @@ def whatsapp_webhook():
     phone = request.form.get('From', '')
     
     if incoming.startswith('link '):
-        email = incoming[5:].strip()
-        users_ref = firestore.client().collection('users')
-        user_query = users_ref.where('email', '==', email).limit(1)
-        user_doc = user_query.stream()
-        
-        for doc in user_doc:
-            user_data = doc.to_dict()
-            doc.reference.update({
-                'phone': phone,
-                'linkedAt': firestore.SERVER_TIMESTAMP
-            })
-            resp = MessagingResponse()
-            resp.message(f"✅ Linked! Welcome to CrewWealth, {user_data.get('name', 'Crew')}!\nSend *balance* to see your budget. 🚢")
-            return str(resp)
-        
+    email = incoming[5:].strip()
+    users_ref = firestore.client().collection('users')
+    user_query = users_ref.where('email', '==', email).limit(1).get()
+    
+    if user_query:
+        user_doc = user_query[0]
+        user_data = user_doc.to_dict()
+        user_doc.reference.update({
+            'phone': phone,
+            'linkedAt': firestore.SERVER_TIMESTAMP
+        })
         resp = MessagingResponse()
-        resp.message("❌ No account found. Register at crewwealth.onrender.com first.")
+        resp.message(f"✅ Linked! Welcome to CrewWealth, {user_data.get('name', 'Crew')}!\nSend *balance* to see your budget. 🚢")
         return str(resp)
+    
+    resp = MessagingResponse()
+    resp.message("❌ No account found. Register at crewwealth.onrender.com first.")
+    return str(resp)
     
     elif incoming == 'balance':
         resp = MessagingResponse()
