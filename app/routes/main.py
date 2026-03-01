@@ -15,6 +15,7 @@ def whatsapp_webhook():
     users_ref = firestore.client().collection('users')
     all_users = users_ref.get()
     debug_msg = f"DEBUG: {len(all_users)} users gevonden:\n"
+    
     for doc in all_users:
         data = doc.to_dict()
         email = data.get('email', 'NO EMAIL')
@@ -23,15 +24,6 @@ def whatsapp_webhook():
     resp = MessagingResponse()
     resp.message(debug_msg)
     return str(resp)
-        
-        resp = MessagingResponse()
-        resp.message("❌ No account found. Register at crewwealth.onrender.com first.")
-        return str(resp)
-    
-    elif incoming == 'balance':
-        resp = MessagingResponse()
-        resp.message("💰 Balance: €1,234.56\n*spent €15 lunch* to log expenses!")
-        return str(resp)
     
     # Help message (default)
     resp = MessagingResponse()
