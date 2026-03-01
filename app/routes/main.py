@@ -11,31 +11,41 @@ def whatsapp_webhook():
     incoming = request.form.get('Body', '').strip().lower()
     phone = request.form.get('From', '')
     
-    # DEBUG: toon ALLE users
-    users_ref = firestore.client().collection('users')
-    all_users = users_ref.get()
-    debug_msg = f"DEBUG: {len(all_users)} users gevonden:\n"
+    if incoming.startswith('link '):
+        email = incoming[5:].strip()
+        users_ref = firestore.client().collection('users')  # users (meervoud)
+        user_query = users_ref.where('email', '==', email).limit(1).get()
+        
+        if user_query:
+            user_doc = user_query[0]
+            user_data = user_doc.to_dict()
+            user_doc.reference.update({
+                'phone': phone,
+                'linkedAt': firestore.SERVER_TIMESTAMP
+            })
+            resp = MessagingResponse()
+            resp.message(f"✅ Linked! Welcome to CrewWealth, {user_data.get('name', 'Crew')}!\nSend *balance* to see your budget. 🚢")
+            return str(resp)
+        
+        resp = MessagingResponse()
+        resp.message("❌ No account found. Register at crewwealth.onrender.com first.")
+        return str(resp)
     
-    for doc in all_users:
-        data = doc.to_dict()
-        email = data.get('email', 'NO EMAIL')
-        debug_msg += f"- {email} (uid: {doc.id})\n"
+    elif incoming == 'balance':
+        resp = MessagingResponse()
+        resp.message("💰 Balance: €1,234.56\n*spent €15 lunch* to log expenses!")
+        return str(resp)
     
-    resp = MessagingResponse()
-    resp.message(debug_msg)
-    return str(resp)
-    
-    # Help message (default)
     resp = MessagingResponse()
     resp.message("""
 🚢 CrewWealth Bot
-    
 • *balance* - See balance
 • *link email@crewwealth.app* - Link account  
 • *spent €15 lunch* - Log expense
 • *help* - Show this
     """)
     return str(resp)
+
 
 # ============================================
 # MAIN ROUTES (rest blijft hetzelfde)
