@@ -6,10 +6,6 @@ from firebase_admin import firestore
 # Create Blueprint (EÉN KEER)
 main_bp = Blueprint('main', __name__)
 
-# ============================================
-# WHATSAPP BOT ROUTES (NIEUW)
-# ============================================
-
 @main_bp.route('/whatsapp', methods=['POST'])
 def whatsapp_webhook():
     """WhatsApp webhook endpoint"""
@@ -17,30 +13,31 @@ def whatsapp_webhook():
     phone = request.form.get('From', '')
     
     if incoming.startswith('link '):
-    email = incoming[5:].strip()
-    users_ref = firestore.client().collection('users')
-    user_query = users_ref.where('email', '==', email).limit(1).get()
-    
-    if user_query:
-        user_doc = user_query[0]
-        user_data = user_doc.to_dict()
-        user_doc.reference.update({
-            'phone': phone,
-            'linkedAt': firestore.SERVER_TIMESTAMP
-        })
+        email = incoming[5:].strip()
+        users_ref = firestore.client().collection('users')
+        user_query = users_ref.where('email', '==', email).limit(1).get()
+        
+        if user_query:
+            user_doc = user_query[0]
+            user_data = user_doc.to_dict()
+            user_doc.reference.update({
+                'phone': phone,
+                'linkedAt': firestore.SERVER_TIMESTAMP
+            })
+            resp = MessagingResponse()
+            resp.message(f"✅ Linked! Welcome to CrewWealth, {user_data.get('name', 'Crew')}!\nSend *balance* to see your budget. 🚢")
+            return str(resp)
+        
         resp = MessagingResponse()
-        resp.message(f"✅ Linked! Welcome to CrewWealth, {user_data.get('name', 'Crew')}!\nSend *balance* to see your budget. 🚢")
+        resp.message("❌ No account found. Register at crewwealth.onrender.com first.")
         return str(resp)
-    
-    resp = MessagingResponse()
-    resp.message("❌ No account found. Register at crewwealth.onrender.com first.")
-    return str(resp)
     
     elif incoming == 'balance':
         resp = MessagingResponse()
         resp.message("💰 Balance: €1,234.56\n*spent €15 lunch* to log expenses!")
         return str(resp)
     
+    # Help message (default)
     resp = MessagingResponse()
     resp.message("""
 🚢 CrewWealth Bot
@@ -53,7 +50,7 @@ def whatsapp_webhook():
     return str(resp)
 
 # ============================================
-# MAIN ROUTES (je bestaande code)
+# MAIN ROUTES (rest blijft hetzelfde)
 # ============================================
 
 @main_bp.route('/')
@@ -86,10 +83,6 @@ def migrate_goals():
     """Goals Migration page"""
     return render_template('migrate-goals.html')
 
-# ============================================
-# AUTH ROUTES
-# ============================================
-
 @main_bp.route('/login')
 def login():
     """Login page"""
@@ -99,10 +92,6 @@ def login():
 def register():
     """Registration page"""
     return render_template('register.html')
-
-# ============================================
-# REDIRECTS
-# ============================================
 
 @main_bp.route('/logout')
 def logout():
