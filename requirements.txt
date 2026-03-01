@@ -49,3 +49,4 @@ uritemplate==4.2.0
 urllib3==2.5.0
 Werkzeug==2.3.0
 gunicorn==21.2.0
+twilio==9.10.2
