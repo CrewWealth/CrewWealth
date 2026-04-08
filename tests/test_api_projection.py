@@ -407,6 +407,107 @@ class TestProjectionTransferCalculation(unittest.TestCase):
         self.assertAlmostEqual(data['balance_36m'], 4600.0)
 
 
+class TestDashboardProjectionFieldMapping(unittest.TestCase):
+    """
+    Regression tests that guard against the dashboard 'Net / month = €0.00' bug.
+
+    Root cause: index.html was reading data.monthly_net (undefined) instead of
+    data.monthly_contribution (the actual field returned by the API).  These
+    tests verify that the API always returns monthly_contribution so the
+    dashboard field mapping is stable.
+    """
+
+    def _setup_firestore(self, api_module, mock_db):
+        mock_firestore = MagicMock()
+        mock_firestore.client.return_value = mock_db
+        self._patcher = patch.object(api_module, 'firebase_firestore', mock_firestore)
+        self._patcher.start()
+
+    def tearDown(self):
+        if hasattr(self, '_patcher'):
+            self._patcher.stop()
+
+    def test_monthly_contribution_present_and_numeric(self):
+        """
+        API response must always contain a numeric monthly_contribution field.
+        The dashboard reads this field; if it is absent or non-numeric the
+        'Net / month' KPI shows €0.00.
+        """
+        import app.routes.api as api_module
+
+        uid = 'uid_dash_regression'
+        accounts = [{'_id': 'acc1', 'balance': 2000.0, 'offBudget': True}]
+        now = datetime.now(timezone.utc)
+        transactions = [{
+            '_id': 'tx1',
+            'type': 'transfer',
+            'amount': 350.0,
+            'accountId': 'checking',
+            'toAccountId': 'acc1',
+            'date': datetime(now.year, now.month, 1, tzinfo=timezone.utc),
+        }]
+        mock_db = MagicMock()
+        self._setup_firestore(api_module, mock_db)
+
+        response = _call_projection_inner(
+            api_module, uid, mock_db,
+            accounts=accounts,
+            transactions=transactions,
+        )
+        data = response.get_json()
+
+        # The field must exist
+        self.assertIn('monthly_contribution', data)
+        # It must not be None
+        self.assertIsNotNone(data['monthly_contribution'])
+        # It must be numeric (not a string or object)
+        self.assertIsInstance(data['monthly_contribution'], (int, float))
+        # It must equal the net transfer amount for a single month
+        self.assertEqual(data['monthly_contribution'], 350.0)
+
+    def test_monthly_net_field_absent_from_response(self):
+        """
+        The field 'monthly_net' must NOT be present in the API response.
+        Its presence would indicate a regression back to the old (wrong) naming
+        that caused the dashboard 'Net / month' KPI to always show €0.00.
+        """
+        import app.routes.api as api_module
+
+        uid = 'uid_no_monthly_net'
+        mock_db = MagicMock()
+        self._setup_firestore(api_module, mock_db)
+
+        response = _call_projection_inner(
+            api_module, uid, mock_db, accounts=[], transactions=[]
+        )
+        data = response.get_json()
+
+        self.assertNotIn('monthly_net', data)
+
+    def test_response_contains_all_dashboard_kpi_fields(self):
+        """
+        All fields consumed by the dashboard KPI cards must be present in the
+        API response: monthly_contribution, balance_12m, balance_24m, balance_36m.
+        """
+        import app.routes.api as api_module
+
+        uid = 'uid_kpi_fields'
+        accounts = [{'_id': 'acc1', 'balance': 5000.0, 'offBudget': True}]
+        mock_db = MagicMock()
+        self._setup_firestore(api_module, mock_db)
+
+        response = _call_projection_inner(
+            api_module, uid, mock_db,
+            accounts=accounts,
+            transactions=[],
+            user_settings={'monthlySavings': 200.0},
+        )
+        data = response.get_json()
+
+        for field in ('monthly_contribution', 'balance_12m', 'balance_24m', 'balance_36m'):
+            self.assertIn(field, data, f"Expected field '{field}' missing from projection response")
+
+
 class TestProjectionMissingToken(unittest.TestCase):
     """Verify that missing Authorization headers return 401 JSON, not 500."""
 
