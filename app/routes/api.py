@@ -63,12 +63,14 @@ def get_projection(uid):
 
     # ── 2. Monthly net (income − spending) from last 3 months ─────────────
     now = datetime.now(timezone.utc)
-    three_months_ago = datetime(
-        now.year if now.month > 3 else now.year - 1,
-        (now.month - 3) % 12 or 12,
-        1,
-        tzinfo=timezone.utc
-    )
+    # Subtract 3 months safely, rolling back the year if necessary
+    back_month = now.month - 3
+    if back_month <= 0:
+        back_month += 12
+        back_year = now.year - 1
+    else:
+        back_year = now.year
+    three_months_ago = datetime(back_year, back_month, 1, tzinfo=timezone.utc)
 
     try:
         tx_snap = (
@@ -86,13 +88,13 @@ def get_projection(uid):
             date = tx.get('date')
             if date is None:
                 continue
-            # Firestore timestamp → datetime
-            if hasattr(date, 'todate'):
-                date = date.todate()
-            elif hasattr(date, 'datetime'):
-                date = date.datetime
-            else:
-                # already a datetime or similar
+            # Firestore DatetimeWithNanoseconds / google.cloud.firestore_v1.base_document
+            # has a .date() method (not .todate()). Handle both Firestore timestamps and
+            # plain datetime objects.
+            if hasattr(date, 'to_datetime'):
+                date = date.to_datetime()
+            elif hasattr(date, 'timestamp'):
+                # Firestore timestamp — call .datetime property or astimezone
                 try:
                     date = date.astimezone(timezone.utc)
                 except Exception:

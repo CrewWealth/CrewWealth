@@ -530,7 +530,7 @@
                 netEl.style.color = data.monthly_net >= 0 ? 'var(--color-success)' : 'var(--color-danger)';
 
                 // Render chart
-                renderProjectionChart(data.labels, data.balances);
+                renderProjectionChart(data.labels, data.balances, data.starting_balance);
 
             } catch (error) {
                 console.error('❌ Error loading projection:', error);
@@ -540,16 +540,16 @@
             }
         }
 
-        function renderProjectionChart(labels, balances) {
+        function renderProjectionChart(labels, balances, startingBalance) {
             const ctx = document.getElementById('projectionChart').getContext('2d');
 
             if (projectionChartInstance) {
                 projectionChartInstance.destroy();
             }
 
-            // Colour: green if ending higher, red if lower than start
-            const trend = balances.length > 0 && balances[balances.length - 1] >= (balances[0] || 0);
-            const lineColor = trend ? '#22c55e' : '#ef4444';
+            // Colour: green if ending higher than starting balance, red if lower
+            const trend = balances.length > 0 && balances[balances.length - 1] >= (startingBalance || 0);
+            const lineColor = trend ? 'var(--color-success)' : 'var(--color-danger)';
             const fillColor = trend ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)';
 
             projectionChartInstance = new Chart(ctx, {

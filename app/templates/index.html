@@ -1003,8 +1003,8 @@
                         </div>
                     </div>
                     <!-- Loading / empty / chart -->
-                    <div id="dashProjectionLoading" style="text-align:center; padding:24px; color:#626c71;">⏳ Loading projection…</div>
-                    <div id="dashProjectionEmpty" style="display:none; text-align:center; padding:24px; color:#626c71;">
+                    <div id="dashProjectionLoading" style="text-align:center; padding:24px; color:var(--color-text-secondary);">⏳ Loading projection…</div>
+                    <div id="dashProjectionEmpty" style="display:none; text-align:center; padding:24px; color:var(--color-text-secondary);">
                         <div style="font-size:2rem; margin-bottom:6px;">📊</div>
                         <div>Add income or expenses to see your 3-year projection.</div>
                     </div>
@@ -2067,7 +2067,7 @@
                 // KPIs
                 const netEl = document.getElementById('dashKpiNet');
                 netEl.textContent  = formatCurrency(data.monthly_net);
-                netEl.style.color  = data.monthly_net >= 0 ? '#22c55e' : '#ef4444';
+                netEl.style.color  = data.monthly_net >= 0 ? 'var(--color-success)' : 'var(--color-danger)';
                 document.getElementById('dashKpi12m').textContent = data.balance_12m !== null ? formatCurrency(data.balance_12m) : '—';
                 document.getElementById('dashKpi24m').textContent = data.balance_24m !== null ? formatCurrency(data.balance_24m) : '—';
                 document.getElementById('dashKpi36m').textContent = data.balance_36m !== null ? formatCurrency(data.balance_36m) : '—';
@@ -2077,7 +2077,7 @@
 
                 const trend = data.balances.length > 0 &&
                     data.balances[data.balances.length - 1] >= data.starting_balance;
-                const lineColor = trend ? '#22c55e' : '#ef4444';
+                const lineColor = trend ? 'var(--color-success)' : 'var(--color-danger)';
                 const fillColor = trend ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)';
 
                 const ctx = document.getElementById('dashProjectionChart').getContext('2d');
