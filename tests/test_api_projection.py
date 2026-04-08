@@ -225,6 +225,50 @@ class TestProjectionOffBudgetAccounts(unittest.TestCase):
         self.assertIn('contribution_source', data)
         self.assertNotIn('monthly_net', data)
 
+    def test_monthly_contribution_nonzero_when_off_budget_transfers_exist(self):
+        """
+        Regression: Net/month must not silently show 0 when off-budget transfers
+        exist.  The field name in the API response must be 'monthly_contribution'
+        (not 'monthly_net') and must equal the computed transfer average.
+        """
+        import app.routes.api as api_module
+
+        uid = 'uid_regression_net_month'
+        accounts = [{'_id': 'savings', 'balance': 900.0, 'offBudget': True}]
+        now = datetime.now(timezone.utc)
+
+        # Three months of €300 transfers into the off-budget account
+        transactions = []
+        for month_offset in range(3):
+            m = now.month - month_offset
+            y = now.year
+            if m <= 0:
+                m += 12
+                y -= 1
+            transactions.append({
+                '_id': f'tx_{month_offset}',
+                'type': 'transfer',
+                'amount': 300.0,
+                'accountId': 'checking',
+                'toAccountId': 'savings',
+                'date': datetime(y, m, 1, tzinfo=timezone.utc),
+            })
+
+        mock_db = MagicMock()
+        self._setup_firestore(api_module, mock_db)
+
+        response = _call_projection_inner(
+            api_module, uid, mock_db, accounts=accounts, transactions=transactions
+        )
+        data = response.get_json()
+
+        # monthly_contribution must be 300 (average of 300+300+300 over 3 months)
+        self.assertNotEqual(data.get('monthly_contribution'), 0,
+                            "monthly_contribution must not be 0 when transfers exist")
+        self.assertAlmostEqual(data['monthly_contribution'], 300.0)
+        # Field must be named 'monthly_contribution', not 'monthly_net'
+        self.assertNotIn('monthly_net', data)
+
 
 class TestProjectionManualSavingsOverride(unittest.TestCase):
     """Verify that settings.monthlySavings overrides the auto-calculated value."""
