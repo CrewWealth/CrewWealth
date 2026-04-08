@@ -505,10 +505,19 @@
 
                 const data = await response.json();
 
+                // Resolve monthly contribution: backend returns monthly_contribution;
+                // fall back to camelCase variant and legacy monthly_net for robustness.
+                const rawMonthly = data.monthly_contribution ?? data.monthlyContribution ?? data.monthly_net ?? data.netPerMonth;
+                const parsedMonthly = parseFloat(rawMonthly);
+                const monthlyContribution = (rawMonthly !== null && rawMonthly !== undefined && !Number.isNaN(parsedMonthly)) ? parsedMonthly : null;
+                const rawStarting = data.starting_balance ?? data.startingBalance;
+                const parsedStarting = parseFloat(rawStarting);
+                const startingBalance = (rawStarting !== null && rawStarting !== undefined && !Number.isNaN(parsedStarting)) ? parsedStarting : 0;
+
                 // Hide loading, show chart
                 loadingEl.style.display = 'none';
 
-                if (data.monthly_net === 0 && data.starting_balance === 0) {
+                if (monthlyContribution === null && startingBalance === 0) {
                     emptyEl.style.display = 'block';
                     chartEl.style.display = 'none';
                     kpisEl.style.display = 'none';
@@ -520,14 +529,17 @@
                 kpisEl.style.display = 'flex';
 
                 // Update KPIs
-                document.getElementById('kpiMonthlyNet').textContent = formatCurrency(data.monthly_net);
+                const monthlyNetEl = document.getElementById('kpiMonthlyNet');
+                if (monthlyContribution !== null) {
+                    monthlyNetEl.textContent = formatCurrency(monthlyContribution);
+                    monthlyNetEl.style.color = monthlyContribution >= 0 ? 'var(--color-success)' : 'var(--color-danger)';
+                } else {
+                    monthlyNetEl.textContent = '—';
+                    monthlyNetEl.style.color = '';
+                }
                 document.getElementById('kpi12m').textContent = data.balance_12m !== null ? formatCurrency(data.balance_12m) : '—';
                 document.getElementById('kpi24m').textContent = data.balance_24m !== null ? formatCurrency(data.balance_24m) : '—';
                 document.getElementById('kpi36m').textContent = data.balance_36m !== null ? formatCurrency(data.balance_36m) : '—';
-
-                // Colour the monthly-net KPI
-                const netEl = document.getElementById('kpiMonthlyNet');
-                netEl.style.color = data.monthly_net >= 0 ? 'var(--color-success)' : 'var(--color-danger)';
 
                 // Render chart
                 renderProjectionChart(data.labels, data.balances, data.starting_balance);
