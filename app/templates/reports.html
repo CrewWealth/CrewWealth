@@ -8,6 +8,8 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <style>
         :root {
             --color-primary: #208089;
@@ -200,6 +202,19 @@
                     <div class="report-subtitle">This month</div>
                 </div>
             </div>
+           
+            <section class="card">
+    <div class="card-header">
+        <h2 class="card-title">3-Year Projection</h2>
+        <p class="card-subtitle">
+            Based on your current monthly net (income − spending), assuming it stays constant.
+        </p>
+    </div>
+    <div class="card-body">
+        <canvas id="projectionChart" height="120"></canvas>
+    </div>
+</section>
+
 
             <!-- Recent Transactions -->
             <div class="transactions-section">
@@ -406,10 +421,70 @@
 
                 document.getElementById('totalIncomeValue').textContent = formatCurrency(totalIncome);
                 document.getElementById('totalSpendingValue').textContent = formatCurrency(totalSpending);
+                updateProjectionChart(totalIncome, totalSpending);
+
 
             } catch (error) {
                 console.error('Error loading monthly stats:', error);
             }
+        }
+
+        let projectionChartInstance = null;
+
+        function updateProjectionChart(totalIncome, totalSpending) {
+            const monthlyNet = totalIncome - totalSpending;
+            const labels = [];
+            const data = [];
+            let balance = 0;
+
+            for (let i = 1; i <= 36; i++) {
+                balance += monthlyNet;
+                labels.push(`Month ${i}`);
+                data.push(balance);
+            }
+
+            const ctx = document.getElementById('projectionChart').getContext('2d');
+
+            if (projectionChartInstance) {
+                projectionChartInstance.destroy();
+            }
+
+            projectionChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Projected Net Worth',
+                        data: data,
+                        borderColor: '#208089',
+                        backgroundColor: 'rgba(32, 128, 137, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 0,
+                        pointHoverRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { display: true, position: 'top' },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => formatCurrency(context.parsed.y)
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            ticks: {
+                                callback: (value) => formatCurrency(value)
+                            }
+                        }
+                    }
+                }
+            });
         }
 
         async function loadRecentTransactions() {
@@ -484,7 +559,12 @@
             const year = now.getFullYear();
             const month = String(now.getMonth() + 1).padStart(2, '0');
             return `${year}-${month}`;
-        }
-    </script>
+
+            
+        }    
+        
+</script>
+
 </body>
 </html>
+

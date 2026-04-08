@@ -859,28 +859,46 @@
             <div class="section-title">Financial Overview</div>
             <div class="dashboard-widgets">
                 <!-- Month Overview Widget -->
-                <div class="widget-card">
-                    <div class="widget-header">
-                        <span class="widget-icon">📊</span>
-                        <h3 class="widget-title">Month Overview</h3>
-                    </div>
-                    <div class="widget-content" id="monthOverviewContent">
-                        <div class="budget-stat">
-                            <div class="budget-stat-label">Total Budgeted</div>
-                            <div class="budget-stat-value" id="totalBudgeted">€0.00</div>
-                        </div>
-                        <div class="budget-stat">
-                            <div class="budget-stat-label">Total Spent</div>
-                            <div class="budget-stat-value" id="totalSpent">€0.00</div>
-                        </div>
-                        <div class="budget-progress">
-                            <div class="progress-bar">
-                                <div class="progress-fill" id="budgetProgressBar" style="width: 0%"></div>
-                            </div>
-                            <div class="progress-label" id="budgetProgressLabel">0% of budget used</div>
-                        </div>
-                    </div>
-                </div>
+<div class="widget-card">
+    <div class="widget-header">
+        <span class="widget-icon">📊</span>
+        <h3 class="widget-title">Month Overview</h3>
+    </div>
+    <div class="widget-content" id="monthOverviewContent">
+        <div class="budget-stat">
+            <div class="budget-stat-label">Total Budgeted</div>
+            <div class="budget-stat-value" id="totalBudgeted">0.00</div>
+        </div>
+
+        <div class="budget-stat">
+            <div class="budget-stat-label">Total Spent</div>
+            <div class="budget-stat-value" id="totalSpent">0.00</div>
+        </div>
+
+        <div class="budget-stat">
+            <div class="budget-stat-label">Income this month</div>
+            <div class="budget-stat-value" id="monthIncomeAmount">0.00</div>
+        </div>
+
+        <div class="budget-stat">
+            <div class="budget-stat-label">Net this month</div>
+            <div class="budget-stat-value" id="monthNetAmount">0.00</div>
+        </div>
+
+        <div class="budget-stat">
+            <div class="budget-stat-label">Savings rate</div>
+            <div class="budget-stat-value" id="monthSavingsRate">0%</div>
+        </div>
+
+        <div class="budget-progress">
+            <div class="progress-bar">
+                <div class="progress-fill" id="budgetProgressBar" style="width: 0%"></div>
+            </div>
+            <div class="progress-label" id="budgetProgressLabel">0% of budget used</div>
+        </div>
+    </div>
+</div>
+
 
                 <!-- Recent Transactions Widget -->
                 <div class="widget-card">
@@ -1482,73 +1500,113 @@
             if (unsubscribeGoals) unsubscribeGoals();
         }
 
-        async function loadMonthOverview() {
-            if (!currentUser) return;
+ async function loadMonthOverview() {
+    if (!currentUser) return;
 
-            try {
-                // Get current month's start and end
-                const now = new Date();
-                const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-                const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-                const monthKey = getMonthKey();
+    try {
+        // Get current month's start and end
+        const now = new Date();
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+        const monthKey = getMonthKey();
 
-                // Get budgets from budgets collection
-                const budgetDoc = await db.collection('users')
-                    .doc(currentUser.uid)
-                    .collection('budgets')
-                    .doc(monthKey)
-                    .get();
+        // ================================
+        // Budgets ophalen
+        // ================================
+        const budgetDoc = await db
+            .collection('users')
+            .doc(currentUser.uid)
+            .collection('budgets')
+            .doc(monthKey)
+            .get();
 
-                let totalBudgeted = 0;
-                if (budgetDoc.exists) {
-                    const budgets = budgetDoc.data();
-                    // Sum all budgeted amounts (excluding metadata fields)
-                    totalBudgeted = Object.entries(budgets).reduce((sum, [key, val]) => {
-                        if (key !== 'createdAt' && key !== 'updatedAt') {
-                            return sum + (parseFloat(val) || 0);
-                        }
-                        return sum;
-                    }, 0);
+        let totalBudgeted = 0;
+        if (budgetDoc.exists) {
+            const budgets = budgetDoc.data();
+            // Sum all budgeted amounts (excluding metadata fields)
+            totalBudgeted = Object.entries(budgets).reduce((sum, [key, val]) => {
+                if (key !== 'createdAt' && key !== 'updatedAt') {
+                    return sum + (parseFloat(val) || 0);
                 }
-
-                // Get transactions for current month
-                const transactionsSnapshot = await db.collection('users')
-                    .doc(currentUser.uid)
-                    .collection('transactions')
-                    .where('date', '>=', firebase.firestore.Timestamp.fromDate(monthStart))
-                    .where('date', '<=', firebase.firestore.Timestamp.fromDate(monthEnd))
-                    .get();
-
-                let totalSpent = 0;
-                transactionsSnapshot.docs.forEach(doc => {
-                    const transaction = doc.data();
-                    if (transaction.type === 'payment') {
-                        totalSpent += Math.abs(parseFloat(transaction.amount) || 0);
-                    }
-                });
-
-                // Update UI
-                document.getElementById('totalBudgeted').textContent = formatCurrency(totalBudgeted);
-                document.getElementById('totalSpent').textContent = formatCurrency(totalSpent);
-
-                // Calculate progress
-                const percentage = totalBudgeted > 0 ? (totalSpent / totalBudgeted) * 100 : 0;
-                const progressBar = document.getElementById('budgetProgressBar');
-                progressBar.style.width = Math.min(percentage, 100) + '%';
-                
-                if (percentage > 100) {
-                    progressBar.classList.add('over-budget');
-                } else {
-                    progressBar.classList.remove('over-budget');
-                }
-
-                document.getElementById('budgetProgressLabel').textContent = 
-                    `${percentage.toFixed(1)}% of budget used`;
-
-            } catch (error) {
-                console.error('❌ Error loading month overview:', error);
-            }
+                return sum;
+            }, 0);
         }
+
+        // ================================
+        // Transacties voor huidige maand
+        // ================================
+        const transactionsSnapshot = await db
+            .collection('users')
+            .doc(currentUser.uid)
+            .collection('transactions')
+            .where('date', '>=', firebase.firestore.Timestamp.fromDate(monthStart))
+            .where('date', '<=', firebase.firestore.Timestamp.fromDate(monthEnd))
+            .get();
+
+        let totalSpent = 0;
+        let totalIncome = 0;
+
+        transactionsSnapshot.docs.forEach(doc => {
+            const transaction = doc.data();
+            const amount = Math.abs(parseFloat(transaction.amount) || 0);
+
+            // Uitgaven
+            if (transaction.type === 'payment') {
+                totalSpent += amount;
+            }
+            // Inkomsten (sluit aan bij je bestaande logica: salary/deposit als income)
+            else if (transaction.type === 'salary' || transaction.type === 'deposit') {
+                totalIncome += amount;
+            }
+        });
+
+        const net = totalIncome - totalSpent;
+        const savingsRate = totalIncome > 0 ? (net / totalIncome) * 100 : 0;
+
+        // ================================
+        // UI updaten
+        // ================================
+        // Bestaande velden
+        document.getElementById('totalBudgeted').textContent = formatCurrency(totalBudgeted);
+        document.getElementById('totalSpent').textContent = formatCurrency(totalSpent);
+
+        // Nieuwe velden
+        const incomeEl = document.getElementById('monthIncomeAmount');
+        const netEl = document.getElementById('monthNetAmount');
+        const rateEl = document.getElementById('monthSavingsRate');
+
+        if (incomeEl) {
+            incomeEl.textContent = formatCurrency(totalIncome);
+        }
+        if (netEl) {
+            netEl.textContent = formatCurrency(net);
+        }
+        if (rateEl) {
+            rateEl.textContent = `${savingsRate.toFixed(1)}%`;
+        }
+
+        // ================================
+        // Budget progress bar
+        // ================================
+        const percentage = totalBudgeted > 0 ? (totalSpent / totalBudgeted) * 100 : 0;
+        const progressBar = document.getElementById('budgetProgressBar');
+        progressBar.style.width = Math.min(percentage, 100) + '%';
+
+        if (percentage > 100) {
+            progressBar.classList.add('over-budget');
+        } else {
+            progressBar.classList.remove('over-budget');
+        }
+
+        const labelEl = document.getElementById('budgetProgressLabel');
+        if (labelEl) {
+            labelEl.textContent = `${percentage.toFixed(1)}% of budget used`;
+        }
+    } catch (error) {
+        console.error('❌ Error loading month overview:', error);
+    }
+}
+
 
         async function loadRecentTransactions() {
             if (!currentUser) return;

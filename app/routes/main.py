@@ -102,6 +102,12 @@ def dashboard():
     return redirect(url_for('main.index'))
 
 @main_bp.route('/income')
+<<<<<<< HEAD
 def income_redirect():
     """Redirect old /income to dashboard"""
     return redirect(url_for('main.index'))
+=======
+def income_page():
+    """Income calculator / overview page"""
+    return render_template('income.html')
+>>>>>>> c567192 (Add reports chart update)
