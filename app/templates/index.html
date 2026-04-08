@@ -1608,8 +1608,11 @@
                 document.getElementById('dashboardYear3').textContent = formatCurrency(base.year3_balance);
 
                 const monthlyNet = data.monthly_income - data.monthly_expenses;
+                const year1Label = monthlyNet >= 0
+                    ? `saving ${formatCurrency(base.year1_balance)} by Year 1`
+                    : `spending down ${formatCurrency(Math.abs(base.year1_balance))} by Year 1`;
                 document.getElementById('projectionMonthlyNet').textContent =
-                    `Monthly net: ${formatCurrency(monthlyNet)} → saving ${formatCurrency(base.year1_balance)} in Year 1`;
+                    `Monthly net: ${formatCurrency(monthlyNet)} → ${year1Label}`;
 
                 contentEl.style.display = 'block';
                 console.log('✅ Dashboard projection loaded');

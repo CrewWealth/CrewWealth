@@ -688,10 +688,10 @@
                     scales: {
                         x: {
                             ticks: {
-                                // Show only year-start labels to avoid crowding
+                                // Show a tick every 12 data-points (= every year) to avoid crowding.
+                                // index 0 = first month after today; index 11 = end of Year 1, etc.
                                 callback: function(val, index) {
-                                    const label = this.getLabelForValue(val);
-                                    return label && label.startsWith('Jan') ? label : '';
+                                    return index % 12 === 0 ? this.getLabelForValue(val) : '';
                                 },
                                 maxTicksLimit: 4
                             }

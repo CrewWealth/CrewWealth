@@ -31,6 +31,7 @@ a server-side Firestore read for the current calendar month.
 
 from __future__ import annotations
 
+import calendar
 import logging
 from datetime import datetime
 from functools import wraps
@@ -181,17 +182,15 @@ def _fetch_monthly_totals(uid: str) -> tuple[float, float]:
     try:
         now = datetime.now()
         month_start = datetime(now.year, now.month, 1)
-        if now.month == 12:
-            month_end = datetime(now.year + 1, 1, 1)
-        else:
-            month_end = datetime(now.year, now.month + 1, 1)
+        last_day = calendar.monthrange(now.year, now.month)[1]
+        month_end = datetime(now.year, now.month, last_day, 23, 59, 59)
 
         docs = (
             db.collection("users")
             .document(uid)
             .collection("transactions")
             .where("date", ">=", month_start)
-            .where("date", "<", month_end)
+            .where("date", "<=", month_end)
             .stream()
         )
 
