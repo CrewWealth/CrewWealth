@@ -1,5 +1,13 @@
 from flask import Flask, render_template
 
+# Ensure Firebase is initialised once at package import time.
+# This is safe to run before create_app() because init_firebase() only reads
+# environment variables / credential files — it does not depend on a Flask app.
+try:
+    from app import firebase as _firebase_module  # noqa: F401
+except Exception:  # pragma: no cover
+    pass
+
 
 def create_app(config_name='development'):
     from config.config import config
@@ -13,6 +21,7 @@ def create_app(config_name='development'):
     from app.routes.main import main_bp
     from app.routes.income import income_bp
     from app.routes.currency import currency_bp
+    from app.routes.projection import projection_bp
     # WhatsApp tijdelijk verwijderd:
     # from app.routes.whatsapp import whatsapp_bp
 
@@ -22,6 +31,7 @@ def create_app(config_name='development'):
     app.register_blueprint(main_bp)
     app.register_blueprint(income_bp)
     app.register_blueprint(currency_bp)
+    app.register_blueprint(projection_bp)
     # app.register_blueprint(whatsapp_bp)
 
     # ============================

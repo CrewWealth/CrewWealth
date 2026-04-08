@@ -778,6 +778,69 @@
             .modal-content {
                 max-width: 100%;
             }
+
+            .projection-year-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Projection Widget */
+        .projection-widget {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-lg);
+            margin-top: var(--spacing-xl);
+        }
+
+        .projection-widget-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .projection-widget-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--color-text);
+        }
+
+        .projection-year-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .projection-year-card {
+            background: #f7fafd;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-md);
+            text-align: center;
+        }
+
+        .projection-year-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--color-text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .projection-year-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--color-primary);
+        }
+
+        .projection-loading-text {
+            text-align: center;
+            padding: var(--spacing-lg);
+            color: var(--color-text-secondary);
+            font-size: 14px;
         }
     </style>
 </head>
@@ -951,6 +1014,44 @@
                     <div class="widget-footer">
                         <a href="/budget" class="widget-link">Manage Bills →</a>
                     </div>
+                </div>
+            </div>
+
+            <!-- 3-Year Projection Widget -->
+            <div class="section-title">3-Year Wealth Projection</div>
+            <div class="projection-widget">
+                <div class="projection-widget-header">
+                    <span class="projection-widget-title">📈 Base Scenario</span>
+                    <a href="/reports" style="font-size:13px; color: var(--color-primary); font-weight:600; text-decoration:none;">View full projection →</a>
+                </div>
+
+                <!-- Loading state -->
+                <div id="projectionWidgetLoading" class="projection-loading-text">
+                    ⏳ Calculating projection…
+                </div>
+
+                <!-- Year-end balances -->
+                <div id="projectionWidgetContent" style="display:none;">
+                    <div class="projection-year-grid">
+                        <div class="projection-year-card">
+                            <div class="projection-year-label">End of Year 1</div>
+                            <div class="projection-year-value" id="dashboardYear1">—</div>
+                        </div>
+                        <div class="projection-year-card">
+                            <div class="projection-year-label">End of Year 2</div>
+                            <div class="projection-year-value" id="dashboardYear2">—</div>
+                        </div>
+                        <div class="projection-year-card">
+                            <div class="projection-year-label">End of Year 3</div>
+                            <div class="projection-year-value" id="dashboardYear3">—</div>
+                        </div>
+                    </div>
+                    <div style="font-size:12px; color: var(--color-text-secondary); text-align:center;" id="projectionMonthlyNet"></div>
+                </div>
+
+                <!-- Error state -->
+                <div id="projectionWidgetError" style="display:none; text-align:center; color: var(--color-text-secondary); font-size:14px; padding:16px;">
+                    ℹ️ Add income &amp; expense data to see your projection.
                 </div>
             </div>
 
@@ -1429,12 +1530,94 @@
                     loadUpcomingBills()
                 ]);
                 
+                // Load 3-year projection widget (runs independently)
+                loadDashboardProjection();
+
                 // Set up real-time listeners for automatic updates
                 setupRealtimeListeners();
                 
                 console.log('✅ Dashboard widgets loaded');
             } catch (error) {
                 console.error('❌ Error loading dashboard data:', error);
+            }
+        }
+
+        // ============================================
+        // 3-YEAR PROJECTION WIDGET
+        // ============================================
+        async function loadDashboardProjection() {
+            if (!currentUser) return;
+
+            const loadingEl = document.getElementById('projectionWidgetLoading');
+            const contentEl = document.getElementById('projectionWidgetContent');
+            const errorEl   = document.getElementById('projectionWidgetError');
+
+            loadingEl.style.display = 'block';
+            contentEl.style.display = 'none';
+            errorEl.style.display   = 'none';
+
+            try {
+                // Gather current month totals from Firestore (same logic as loadMonthOverview)
+                const now = new Date();
+                const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+                const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+
+                const txSnap = await db.collection('users')
+                    .doc(currentUser.uid)
+                    .collection('transactions')
+                    .where('date', '>=', firebase.firestore.Timestamp.fromDate(monthStart))
+                    .where('date', '<=', firebase.firestore.Timestamp.fromDate(monthEnd))
+                    .get();
+
+                let monthlyIncome   = 0;
+                let monthlyExpenses = 0;
+
+                txSnap.docs.forEach(doc => {
+                    const tx = doc.data();
+                    const amount = Math.abs(parseFloat(tx.amount) || 0);
+                    if (tx.type === 'salary' || tx.type === 'deposit') {
+                        monthlyIncome += amount;
+                    } else if (tx.type === 'payment') {
+                        monthlyExpenses += amount;
+                    }
+                });
+
+                // Fetch projection from Flask API with Firebase ID token
+                const token = await currentUser.getIdToken();
+                const uid   = currentUser.uid;
+                const url   = `/api/projection/${uid}?monthly_income=${monthlyIncome}&monthly_expenses=${monthlyExpenses}`;
+
+                const response = await fetch(url, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+                const data = await response.json();
+                const base = data.scenarios.base;
+
+                loadingEl.style.display = 'none';
+
+                if (!base || (monthlyIncome === 0 && monthlyExpenses === 0)) {
+                    errorEl.style.display = 'block';
+                    return;
+                }
+
+                document.getElementById('dashboardYear1').textContent = formatCurrency(base.year1_balance);
+                document.getElementById('dashboardYear2').textContent = formatCurrency(base.year2_balance);
+                document.getElementById('dashboardYear3').textContent = formatCurrency(base.year3_balance);
+
+                const monthlyNet = data.monthly_income - data.monthly_expenses;
+                document.getElementById('projectionMonthlyNet').textContent =
+                    `Monthly net: ${formatCurrency(monthlyNet)} → saving ${formatCurrency(base.year1_balance)} in Year 1`;
+
+                contentEl.style.display = 'block';
+                console.log('✅ Dashboard projection loaded');
+
+            } catch (err) {
+                console.error('❌ Projection widget error:', err);
+                loadingEl.style.display = 'none';
+                errorEl.style.display   = 'block';
             }
         }
 

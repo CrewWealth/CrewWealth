@@ -170,6 +170,108 @@
             padding: var(--spacing-xl);
             color: var(--color-text-secondary);
         }
+
+        /* Projection card */
+        .card {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-lg);
+            margin-bottom: var(--spacing-lg);
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: var(--spacing-lg);
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .card-subtitle {
+            font-size: 13px;
+            color: var(--color-text-secondary);
+        }
+
+        .card-body {
+            padding: var(--spacing-lg);
+        }
+
+        .scenario-toggles {
+            display: flex;
+            gap: var(--spacing-sm);
+            margin-bottom: var(--spacing-md);
+            flex-wrap: wrap;
+        }
+
+        .scenario-btn {
+            padding: 6px 16px;
+            border-radius: 20px;
+            border: 2px solid var(--color-border);
+            background: transparent;
+            color: var(--color-text-secondary);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .scenario-btn.active {
+            border-color: var(--color-primary);
+            background: var(--color-primary);
+            color: #fff;
+        }
+
+        .scenario-btn:hover:not(.active) {
+            border-color: var(--color-primary);
+            color: var(--color-primary);
+        }
+
+        .projection-summary {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--spacing-md);
+            margin-top: var(--spacing-lg);
+        }
+
+        .summary-metric {
+            background: #f7fafd;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-md);
+            text-align: center;
+        }
+
+        .summary-metric-label {
+            font-size: 12px;
+            color: var(--color-text-secondary);
+            margin-bottom: 4px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .summary-metric-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--color-primary);
+        }
+
+        .projection-loading {
+            text-align: center;
+            padding: var(--spacing-xl);
+            color: var(--color-text-secondary);
+            font-size: 14px;
+        }
+
+        @media (max-width: 500px) {
+            .projection-summary {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 <body>
@@ -205,13 +307,50 @@
            
             <section class="card">
     <div class="card-header">
-        <h2 class="card-title">3-Year Projection</h2>
+        <h2 class="card-title">📈 3-Year Wealth Projection</h2>
         <p class="card-subtitle">
-            Based on your current monthly net (income − spending), assuming it stays constant.
+            Based on your current monthly net (income − spending). Scenarios show
+            conservative (−20 %), base, and optimistic (+15 %) outcomes.
         </p>
     </div>
     <div class="card-body">
-        <canvas id="projectionChart" height="120"></canvas>
+        <!-- Scenario toggles -->
+        <div class="scenario-toggles">
+            <button class="scenario-btn" id="scenarioConservative" onclick="setScenario('conservative')">📉 Conservative</button>
+            <button class="scenario-btn active" id="scenarioBase" onclick="setScenario('base')">📊 Base</button>
+            <button class="scenario-btn" id="scenarioOptimistic" onclick="setScenario('optimistic')">📈 Optimistic</button>
+        </div>
+
+        <!-- Loading state -->
+        <div id="projectionLoading" class="projection-loading">
+            ⏳ Calculating projection…
+        </div>
+
+        <!-- Chart -->
+        <div id="projectionChartWrapper" style="display:none;">
+            <canvas id="projectionChart" height="120"></canvas>
+
+            <!-- Year-end summary metrics -->
+            <div class="projection-summary" id="projectionSummary">
+                <div class="summary-metric">
+                    <div class="summary-metric-label">End of Year 1</div>
+                    <div class="summary-metric-value" id="summaryYear1">—</div>
+                </div>
+                <div class="summary-metric">
+                    <div class="summary-metric-label">End of Year 2</div>
+                    <div class="summary-metric-value" id="summaryYear2">—</div>
+                </div>
+                <div class="summary-metric">
+                    <div class="summary-metric-label">End of Year 3</div>
+                    <div class="summary-metric-value" id="summaryYear3">—</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Error state -->
+        <div id="projectionError" style="display:none;" class="empty-state">
+            ⚠️ Could not load projection data. Please try refreshing.
+        </div>
     </div>
 </section>
 
@@ -421,27 +560,88 @@
 
                 document.getElementById('totalIncomeValue').textContent = formatCurrency(totalIncome);
                 document.getElementById('totalSpendingValue').textContent = formatCurrency(totalSpending);
-                updateProjectionChart(totalIncome, totalSpending);
 
+                // Fetch projection from Flask API (sends ID token for server-side verification)
+                await loadProjectionFromAPI(totalIncome, totalSpending);
 
             } catch (error) {
                 console.error('Error loading monthly stats:', error);
             }
         }
 
+        // ============================================
+        // PROJECTION  — fetches from Flask API
+        // ============================================
+        let projectionData = null;       // full API response
+        let activeScenario = 'base';     // currently displayed scenario
         let projectionChartInstance = null;
 
-        function updateProjectionChart(totalIncome, totalSpending) {
-            const monthlyNet = totalIncome - totalSpending;
-            const labels = [];
-            const data = [];
-            let balance = 0;
+        async function loadProjectionFromAPI(monthlyIncome, monthlyExpenses) {
+            const loadingEl = document.getElementById('projectionLoading');
+            const wrapperEl = document.getElementById('projectionChartWrapper');
+            const errorEl   = document.getElementById('projectionError');
 
-            for (let i = 1; i <= 36; i++) {
-                balance += monthlyNet;
-                labels.push(`Month ${i}`);
-                data.push(balance);
+            loadingEl.style.display = 'block';
+            wrapperEl.style.display = 'none';
+            errorEl.style.display   = 'none';
+
+            try {
+                const token = await currentUser.getIdToken();
+                const uid   = currentUser.uid;
+                const url   = `/api/projection/${uid}?monthly_income=${monthlyIncome}&monthly_expenses=${monthlyExpenses}`;
+
+                const response = await fetch(url, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                projectionData = await response.json();
+                loadingEl.style.display = 'none';
+                wrapperEl.style.display = 'block';
+
+                renderProjectionChart(activeScenario);
+                renderProjectionSummary(activeScenario);
+
+            } catch (err) {
+                console.error('❌ Projection API error:', err);
+                loadingEl.style.display = 'none';
+                errorEl.style.display   = 'block';
             }
+        }
+
+        function setScenario(scenario) {
+            if (!projectionData) return;
+
+            activeScenario = scenario;
+
+            // Update toggle button styles
+            ['conservative', 'base', 'optimistic'].forEach(s => {
+                const btn = document.getElementById('scenario' + s.charAt(0).toUpperCase() + s.slice(1));
+                if (btn) btn.classList.toggle('active', s === scenario);
+            });
+
+            renderProjectionChart(scenario);
+            renderProjectionSummary(scenario);
+        }
+
+        function renderProjectionChart(scenario) {
+            if (!projectionData) return;
+
+            const scenarioData = projectionData.scenarios[scenario];
+            if (!scenarioData) return;
+
+            const labels = scenarioData.months.map(m => m.label);
+            const data   = scenarioData.months.map(m => m.balance);
+
+            const scenarioColors = {
+                conservative: { border: '#ef4444', bg: 'rgba(239,68,68,0.08)' },
+                base:         { border: '#208089', bg: 'rgba(32,128,137,0.08)' },
+                optimistic:   { border: '#22c55e', bg: 'rgba(34,197,94,0.08)' }
+            };
+            const colors = scenarioColors[scenario] || scenarioColors.base;
 
             const ctx = document.getElementById('projectionChart').getContext('2d');
 
@@ -449,16 +649,22 @@
                 projectionChartInstance.destroy();
             }
 
+            const scenarioLabels = {
+                conservative: '📉 Conservative (−20 %)',
+                base:         '📊 Base',
+                optimistic:   '📈 Optimistic (+15 %)'
+            };
+
             projectionChartInstance = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: labels,
+                    labels,
                     datasets: [{
-                        label: 'Projected Net Worth',
-                        data: data,
-                        borderColor: '#208089',
-                        backgroundColor: 'rgba(32, 128, 137, 0.1)',
-                        borderWidth: 3,
+                        label: scenarioLabels[scenario] || scenario,
+                        data,
+                        borderColor: colors.border,
+                        backgroundColor: colors.bg,
+                        borderWidth: 2,
                         fill: true,
                         tension: 0.3,
                         pointRadius: 0,
@@ -472,12 +678,26 @@
                         legend: { display: true, position: 'top' },
                         tooltip: {
                             callbacks: {
-                                label: (context) => formatCurrency(context.parsed.y)
+                                label: (ctx) => {
+                                    const val = ctx.parsed.y;
+                                    return ` ${scenarioLabels[scenario]}: ${formatCurrency(val)}`;
+                                }
                             }
                         }
                     },
                     scales: {
+                        x: {
+                            ticks: {
+                                // Show only year-start labels to avoid crowding
+                                callback: function(val, index) {
+                                    const label = this.getLabelForValue(val);
+                                    return label && label.startsWith('Jan') ? label : '';
+                                },
+                                maxTicksLimit: 4
+                            }
+                        },
                         y: {
+                            beginAtZero: true,
                             ticks: {
                                 callback: (value) => formatCurrency(value)
                             }
@@ -485,6 +705,17 @@
                     }
                 }
             });
+        }
+
+        function renderProjectionSummary(scenario) {
+            if (!projectionData) return;
+
+            const s = projectionData.scenarios[scenario];
+            if (!s) return;
+
+            document.getElementById('summaryYear1').textContent = formatCurrency(s.year1_balance);
+            document.getElementById('summaryYear2').textContent = formatCurrency(s.year2_balance);
+            document.getElementById('summaryYear3').textContent = formatCurrency(s.year3_balance);
         }
 
         async function loadRecentTransactions() {
