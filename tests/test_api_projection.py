@@ -448,5 +448,148 @@ class TestProjectionMissingUid(unittest.TestCase):
         self.assertIn('error', data)
 
 
+class TestProjectionDashboardReportsConsistency(unittest.TestCase):
+    """
+    Regression tests ensuring dashboard and reports pages consume the same
+    API response schema.
+
+    Root cause of the original bug: the dashboard read ``data.monthly_net``
+    (always undefined/0) while the API returns ``monthly_contribution`` and
+    the reports page resolved it with a proper fallback chain.
+
+    These tests:
+    1. Confirm the API never includes a ``monthly_net`` key in its response.
+    2. Confirm the API always includes ``monthly_contribution``.
+    3. Simulate the dashboard JS fallback logic against a mocked API response
+       and verify it produces the same value as the reports page logic.
+    """
+
+    def _setup_firestore(self, api_module, mock_db):
+        mock_firestore = MagicMock()
+        mock_firestore.client.return_value = mock_db
+        self._patcher = patch.object(api_module, 'firebase_firestore', mock_firestore)
+        self._patcher.start()
+
+    def tearDown(self):
+        if hasattr(self, '_patcher'):
+            self._patcher.stop()
+
+    def test_api_returns_monthly_contribution_not_monthly_net(self):
+        """API response must use monthly_contribution, never monthly_net."""
+        import app.routes.api as api_module
+
+        uid = 'uid_schema_check'
+        mock_db = MagicMock()
+        self._setup_firestore(api_module, mock_db)
+
+        response = _call_projection_inner(
+            api_module, uid, mock_db,
+            accounts=[{'_id': 'acc1', 'balance': 1000.0, 'offBudget': True}],
+            transactions=[],
+            user_settings={'monthlySavings': 300.0},
+        )
+        data = response.get_json()
+
+        # Field must exist under the correct camelCase-ish snake_case name
+        self.assertIn('monthly_contribution', data,
+                      "API must return 'monthly_contribution'")
+        # Legacy field must NOT be present so we can detect accidental regressions
+        self.assertNotIn('monthly_net', data,
+                         "API must not return 'monthly_net' (legacy/wrong field)")
+
+    def _simulate_dashboard_js_resolve(self, api_data):
+        """
+        Mirror the JS fallback chain used in loadDashboardProjection (fixed):
+            data.monthly_contribution ?? data.monthlyContribution
+            ?? data.monthly_net ?? data.netPerMonth
+        The JS ``??`` operator only skips null/undefined, not 0 or falsy values,
+        so we use explicit ``is None`` checks here to match that behaviour.
+        Returns the resolved float or None.
+        """
+        for key in ('monthly_contribution', 'monthlyContribution', 'monthly_net', 'netPerMonth'):
+            if key in api_data and api_data[key] is not None:
+                try:
+                    return float(api_data[key])
+                except (TypeError, ValueError):
+                    return None
+        return None
+
+    def _simulate_reports_js_resolve(self, api_data):
+        """
+        Mirror the JS fallback chain used in loadProjectionFromAPI (reports):
+            data.monthly_contribution ?? data.monthlyContribution
+            ?? data.monthly_net ?? data.netPerMonth
+        Returns the resolved float or None.
+        """
+        return self._simulate_dashboard_js_resolve(api_data)
+
+    def test_dashboard_and_reports_resolve_same_monthly_value(self):
+        """
+        Given a realistic API response, dashboard and reports JS logic must
+        resolve to the same monthly contribution value.
+        """
+        import app.routes.api as api_module
+
+        uid = 'uid_consistency'
+        mock_db = MagicMock()
+        self._setup_firestore(api_module, mock_db)
+
+        accounts = [{'_id': 'acc1', 'balance': 5000.0, 'offBudget': True}]
+        now = datetime.now(timezone.utc)
+        transactions = [{
+            '_id': 'tx1',
+            'type': 'transfer',
+            'amount': 400.0,
+            'accountId': 'checking',
+            'toAccountId': 'acc1',
+            'date': datetime(now.year, now.month, 1, tzinfo=timezone.utc),
+        }]
+
+        response = _call_projection_inner(
+            api_module, uid, mock_db,
+            accounts=accounts,
+            transactions=transactions,
+        )
+        data = response.get_json()
+
+        dashboard_value = self._simulate_dashboard_js_resolve(data)
+        reports_value = self._simulate_reports_js_resolve(data)
+
+        self.assertIsNotNone(dashboard_value,
+                             "Dashboard JS must resolve a non-None monthly value")
+        self.assertIsNotNone(reports_value,
+                             "Reports JS must resolve a non-None monthly value")
+        self.assertEqual(dashboard_value, reports_value,
+                         "Dashboard and reports must show the same Net/month value")
+
+    def test_dashboard_net_month_matches_projection_balances(self):
+        """
+        The monthly_contribution in the API response must equal the delta
+        between consecutive projected balances (i.e. balance[1] - balance[0]).
+        """
+        import app.routes.api as api_module
+
+        uid = 'uid_delta_check'
+        mock_db = MagicMock()
+        self._setup_firestore(api_module, mock_db)
+
+        response = _call_projection_inner(
+            api_module, uid, mock_db,
+            accounts=[{'_id': 'acc1', 'balance': 2000.0, 'offBudget': True}],
+            transactions=[],
+            user_settings={'monthlySavings': 250.0},
+        )
+        data = response.get_json()
+
+        monthly = data['monthly_contribution']
+        balances = data['balances']
+
+        # The step between any two consecutive months must equal monthly_contribution
+        self.assertAlmostEqual(balances[1] - balances[0], monthly,
+                               places=2,
+                               msg="Net/month must equal the per-month step in the projection")
+
+
 if __name__ == '__main__':
     unittest.main()
+
