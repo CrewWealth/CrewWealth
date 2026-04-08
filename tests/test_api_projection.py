@@ -6,7 +6,6 @@ Smoke-tests that guard against regressions such as the
 because the Python Firestore client requires .document() not .doc().
 """
 
-import types
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -31,7 +30,6 @@ class TestProjectionFirestoreMethod(unittest.TestCase):
         This test simulates that restriction and confirms the endpoint no longer
         raises AttributeError.
         """
-        import importlib
         import app.routes.api as api_module
 
         uid = 'testuid123'
