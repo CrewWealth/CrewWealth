@@ -89,117 +89,139 @@ def _get_projection_inner(uid):
 
     user_ref = db.collection('users').document(uid)
 
-    # ── 1. Starting balance (sum of all accounts) ──────────────────────────
+    # ── 1. Starting balance (sum of off-budget accounts only) ──────────────
+    off_budget_account_ids: set = set()
+    starting_balance = 0.0
+
     try:
         accounts_snap = user_ref.collection('accounts').get()
-        starting_balance = sum(
-            float(doc.to_dict().get('balance', 0) or 0)
-            for doc in accounts_snap
-        )
+        for doc in accounts_snap:
+            data = doc.to_dict() or {}
+            if data.get('offBudget'):
+                starting_balance += float(data.get('balance', 0) or 0)
+                off_budget_account_ids.add(doc.id)
     except Exception as exc:
         logger.warning("Could not read accounts for uid=%s: %s", uid, exc)
-        starting_balance = 0.0
-
-    logger.debug("uid=%s starting_balance=%.2f", uid, starting_balance)
-
-    # Allow client override (e.g. when no accounts exist yet)
-    try:
-        override = request.args.get('starting_balance')
-        if override is not None:
-            starting_balance = float(override)
-    except (ValueError, TypeError):
-        pass
-
-    # ── 2. Monthly net (income − spending) from last 3 months ─────────────
-    now = datetime.now(timezone.utc)
-    # Subtract 3 months safely, rolling back the year if necessary
-    back_month = now.month - 3
-    if back_month <= 0:
-        back_month += 12
-        back_year = now.year - 1
-    else:
-        back_year = now.year
-    three_months_ago = datetime(back_year, back_month, 1, tzinfo=timezone.utc)
-
-    total_income = 0.0
-    total_spending = 0.0
-    months_with_data = 1
-    monthly_buckets: dict = {}
-
-    try:
-        if FieldFilter is not None:
-            tx_query = user_ref.collection('transactions').where(
-                filter=FieldFilter('date', '>=', three_months_ago)
-            )
-        else:
-            # Fallback for older SDK versions without FieldFilter
-            tx_query = user_ref.collection('transactions').where(
-                'date', '>=', three_months_ago
-            )
-        tx_snap = tx_query.get()
-
-        for doc in tx_snap:
-            tx = doc.to_dict()
-            amount = abs(float(tx.get('amount', 0) or 0))
-            date = tx.get('date')
-            if date is None:
-                continue
-            # Firestore DatetimeWithNanoseconds / google.cloud.firestore_v1.base_document
-            # has a .date() method (not .todate()). Handle both Firestore timestamps and
-            # plain datetime objects.
-            if hasattr(date, 'to_datetime'):
-                date = date.to_datetime()
-            elif hasattr(date, 'timestamp'):
-                # Firestore timestamp — call .datetime property or astimezone
-                try:
-                    date = date.astimezone(timezone.utc)
-                except Exception:
-                    pass
-
-            month_key = f"{date.year}-{date.month:02d}" if hasattr(date, 'year') else None
-            if month_key:
-                monthly_buckets.setdefault(month_key, {'income': 0.0, 'spending': 0.0})
-
-            tx_type = tx.get('type', '')
-            if tx_type in ('salary', 'deposit'):
-                total_income += amount
-                if month_key:
-                    monthly_buckets[month_key]['income'] += amount
-            elif tx_type == 'payment':
-                total_spending += amount
-                if month_key:
-                    monthly_buckets[month_key]['spending'] += amount
-
-        months_with_data = len(monthly_buckets) or 1
-        monthly_net = (total_income - total_spending) / months_with_data
-
-    except Exception as exc:
-        logger.warning("Could not compute monthly net for uid=%s: %s", uid, exc)
-        monthly_net = 0.0
 
     logger.debug(
-        "uid=%s monthly_net=%.2f (income=%.2f spending=%.2f months=%d)",
+        "uid=%s off_budget starting_balance=%.2f accounts=%s",
         uid,
-        monthly_net,
-        total_income,
-        total_spending,
-        months_with_data,
+        starting_balance,
+        off_budget_account_ids,
     )
 
-    # ── 3. Build 36-month projection ──────────────────────────────────────
+    # ── 2. Check for manual monthly savings override in user settings ──────
+    monthly_contribution = 0.0
+    contribution_source = 'calculated'
+
+    try:
+        user_doc = user_ref.get()
+        if user_doc.exists:
+            user_data = user_doc.to_dict() or {}
+            settings = user_data.get('settings') or {}
+            override_val = settings.get('monthlySavings')
+            if override_val is not None:
+                manual_savings = float(override_val)
+                monthly_contribution = manual_savings
+                contribution_source = 'manual'
+    except (TypeError, ValueError):
+        pass
+    except Exception as exc:
+        logger.warning("Could not read user settings for uid=%s: %s", uid, exc)
+
+    # ── 3. Auto-calculate monthly contribution from transfers ──────────────
+    # Only computed when no manual override is in effect.
+    if contribution_source == 'calculated':
+        now = datetime.now(timezone.utc)
+        back_month = now.month - 3
+        if back_month <= 0:
+            back_month += 12
+            back_year = now.year - 1
+        else:
+            back_year = now.year
+        three_months_ago = datetime(back_year, back_month, 1, tzinfo=timezone.utc)
+
+        monthly_buckets: dict = {}
+
+        try:
+            if FieldFilter is not None:
+                tx_query = user_ref.collection('transactions').where(
+                    filter=FieldFilter('date', '>=', three_months_ago)
+                )
+            else:
+                # Fallback for older SDK versions without FieldFilter
+                tx_query = user_ref.collection('transactions').where(
+                    'date', '>=', three_months_ago
+                )
+            tx_snap = tx_query.get()
+
+            for doc in tx_snap:
+                tx = doc.to_dict() or {}
+                if tx.get('type') != 'transfer':
+                    continue
+
+                amount = abs(float(tx.get('amount', 0) or 0))
+                date = tx.get('date')
+                if date is None:
+                    continue
+
+                if hasattr(date, 'to_datetime'):
+                    date = date.to_datetime()
+                elif hasattr(date, 'timestamp'):
+                    try:
+                        date = date.astimezone(timezone.utc)
+                    except Exception:
+                        pass
+
+                month_key = (
+                    f"{date.year}-{date.month:02d}"
+                    if hasattr(date, 'year')
+                    else None
+                )
+
+                from_account_id = tx.get('accountId', '')
+                to_account_id = tx.get('toAccountId', '')
+
+                # Net flow INTO off-budget accounts
+                net_delta = 0.0
+                if to_account_id in off_budget_account_ids:
+                    net_delta += amount
+                if from_account_id in off_budget_account_ids:
+                    net_delta -= amount
+
+                if month_key is not None and net_delta != 0.0:
+                    monthly_buckets.setdefault(month_key, 0.0)
+                    monthly_buckets[month_key] += net_delta
+
+            months_with_data = len(monthly_buckets) or 1
+            monthly_contribution = sum(monthly_buckets.values()) / months_with_data
+
+        except Exception as exc:
+            logger.warning(
+                "Could not compute monthly contribution for uid=%s: %s", uid, exc
+            )
+            monthly_contribution = 0.0
+
+    logger.debug(
+        "uid=%s monthly_contribution=%.2f source=%s",
+        uid,
+        monthly_contribution,
+        contribution_source,
+    )
+
+    # ── 4. Build 36-month projection (simple linear, no interest) ──────────
+    now = datetime.now(timezone.utc)
     labels = []
     balances = []
-    balance = starting_balance
 
     for i in range(36):
-        # Advance one month from *now*
         target_month = now.month + i
         target_year = now.year + (target_month - 1) // 12
         target_month = (target_month - 1) % 12 + 1
         label = datetime(target_year, target_month, 1).strftime('%b %Y')
-        balance += monthly_net
+        balance = round(starting_balance + monthly_contribution * (i + 1), 2)
         labels.append(label)
-        balances.append(round(balance, 2))
+        balances.append(balance)
 
     def _safe(val):
         """Replace NaN/Infinity with None so the JSON is always valid."""
@@ -210,16 +232,18 @@ def _get_projection_inner(uid):
     safe_balances = [_safe(b) for b in balances]
 
     logger.info(
-        "get_projection success uid=%s starting=%.2f monthly_net=%.2f",
+        "get_projection success uid=%s starting=%.2f monthly_contribution=%.2f source=%s",
         uid,
         starting_balance,
-        monthly_net,
+        monthly_contribution,
+        contribution_source,
     )
 
     return jsonify({
         'uid': uid,
         'starting_balance': _safe(round(starting_balance, 2)),
-        'monthly_net': _safe(round(monthly_net, 2)),
+        'monthly_contribution': _safe(round(monthly_contribution, 2)),
+        'contribution_source': contribution_source,
         'balance_12m': safe_balances[11] if len(safe_balances) >= 12 else None,
         'balance_24m': safe_balances[23] if len(safe_balances) >= 24 else None,
         'balance_36m': safe_balances[35] if len(safe_balances) >= 36 else None,
