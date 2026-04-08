@@ -779,6 +779,26 @@
                 max-width: 100%;
             }
         }
+        /* Dashboard KPI boxes for projection widget */
+        .dash-kpi-box {
+            flex: 1;
+            min-width: 100px;
+            background: var(--color-background);
+            border: 1px solid var(--color-border);
+            border-radius: 10px;
+            padding: 10px 14px;
+            text-align: center;
+        }
+        .dash-kpi-label {
+            font-size: 11px;
+            color: var(--color-text-secondary);
+            margin-bottom: 2px;
+        }
+        .dash-kpi-value {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--color-primary);
+        }
     </style>
 </head>
 <body>
@@ -951,6 +971,44 @@
                     <div class="widget-footer">
                         <a href="/budget" class="widget-link">Manage Bills →</a>
                     </div>
+                </div>
+            </div>
+
+            <!-- 3-Year Wealth Projection -->
+            <div class="section-title">3-Year Wealth Projection</div>
+            <div class="widget-card" id="projectionWidget" style="margin-bottom: 32px;">
+                <div class="widget-header">
+                    <span class="widget-icon">📈</span>
+                    <h3 class="widget-title">Projected Balance (36 months)</h3>
+                    <a href="/reports" style="margin-left:auto; font-size:13px; color:var(--color-primary); text-decoration:none; font-weight:600;">Full Report →</a>
+                </div>
+                <div class="widget-content">
+                    <!-- KPI row -->
+                    <div id="dashProjectionKPIs" style="display:none; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
+                        <div class="dash-kpi-box">
+                            <div class="dash-kpi-label">Net / month</div>
+                            <div class="dash-kpi-value" id="dashKpiNet">—</div>
+                        </div>
+                        <div class="dash-kpi-box">
+                            <div class="dash-kpi-label">12 months</div>
+                            <div class="dash-kpi-value" id="dashKpi12m">—</div>
+                        </div>
+                        <div class="dash-kpi-box">
+                            <div class="dash-kpi-label">24 months</div>
+                            <div class="dash-kpi-value" id="dashKpi24m">—</div>
+                        </div>
+                        <div class="dash-kpi-box">
+                            <div class="dash-kpi-label">36 months</div>
+                            <div class="dash-kpi-value" id="dashKpi36m">—</div>
+                        </div>
+                    </div>
+                    <!-- Loading / empty / chart -->
+                    <div id="dashProjectionLoading" style="text-align:center; padding:24px; color:var(--color-text-secondary);">⏳ Loading projection…</div>
+                    <div id="dashProjectionEmpty" style="display:none; text-align:center; padding:24px; color:var(--color-text-secondary);">
+                        <div style="font-size:2rem; margin-bottom:6px;">📊</div>
+                        <div>Add income or expenses to see your 3-year projection.</div>
+                    </div>
+                    <canvas id="dashProjectionChart" height="100" style="display:none;"></canvas>
                 </div>
             </div>
 
@@ -1181,6 +1239,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <script>
         // ============================================
@@ -1428,6 +1487,9 @@
                     loadGoalsProgress(),
                     loadUpcomingBills()
                 ]);
+                
+                // Load projection (non-blocking so other widgets stay fast)
+                loadDashboardProjection();
                 
                 // Set up real-time listeners for automatic updates
                 setupRealtimeListeners();
@@ -1964,6 +2026,110 @@
             document.getElementById('investmentEarnings').textContent = formatCurrency(earnings);
             document.getElementById('investmentROI').textContent = roi.toFixed(1) + '%';
             document.getElementById('investmentResults').style.display = 'block';
+        }
+
+        // ============================================
+        // 3-YEAR PROJECTION WIDGET (dashboard)
+        // ============================================
+        let dashProjectionChart = null;
+
+        async function loadDashboardProjection() {
+            if (!currentUser) return;
+
+            const loadingEl = document.getElementById('dashProjectionLoading');
+            const emptyEl   = document.getElementById('dashProjectionEmpty');
+            const chartEl   = document.getElementById('dashProjectionChart');
+            const kpisEl    = document.getElementById('dashProjectionKPIs');
+
+            try {
+                const idToken = await currentUser.getIdToken();
+                const uid = currentUser.uid;
+
+                const response = await fetch(`/api/projection/${uid}`, {
+                    headers: { 'Authorization': `Bearer ${idToken}` }
+                });
+
+                if (!response.ok) throw new Error(`API error: ${response.status}`);
+
+                const data = await response.json();
+
+                loadingEl.style.display = 'none';
+
+                if (data.monthly_net === 0 && data.starting_balance === 0) {
+                    emptyEl.style.display = 'block';
+                    return;
+                }
+
+                emptyEl.style.display = 'none';
+                chartEl.style.display = 'block';
+                kpisEl.style.display  = 'flex';
+
+                // KPIs
+                const netEl = document.getElementById('dashKpiNet');
+                netEl.textContent  = formatCurrency(data.monthly_net);
+                netEl.style.color  = data.monthly_net >= 0 ? 'var(--color-success)' : 'var(--color-danger)';
+                document.getElementById('dashKpi12m').textContent = data.balance_12m !== null ? formatCurrency(data.balance_12m) : '—';
+                document.getElementById('dashKpi24m').textContent = data.balance_24m !== null ? formatCurrency(data.balance_24m) : '—';
+                document.getElementById('dashKpi36m').textContent = data.balance_36m !== null ? formatCurrency(data.balance_36m) : '—';
+
+                // Chart
+                if (dashProjectionChart) dashProjectionChart.destroy();
+
+                const trend = data.balances.length > 0 &&
+                    data.balances[data.balances.length - 1] >= data.starting_balance;
+                const lineColor = trend ? 'var(--color-success)' : 'var(--color-danger)';
+                const fillColor = trend ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)';
+
+                const ctx = document.getElementById('dashProjectionChart').getContext('2d');
+                dashProjectionChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: data.labels,
+                        datasets: [{
+                            label: 'Projected Balance',
+                            data: data.balances,
+                            borderColor: lineColor,
+                            backgroundColor: fillColor,
+                            borderWidth: 2,
+                            fill: true,
+                            tension: 0.3,
+                            pointRadius: 0,
+                            pointHoverRadius: 5
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: (ctx) => formatCurrency(ctx.parsed.y)
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                ticks: { maxTicksLimit: 12, maxRotation: 45, font: { size: 11 } }
+                            },
+                            y: {
+                                ticks: {
+                                    callback: (v) => formatCurrency(v),
+                                    font: { size: 11 }
+                                }
+                            }
+                        }
+                    }
+                });
+
+                console.log('✅ Dashboard projection loaded');
+
+            } catch (error) {
+                console.error('❌ Error loading dashboard projection:', error);
+                loadingEl.style.display = 'none';
+                emptyEl.style.display = 'block';
+                emptyEl.innerHTML = '<div>⚠️ Could not load projection.</div>';
+            }
         }
     </script>
 </body>
