@@ -2055,7 +2055,7 @@
 
                 loadingEl.style.display = 'none';
 
-                if (data.monthly_net === 0 && data.starting_balance === 0) {
+                if (data.monthly_contribution === 0 && data.starting_balance === 0) {
                     emptyEl.style.display = 'block';
                     return;
                 }
@@ -2066,8 +2066,8 @@
 
                 // KPIs
                 const netEl = document.getElementById('dashKpiNet');
-                netEl.textContent  = formatCurrency(data.monthly_net);
-                netEl.style.color  = data.monthly_net >= 0 ? 'var(--color-success)' : 'var(--color-danger)';
+                netEl.textContent  = formatCurrency(data.monthly_contribution);
+                netEl.style.color  = data.monthly_contribution >= 0 ? 'var(--color-success)' : 'var(--color-danger)';
                 document.getElementById('dashKpi12m').textContent = data.balance_12m !== null ? formatCurrency(data.balance_12m) : '—';
                 document.getElementById('dashKpi24m').textContent = data.balance_24m !== null ? formatCurrency(data.balance_24m) : '—';
                 document.getElementById('dashKpi36m').textContent = data.balance_36m !== null ? formatCurrency(data.balance_36m) : '—';

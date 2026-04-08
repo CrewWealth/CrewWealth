@@ -508,7 +508,7 @@
                 // Hide loading, show chart
                 loadingEl.style.display = 'none';
 
-                if (data.monthly_net === 0 && data.starting_balance === 0) {
+                if (data.monthly_contribution === 0 && data.starting_balance === 0) {
                     emptyEl.style.display = 'block';
                     chartEl.style.display = 'none';
                     kpisEl.style.display = 'none';
@@ -520,14 +520,14 @@
                 kpisEl.style.display = 'flex';
 
                 // Update KPIs
-                document.getElementById('kpiMonthlyNet').textContent = formatCurrency(data.monthly_net);
+                document.getElementById('kpiMonthlyNet').textContent = formatCurrency(data.monthly_contribution);
                 document.getElementById('kpi12m').textContent = data.balance_12m !== null ? formatCurrency(data.balance_12m) : '—';
                 document.getElementById('kpi24m').textContent = data.balance_24m !== null ? formatCurrency(data.balance_24m) : '—';
                 document.getElementById('kpi36m').textContent = data.balance_36m !== null ? formatCurrency(data.balance_36m) : '—';
 
                 // Colour the monthly-net KPI
                 const netEl = document.getElementById('kpiMonthlyNet');
-                netEl.style.color = data.monthly_net >= 0 ? 'var(--color-success)' : 'var(--color-danger)';
+                netEl.style.color = data.monthly_contribution >= 0 ? 'var(--color-success)' : 'var(--color-danger)';
 
                 // Render chart
                 renderProjectionChart(data.labels, data.balances, data.starting_balance);
