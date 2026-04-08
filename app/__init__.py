@@ -1,4 +1,7 @@
-from flask import Flask, render_template
+import logging
+from flask import Flask, jsonify, render_template, request
+
+logger = logging.getLogger(__name__)
 
 
 def create_app(config_name='development'):
@@ -44,14 +47,23 @@ def create_app(config_name='development'):
         return response
 
     # ============================
-    # Error handlers (HTML)
+    # Error handlers
+    # API routes (/api/*) always get JSON; everything else gets HTML.
     # ============================
     @app.errorhandler(404)
     def not_found_error(error):
+        from flask import has_request_context
+        if has_request_context() and request.path.startswith('/api/'):
+            return jsonify({'error': 'Not found', 'path': request.path}), 404
         return render_template('index.html'), 404
 
     @app.errorhandler(500)
     def internal_error(error):
+        from flask import has_request_context
+        if has_request_context():
+            logger.exception("Internal server error on %s", request.path)
+            if request.path.startswith('/api/'):
+                return jsonify({'error': 'Internal server error'}), 500
         return render_template('index.html'), 500
 
     return app
