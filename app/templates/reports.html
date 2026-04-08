@@ -298,6 +298,21 @@
             }
         }
 
+        // ============================================
+        // AUTH HELPER – include Firebase ID token in
+        // requests to Flask API endpoints
+        // ============================================
+        async function getAuthHeaders() {
+            if (!currentUser) return {};
+            try {
+                const idToken = await currentUser.getIdToken();
+                return { 'Authorization': 'Bearer ' + idToken };
+            } catch (err) {
+                console.error('❌ Could not get ID token:', err);
+                return {};
+            }
+        }
+
         // Authentication check
         auth.onAuthStateChanged(async (user) => {
             if (!user) {

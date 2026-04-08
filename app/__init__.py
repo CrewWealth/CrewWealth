@@ -13,6 +13,7 @@ def create_app(config_name='development'):
     from app.routes.main import main_bp
     from app.routes.income import income_bp
     from app.routes.currency import currency_bp
+    from app.routes.projection import projection_bp
     # WhatsApp tijdelijk verwijderd:
     # from app.routes.whatsapp import whatsapp_bp
 
@@ -22,6 +23,7 @@ def create_app(config_name='development'):
     app.register_blueprint(main_bp)
     app.register_blueprint(income_bp)
     app.register_blueprint(currency_bp)
+    app.register_blueprint(projection_bp)
     # app.register_blueprint(whatsapp_bp)
 
     # ============================

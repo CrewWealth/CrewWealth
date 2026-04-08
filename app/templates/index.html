@@ -954,6 +954,41 @@
                 </div>
             </div>
 
+            <!-- 3-Year Projection Section -->
+            <div class="section-title" style="margin-top: var(--spacing-2xl);">3-Year Wealth Projection</div>
+            <div class="widget-card" id="projectionCard" style="margin-bottom: var(--spacing-2xl);">
+                <div class="widget-header">
+                    <span class="widget-icon">📈</span>
+                    <h3 class="widget-title">Projected Net Worth – 36 Months</h3>
+                </div>
+                <div class="widget-content">
+                    <p style="font-size:13px; color: var(--color-text-secondary); margin-bottom: var(--spacing-md);">
+                        Based on your current monthly net (income&nbsp;−&nbsp;spending), assuming it stays constant.
+                    </p>
+                    <div id="projectionChartWrapper" style="position:relative; height:220px;">
+                        <canvas id="dashboardProjectionChart"></canvas>
+                    </div>
+                    <div id="projectionStats" style="display:flex; gap:var(--spacing-lg); margin-top:var(--spacing-md); flex-wrap:wrap;">
+                        <div>
+                            <div style="font-size:12px; color:var(--color-text-secondary);">Monthly Net</div>
+                            <div id="projMonthlyNet" style="font-size:18px; font-weight:700; color:var(--color-primary);">—</div>
+                        </div>
+                        <div>
+                            <div style="font-size:12px; color:var(--color-text-secondary);">Projected in 1 Year</div>
+                            <div id="projYear1" style="font-size:18px; font-weight:700; color:var(--color-primary);">—</div>
+                        </div>
+                        <div>
+                            <div style="font-size:12px; color:var(--color-text-secondary);">Projected in 3 Years</div>
+                            <div id="projYear3" style="font-size:18px; font-weight:700; color:var(--color-primary);">—</div>
+                        </div>
+                    </div>
+                    <div id="projectionError" style="display:none; color:var(--color-danger); font-size:13px; margin-top:var(--spacing-sm);"></div>
+                </div>
+                <div class="widget-footer">
+                    <a href="/reports" class="widget-link">Full Report →</a>
+                </div>
+            </div>
+
             <!-- Calculator Modals -->
             <!-- Income Calculator Modal -->
             <div class="modal" id="incomeCalculatorModal">
@@ -1181,6 +1216,8 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <!-- Chart.js for projection graph -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
     <script>
         // ============================================
@@ -1426,7 +1463,8 @@
                     loadMonthOverview(),
                     loadRecentTransactions(),
                     loadGoalsProgress(),
-                    loadUpcomingBills()
+                    loadUpcomingBills(),
+                    loadProjection()
                 ]);
                 
                 // Set up real-time listeners for automatic updates
@@ -1493,11 +1531,171 @@
                 });
         }
 
-        function cleanupListeners() {
+                function cleanupListeners() {
             if (unsubscribeAccounts) unsubscribeAccounts();
             if (unsubscribeBudgets) unsubscribeBudgets();
             if (unsubscribeTransactions) unsubscribeTransactions();
             if (unsubscribeGoals) unsubscribeGoals();
+        }
+
+        // ============================================
+        // AUTH HELPER – include Firebase ID token in
+        // requests to Flask API endpoints
+        // ============================================
+        async function getAuthHeaders() {
+            if (!currentUser) return {};
+            try {
+                const idToken = await currentUser.getIdToken();
+                return { 'Authorization': 'Bearer ' + idToken };
+            } catch (err) {
+                console.error('❌ Could not get ID token:', err);
+                return {};
+            }
+        }
+
+        // ============================================
+        // 3-YEAR PROJECTION WIDGET
+        // ============================================
+        let dashboardProjectionChart = null;
+
+        async function loadProjection() {
+            if (!currentUser) return;
+
+            // Gather current-month income & spending from Firestore
+            const now = new Date();
+            const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+            const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+
+            let monthlyIncome   = 0;
+            let monthlySpending = 0;
+            let currentSavings  = 0;
+
+            try {
+                const txSnap = await db.collection('users')
+                    .doc(currentUser.uid)
+                    .collection('transactions')
+                    .where('date', '>=', firebase.firestore.Timestamp.fromDate(monthStart))
+                    .where('date', '<=', firebase.firestore.Timestamp.fromDate(monthEnd))
+                    .get();
+
+                txSnap.docs.forEach(doc => {
+                    const tx = doc.data();
+                    const amount = Math.abs(parseFloat(tx.amount) || 0);
+                    if (tx.type === 'salary' || tx.type === 'deposit') {
+                        monthlyIncome += amount;
+                    } else if (tx.type === 'payment') {
+                        monthlySpending += amount;
+                    }
+                });
+
+                // Sum off-budget (savings) accounts as starting balance
+                const accSnap = await db.collection('users')
+                    .doc(currentUser.uid)
+                    .collection('accounts')
+                    .get();
+                accSnap.docs.forEach(doc => {
+                    const acc = doc.data();
+                    if (acc.offBudget) {
+                        currentSavings += parseFloat(acc.balance) || 0;
+                    }
+                });
+            } catch (err) {
+                console.error('❌ Projection – Firestore error:', err);
+            }
+
+            // Call authenticated Flask /api/projection endpoint
+            try {
+                const headers = await getAuthHeaders();
+                headers['Content-Type'] = 'application/json';
+
+                const response = await fetch('/api/projection', {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify({
+                        monthly_income:   monthlyIncome,
+                        monthly_spending: monthlySpending,
+                        current_savings:  currentSavings
+                    })
+                });
+
+                if (!response.ok) {
+                    const err = await response.json().catch(() => ({}));
+                    throw new Error(err.error || 'Server error ' + response.status);
+                }
+
+                const result = await response.json();
+                renderProjectionChart(result);
+                console.log('✅ 3-year projection loaded for uid:', result.uid);
+
+            } catch (err) {
+                console.error('❌ Could not load projection:', err);
+                const errEl = document.getElementById('projectionError');
+                if (errEl) {
+                    errEl.textContent = 'Could not load projection: ' + err.message;
+                    errEl.style.display = 'block';
+                }
+            }
+        }
+
+        function renderProjectionChart(result) {
+            const labels  = result.projection.map(p => p.label);
+            const data    = result.projection.map(p => p.balance);
+
+            // Summary stats
+            // projection array is 0-indexed: index 11 = month 12 (1 year), index 35 = month 36 (3 years)
+            const year1 = result.projection[11]?.balance ?? 0;  // month 12 (1-year mark)
+            const year3 = result.projection[35]?.balance ?? 0;  // month 36 (3-year mark)
+
+            const mnEl = document.getElementById('projMonthlyNet');
+            const y1El = document.getElementById('projYear1');
+            const y3El = document.getElementById('projYear3');
+            if (mnEl) mnEl.textContent = formatCurrency(result.monthly_net);
+            if (y1El) y1El.textContent = formatCurrency(year1);
+            if (y3El) y3El.textContent = formatCurrency(year3);
+
+            // Draw or update chart
+            const ctx = document.getElementById('dashboardProjectionChart');
+            if (!ctx) return;
+
+            if (dashboardProjectionChart) {
+                dashboardProjectionChart.destroy();
+            }
+
+            dashboardProjectionChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Projected Net Worth',
+                        data:  data,
+                        borderColor: '#208089',
+                        backgroundColor: 'rgba(32, 128, 137, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 0,
+                        pointHoverRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => formatCurrency(ctx.parsed.y)
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { ticks: { maxTicksLimit: 6, maxRotation: 0 } },
+                        y: {
+                            ticks: { callback: v => formatCurrency(v) }
+                        }
+                    }
+                }
+            });
         }
 
  async function loadMonthOverview() {

@@ -107,6 +107,63 @@ Returns current exchange rates for a set of maritime-relevant currencies.
 
 ---
 
+## Projection API
+
+### POST `/api/projection`
+
+Calculates a 36-month (3-year) cumulative wealth projection based on the user's current monthly net income and starting savings.
+
+**Authentication** — Required. Include a Firebase ID token in the `Authorization` header:
+
+```
+Authorization: Bearer <firebase_id_token>
+```
+
+Returns HTTP 401 if the token is missing, invalid, or expired.
+
+**Request** — `application/json`
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `monthly_income` | float | yes | Average monthly income |
+| `monthly_spending` | float | yes | Average monthly spending |
+| `current_savings` | float | no | Current savings balance used as the starting point (default: `0`) |
+
+**Example Request**
+
+```json
+{
+  "monthly_income": 4500.0,
+  "monthly_spending": 2800.0,
+  "current_savings": 5000.0
+}
+```
+
+**Response** — `application/json`
+
+```json
+{
+  "success": true,
+  "uid": "abc123firebaseuid",
+  "monthly_net": 1700.0,
+  "projection": [
+    { "month": 1,  "label": "May 2026",  "balance": 6700.0  },
+    { "month": 2,  "label": "Jun 2026",  "balance": 8400.0  },
+    ...
+    { "month": 36, "label": "Apr 2029",  "balance": 66200.0 }
+  ]
+}
+```
+
+**Error Responses**
+
+| HTTP Status | Reason |
+|-------------|--------|
+| 400 | Invalid or non-numeric input values |
+| 401 | Missing, invalid, or expired Firebase ID token |
+
+---
+
 ## WhatsApp Bot
 
 CrewWealth integrates with Twilio to offer a WhatsApp bot that lets crew members manage their finances from their phone.
