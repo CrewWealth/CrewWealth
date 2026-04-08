@@ -238,8 +238,8 @@
         <!-- KPI summary row -->
         <div id="projectionKPIs" style="display:none; gap:16px; margin-bottom:20px; flex-wrap:wrap;">
             <div class="kpi-box">
-                <div class="kpi-label">Net / month</div>
-                <div class="kpi-value" id="kpiMonthlyNet">—</div>
+                <div class="kpi-label">Monthly savings</div>
+                <div class="kpi-value" id="kpiMonthlySavings">—</div>
             </div>
             <div class="kpi-box">
                 <div class="kpi-label">Balance in 12 months</div>
@@ -260,7 +260,10 @@
         </div>
         <div id="projectionEmpty" style="display:none; text-align:center; padding:32px; color:var(--color-text-secondary);">
             <div style="font-size:2rem; margin-bottom:8px;">📊</div>
-            <div>No transactions yet — add income or expenses to see your projection.</div>
+            <div>Transfer money to an off-budget account to see your 3-year savings projection.</div>
+        </div>
+        <div id="projectionZeroNote" style="display:none; text-align:center; padding:8px 0 12px; font-size:13px; color:var(--color-text-secondary);">
+            💡 No recent off-budget transfers found. Transfer money to a savings account or set a monthly savings target in <a href="/settings" style="color:var(--color-primary);">Settings</a> to see projected growth.
         </div>
         <canvas id="projectionChart" height="120" style="display:none;"></canvas>
     </div>
@@ -508,7 +511,7 @@
                 // Hide loading, show chart
                 loadingEl.style.display = 'none';
 
-                if (data.monthly_net === 0 && data.starting_balance === 0) {
+                if (data.monthly_contribution === 0 && data.starting_balance === 0) {
                     emptyEl.style.display = 'block';
                     chartEl.style.display = 'none';
                     kpisEl.style.display = 'none';
@@ -519,15 +522,21 @@
                 chartEl.style.display = 'block';
                 kpisEl.style.display = 'flex';
 
+                // Show hint when there is a starting balance but no monthly contribution
+                const zeroNoteEl = document.getElementById('projectionZeroNote');
+                if (zeroNoteEl) {
+                    zeroNoteEl.style.display = (data.monthly_contribution === 0 && data.starting_balance > 0) ? 'block' : 'none';
+                }
+
                 // Update KPIs
-                document.getElementById('kpiMonthlyNet').textContent = formatCurrency(data.monthly_net);
+                document.getElementById('kpiMonthlySavings').textContent = formatCurrency(data.monthly_contribution);
                 document.getElementById('kpi12m').textContent = data.balance_12m !== null ? formatCurrency(data.balance_12m) : '—';
                 document.getElementById('kpi24m').textContent = data.balance_24m !== null ? formatCurrency(data.balance_24m) : '—';
                 document.getElementById('kpi36m').textContent = data.balance_36m !== null ? formatCurrency(data.balance_36m) : '—';
 
-                // Colour the monthly-net KPI
-                const netEl = document.getElementById('kpiMonthlyNet');
-                netEl.style.color = data.monthly_net >= 0 ? 'var(--color-success)' : 'var(--color-danger)';
+                // Colour the monthly-savings KPI
+                const savingsEl = document.getElementById('kpiMonthlySavings');
+                savingsEl.style.color = data.monthly_contribution >= 0 ? 'var(--color-success)' : 'var(--color-danger)';
 
                 // Render chart
                 renderProjectionChart(data.labels, data.balances, data.starting_balance);

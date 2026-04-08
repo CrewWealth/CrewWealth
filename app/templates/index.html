@@ -986,7 +986,7 @@
                     <!-- KPI row -->
                     <div id="dashProjectionKPIs" style="display:none; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
                         <div class="dash-kpi-box">
-                            <div class="dash-kpi-label">Net / month</div>
+                            <div class="dash-kpi-label">Monthly savings</div>
                             <div class="dash-kpi-value" id="dashKpiNet">—</div>
                         </div>
                         <div class="dash-kpi-box">
@@ -1006,7 +1006,10 @@
                     <div id="dashProjectionLoading" style="text-align:center; padding:24px; color:var(--color-text-secondary);">⏳ Loading projection…</div>
                     <div id="dashProjectionEmpty" style="display:none; text-align:center; padding:24px; color:var(--color-text-secondary);">
                         <div style="font-size:2rem; margin-bottom:6px;">📊</div>
-                        <div>Add income or expenses to see your 3-year projection.</div>
+                        <div>Transfer money to an off-budget account to see your 3-year savings projection.</div>
+                    </div>
+                    <div id="dashProjectionZeroNote" style="display:none; text-align:center; padding:8px 0 12px; font-size:13px; color:var(--color-text-secondary);">
+                        💡 No recent off-budget transfers found. Transfer money to a savings account or set a monthly savings target in <a href="/settings" style="color:var(--color-primary);">Settings</a> to see projected growth.
                     </div>
                     <canvas id="dashProjectionChart" height="100" style="display:none;"></canvas>
                 </div>
@@ -1513,6 +1516,7 @@
                 .onSnapshot(() => {
                     console.log('🔄 Accounts updated in real-time');
                     calculateNetWorth();
+                    _scheduleProjectionRefresh();
                 });
 
             // Budgets
@@ -1540,6 +1544,7 @@
                     console.log('🔄 Transactions updated in real-time');
                     loadRecentTransactions();
                     loadMonthOverview();
+                    _scheduleProjectionRefresh();
                 });
 
             // Goals
@@ -2033,6 +2038,14 @@
         // ============================================
         let dashProjectionChart = null;
 
+        // Debounce helper: refreshes projection at most once per 2 s when
+        // real-time Firestore listeners detect account / transaction changes.
+        let _projectionRefreshTimer = null;
+        function _scheduleProjectionRefresh() {
+            clearTimeout(_projectionRefreshTimer);
+            _projectionRefreshTimer = setTimeout(() => loadDashboardProjection(), 2000);
+        }
+
         async function loadDashboardProjection() {
             if (!currentUser) return;
 
@@ -2055,7 +2068,7 @@
 
                 loadingEl.style.display = 'none';
 
-                if (data.monthly_net === 0 && data.starting_balance === 0) {
+                if (data.monthly_contribution === 0 && data.starting_balance === 0) {
                     emptyEl.style.display = 'block';
                     return;
                 }
@@ -2064,10 +2077,16 @@
                 chartEl.style.display = 'block';
                 kpisEl.style.display  = 'flex';
 
+                // Show a hint when there is a starting balance but no monthly contribution
+                const zeroNoteEl = document.getElementById('dashProjectionZeroNote');
+                if (zeroNoteEl) {
+                    zeroNoteEl.style.display = (data.monthly_contribution === 0 && data.starting_balance > 0) ? 'block' : 'none';
+                }
+
                 // KPIs
                 const netEl = document.getElementById('dashKpiNet');
-                netEl.textContent  = formatCurrency(data.monthly_net);
-                netEl.style.color  = data.monthly_net >= 0 ? 'var(--color-success)' : 'var(--color-danger)';
+                netEl.textContent  = formatCurrency(data.monthly_contribution);
+                netEl.style.color  = data.monthly_contribution >= 0 ? 'var(--color-success)' : 'var(--color-danger)';
                 document.getElementById('dashKpi12m').textContent = data.balance_12m !== null ? formatCurrency(data.balance_12m) : '—';
                 document.getElementById('dashKpi24m').textContent = data.balance_24m !== null ? formatCurrency(data.balance_24m) : '—';
                 document.getElementById('dashKpi36m').textContent = data.balance_36m !== null ? formatCurrency(data.balance_36m) : '—';
