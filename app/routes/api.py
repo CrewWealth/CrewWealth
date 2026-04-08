@@ -1,4 +1,5 @@
 import logging
+import math
 from flask import Blueprint, jsonify, request
 from functools import wraps
 from datetime import datetime, timezone
@@ -10,9 +11,11 @@ logger = logging.getLogger(__name__)
 try:
     from firebase_admin import auth as firebase_auth
     from firebase_admin import firestore as firebase_firestore
+    from google.cloud.firestore_v1.base_query import FieldFilter
 except Exception:
     firebase_auth = None
     firebase_firestore = None
+    FieldFilter = None
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
@@ -58,6 +61,20 @@ def get_projection(uid):
       starting_balance (float, optional): Override starting balance. Defaults
         to the sum of the user's account balances read from Firestore.
     """
+    logger.info("get_projection called for uid=%s", uid)
+
+    try:
+        return _get_projection_inner(uid)
+    except Exception as exc:
+        logger.exception(
+            "Unhandled exception in get_projection for uid=%s: %s", uid, exc
+        )
+        return jsonify({'error': 'Internal server error computing projection'}), 500
+
+
+def _get_projection_inner(uid):
+    """Core logic for get_projection, wrapped by the outer handler."""
+
     if request.verified_uid != uid:
         return jsonify({'error': 'Forbidden: uid mismatch'}), 403
 
@@ -83,6 +100,8 @@ def get_projection(uid):
         logger.warning("Could not read accounts for uid=%s: %s", uid, exc)
         starting_balance = 0.0
 
+    logger.debug("uid=%s starting_balance=%.2f", uid, starting_balance)
+
     # Allow client override (e.g. when no accounts exist yet)
     try:
         override = request.args.get('starting_balance')
@@ -102,15 +121,22 @@ def get_projection(uid):
         back_year = now.year
     three_months_ago = datetime(back_year, back_month, 1, tzinfo=timezone.utc)
 
+    total_income = 0.0
+    total_spending = 0.0
+    months_with_data = 1
+    monthly_buckets: dict = {}
+
     try:
-        tx_snap = (
-            user_ref.collection('transactions')
-            .where('date', '>=', three_months_ago)
-            .get()
-        )
-        total_income = 0.0
-        total_spending = 0.0
-        monthly_buckets: dict[str, dict] = {}
+        if FieldFilter is not None:
+            tx_query = user_ref.collection('transactions').where(
+                filter=FieldFilter('date', '>=', three_months_ago)
+            )
+        else:
+            # Fallback for older SDK versions without FieldFilter
+            tx_query = user_ref.collection('transactions').where(
+                'date', '>=', three_months_ago
+            )
+        tx_snap = tx_query.get()
 
         for doc in tx_snap:
             tx = doc.to_dict()
@@ -151,6 +177,15 @@ def get_projection(uid):
         logger.warning("Could not compute monthly net for uid=%s: %s", uid, exc)
         monthly_net = 0.0
 
+    logger.debug(
+        "uid=%s monthly_net=%.2f (income=%.2f spending=%.2f months=%d)",
+        uid,
+        monthly_net,
+        total_income,
+        total_spending,
+        months_with_data,
+    )
+
     # ── 3. Build 36-month projection ──────────────────────────────────────
     labels = []
     balances = []
@@ -166,13 +201,28 @@ def get_projection(uid):
         labels.append(label)
         balances.append(round(balance, 2))
 
+    def _safe(val):
+        """Replace NaN/Infinity with None so the JSON is always valid."""
+        if isinstance(val, float) and (math.isnan(val) or math.isinf(val)):
+            return None
+        return val
+
+    safe_balances = [_safe(b) for b in balances]
+
+    logger.info(
+        "get_projection success uid=%s starting=%.2f monthly_net=%.2f",
+        uid,
+        starting_balance,
+        monthly_net,
+    )
+
     return jsonify({
         'uid': uid,
-        'starting_balance': round(starting_balance, 2),
-        'monthly_net': round(monthly_net, 2),
-        'balance_12m': balances[11] if len(balances) >= 12 else None,
-        'balance_24m': balances[23] if len(balances) >= 24 else None,
-        'balance_36m': balances[35] if len(balances) >= 36 else None,
+        'starting_balance': _safe(round(starting_balance, 2)),
+        'monthly_net': _safe(round(monthly_net, 2)),
+        'balance_12m': safe_balances[11] if len(safe_balances) >= 12 else None,
+        'balance_24m': safe_balances[23] if len(safe_balances) >= 24 else None,
+        'balance_36m': safe_balances[35] if len(safe_balances) >= 36 else None,
         'labels': labels,
-        'balances': balances,
+        'balances': safe_balances,
     })
