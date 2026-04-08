@@ -8,6 +8,12 @@ def create_app(config_name='development'):
     app.config.from_object(config[config_name])
 
     # ============================
+    # Firebase initialiseren
+    # ============================
+    from app.firebase import init_firebase
+    init_firebase()
+
+    # ============================
     # Blueprints importeren
     # ============================
     from app.routes.main import main_bp
