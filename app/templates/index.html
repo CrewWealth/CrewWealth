@@ -2055,8 +2055,8 @@
                 const data = await response.json();
 
                 // Resolve monthly contribution: backend returns monthly_contribution;
-                // fall back to camelCase variant and legacy monthly_net for robustness.
-                const rawMonthly = data.monthly_contribution ?? data.monthlyContribution ?? data.monthly_net ?? data.netPerMonth;
+                // also accept camelCase variant for robustness.
+                const rawMonthly = data.monthly_contribution ?? data.monthlyContribution;
                 const parsedMonthly = parseFloat(rawMonthly);
                 const monthlyContribution = (rawMonthly !== null && rawMonthly !== undefined && !Number.isNaN(parsedMonthly)) ? parsedMonthly : null;
                 const rawStarting = data.starting_balance ?? data.startingBalance;
