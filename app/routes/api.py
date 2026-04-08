@@ -1,7 +1,18 @@
+import logging
 from flask import Blueprint, jsonify, request
-from firebase_admin import auth as firebase_auth, firestore
 from functools import wraps
 from datetime import datetime, timezone
+
+logger = logging.getLogger(__name__)
+
+# Import Firebase modules at module level; will be None if Firebase is not
+# configured so that individual endpoints can return 503 instead of crashing.
+try:
+    from firebase_admin import auth as firebase_auth
+    from firebase_admin import firestore as firebase_firestore
+except Exception:
+    firebase_auth = None
+    firebase_firestore = None
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
@@ -10,18 +21,28 @@ def require_firebase_token(f):
     """Decorator: validates Firebase ID token from Authorization header."""
     @wraps(f)
     def decorated(*args, **kwargs):
+        if firebase_auth is None:
+            logger.error("Firebase auth module unavailable; rejecting request")
+            return jsonify({'error': 'Service temporarily unavailable'}), 503
         auth_header = request.headers.get('Authorization', '')
         if not auth_header.startswith('Bearer '):
             return jsonify({'error': 'Missing or invalid Authorization header'}), 401
         id_token = auth_header.split('Bearer ', 1)[1].strip()
         try:
             decoded = firebase_auth.verify_id_token(id_token)
-        except Exception:
+        except Exception as exc:
+            logger.warning("Token verification failed: %s", exc)
             return jsonify({'error': 'Invalid or expired token'}), 401
         # Attach verified uid to request context
         request.verified_uid = decoded['uid']
         return f(*args, **kwargs)
     return decorated
+
+
+@api_bp.route('/projection', methods=['GET'], strict_slashes=False)
+def get_projection_missing_uid():
+    """Return a helpful 400 when the uid is omitted from the URL."""
+    return jsonify({'error': 'Missing uid in URL. Use /api/projection/<uid>'}), 400
 
 
 @api_bp.route('/projection/<uid>', methods=['GET'])
@@ -40,7 +61,15 @@ def get_projection(uid):
     if request.verified_uid != uid:
         return jsonify({'error': 'Forbidden: uid mismatch'}), 403
 
-    db = firestore.client()
+    # ── Firestore client ───────────────────────────────────────────────────
+    try:
+        if firebase_firestore is None:
+            raise RuntimeError("Firebase Firestore module not available")
+        db = firebase_firestore.client()
+    except Exception as exc:
+        logger.error("Could not obtain Firestore client for uid=%s: %s", uid, exc)
+        return jsonify({'error': 'Database unavailable. Please try again later.'}), 503
+
     user_ref = db.collection('users').doc(uid)
 
     # ── 1. Starting balance (sum of all accounts) ──────────────────────────
@@ -50,7 +79,8 @@ def get_projection(uid):
             float(doc.to_dict().get('balance', 0) or 0)
             for doc in accounts_snap
         )
-    except Exception:
+    except Exception as exc:
+        logger.warning("Could not read accounts for uid=%s: %s", uid, exc)
         starting_balance = 0.0
 
     # Allow client override (e.g. when no accounts exist yet)
@@ -117,7 +147,8 @@ def get_projection(uid):
         months_with_data = len(monthly_buckets) or 1
         monthly_net = (total_income - total_spending) / months_with_data
 
-    except Exception:
+    except Exception as exc:
+        logger.warning("Could not compute monthly net for uid=%s: %s", uid, exc)
         monthly_net = 0.0
 
     # ── 3. Build 36-month projection ──────────────────────────────────────
