@@ -87,7 +87,7 @@ def _get_projection_inner(uid):
         logger.error("Could not obtain Firestore client for uid=%s: %s", uid, exc)
         return jsonify({'error': 'Database unavailable. Please try again later.'}), 503
 
-    user_ref = db.collection('users').doc(uid)
+    user_ref = db.collection('users').document(uid)
 
     # ── 1. Starting balance (sum of all accounts) ──────────────────────────
     try:
