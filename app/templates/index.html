@@ -832,11 +832,11 @@
                 
                 <div class="net-worth-card">
                     <div class="net-worth-label">Net Worth</div>
-                    <div class="net-worth-amount" id="netWorthAmount">€0.00</div>
+                    <div class="net-worth-amount" id="netWorthAmount"><span class="currency-symbol">€</span>0.00</div>
                     <div class="net-worth-breakdown">
-                        <span id="savingsAmount">€0 Savings</span>
+                        <span id="savingsAmount"><span class="currency-symbol">€</span>0 Savings</span>
                         <span class="divider">•</span>
-                        <span id="toBudgetAmount">€0 Available</span>
+                        <span id="toBudgetAmount"><span class="currency-symbol">€</span>0 Available</span>
                     </div>
                 </div>
             </div>
@@ -1240,6 +1240,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/static/js/currency.js"></script>
 
     <script>
         // ============================================
@@ -1305,7 +1306,7 @@
 
         function updateCurrencyLabels() {
             document.querySelectorAll('.currency-symbol').forEach(el => {
-                el.textContent = getCurrencySymbol();
+                el.textContent = getCurrencySymbol(window.userCurrency);
             });
         }
 
@@ -1315,7 +1316,9 @@
             try {
                 const doc = await db.collection('users').doc(currentUser.uid).get();
                 if (doc.exists) {
-                    window.userCurrency = doc.data().settings?.currency || 'EUR';
+                    const data = doc.data();
+                    // baseCurrency takes precedence over legacy settings.currency
+                    window.userCurrency = data.baseCurrency || data.settings?.currency || DEFAULT_CURRENCY;
                     updateCurrencyLabels();
                 }
             } catch (error) {

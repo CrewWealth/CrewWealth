@@ -590,6 +590,163 @@ class TestProjectionDashboardReportsConsistency(unittest.TestCase):
                                msg="Net/month must equal the per-month step in the projection")
 
 
+# ---------------------------------------------------------------------------
+# Day-1 multi-currency: SUPPORTED_CURRENCIES constant and base_currency field
+# ---------------------------------------------------------------------------
+
+class TestSupportedCurrencies(unittest.TestCase):
+    """Tests for the SUPPORTED_CURRENCIES constant and DEFAULT_CURRENCY."""
+
+    def test_supported_currencies_contains_required_codes(self):
+        from app.routes.api import SUPPORTED_CURRENCIES
+        for code in ('EUR', 'USD', 'GBP', 'PHP', 'IDR'):
+            self.assertIn(code, SUPPORTED_CURRENCIES,
+                          f"SUPPORTED_CURRENCIES must include {code}")
+
+    def test_default_currency_is_eur(self):
+        from app.routes.api import DEFAULT_CURRENCY
+        self.assertEqual(DEFAULT_CURRENCY, 'EUR')
+
+    def test_supported_currencies_are_uppercase_iso4217(self):
+        from app.routes.api import SUPPORTED_CURRENCIES
+        for code in SUPPORTED_CURRENCIES:
+            self.assertEqual(code, code.upper(),
+                             f"Currency code '{code}' must be uppercase")
+            self.assertEqual(len(code), 3,
+                             f"Currency code '{code}' must be 3 characters (ISO 4217)")
+
+
+class TestProjectionBaseCurrency(unittest.TestCase):
+    """Tests that the projection endpoint returns the user's base_currency."""
+
+    def _setup_firestore(self, api_module, mock_db):
+        """Patch firebase_firestore.client() on the given api_module."""
+        mock_firestore = MagicMock()
+        mock_firestore.client.return_value = mock_db
+        api_module.firebase_firestore = mock_firestore
+
+    def _call(self, uid, mock_db, accounts, transactions, user_data=None):
+        import app.routes.api as api_module
+        from flask import Flask
+        app = Flask(__name__)
+        app.config['TESTING'] = True
+        app.register_blueprint(api_module.api_bp)
+
+        account_docs = [_make_mock_doc(a) for a in accounts]
+        tx_docs = [_make_mock_doc(t) for t in transactions]
+
+        if user_data is not None:
+            user_doc = MagicMock()
+            user_doc.exists = True
+            user_doc.to_dict.return_value = user_data
+        else:
+            user_doc = MagicMock()
+            user_doc.exists = False
+
+        mock_accounts_col = MagicMock()
+        mock_accounts_col.get.return_value = account_docs
+        mock_tx_col = MagicMock()
+        mock_tx_col.where.return_value = MagicMock()
+        mock_tx_col.where.return_value.get.return_value = tx_docs
+
+        def _col(name):
+            if name == 'accounts':
+                return mock_accounts_col
+            if name == 'transactions':
+                return mock_tx_col
+            return MagicMock()
+
+        mock_doc_ref = MagicMock()
+        mock_doc_ref.collection.side_effect = _col
+        mock_doc_ref.get.return_value = user_doc
+
+        mock_collection = MagicMock(spec=[])
+        mock_collection.document = MagicMock(return_value=mock_doc_ref)
+        mock_db.collection.return_value = mock_collection
+
+        self._setup_firestore(api_module, mock_db)
+
+        with app.test_request_context(f'/api/projection/{uid}'):
+            from flask import request as flask_request
+            flask_request.verified_uid = uid
+            return api_module._get_projection_inner(uid)
+
+    def test_projection_returns_base_currency_field(self):
+        """Projection response must include 'base_currency'."""
+        mock_db = MagicMock()
+        response = self._call('uid_bc1', mock_db, [], [],
+                              user_data={'baseCurrency': 'EUR', 'settings': {}})
+        data = response.get_json()
+        self.assertIn('base_currency', data,
+                      "Projection response must include 'base_currency'")
+
+    def test_base_currency_defaults_to_eur_when_not_set(self):
+        """When user doc has no baseCurrency, response base_currency must be EUR."""
+        mock_db = MagicMock()
+        response = self._call('uid_bc2', mock_db, [], [], user_data=None)
+        data = response.get_json()
+        self.assertEqual(data.get('base_currency'), 'EUR')
+
+    def test_base_currency_reads_baseCurrency_field(self):
+        """baseCurrency field in user document takes effect in projection."""
+        mock_db = MagicMock()
+        response = self._call('uid_bc3', mock_db, [], [],
+                              user_data={'baseCurrency': 'PHP', 'settings': {}})
+        data = response.get_json()
+        self.assertEqual(data.get('base_currency'), 'PHP')
+
+    def test_base_currency_falls_back_to_settings_currency(self):
+        """When baseCurrency is absent, settings.currency is used as fallback."""
+        mock_db = MagicMock()
+        response = self._call('uid_bc4', mock_db, [], [],
+                              user_data={'settings': {'currency': 'GBP'}})
+        data = response.get_json()
+        self.assertEqual(data.get('base_currency'), 'GBP')
+
+    def test_unsupported_base_currency_defaults_to_eur(self):
+        """Unknown currency codes in baseCurrency must be ignored; default EUR used."""
+        mock_db = MagicMock()
+        response = self._call('uid_bc5', mock_db, [], [],
+                              user_data={'baseCurrency': 'XYZ', 'settings': {}})
+        data = response.get_json()
+        self.assertEqual(data.get('base_currency'), 'EUR')
+
+
+class TestCurrenciesEndpoint(unittest.TestCase):
+    """Tests for the /api/currencies endpoint."""
+
+    def _make_app(self):
+        from flask import Flask
+        from app.routes.api import api_bp
+        app = Flask(__name__)
+        app.config['TESTING'] = True
+        app.register_blueprint(api_bp)
+        return app
+
+    def test_currencies_endpoint_returns_200(self):
+        app = self._make_app()
+        with app.test_client() as client:
+            response = client.get('/api/currencies')
+        self.assertEqual(response.status_code, 200)
+
+    def test_currencies_endpoint_lists_supported(self):
+        from app.routes.api import SUPPORTED_CURRENCIES
+        app = self._make_app()
+        with app.test_client() as client:
+            response = client.get('/api/currencies')
+        data = response.get_json()
+        self.assertIn('supported', data)
+        self.assertEqual(sorted(data['supported']), sorted(SUPPORTED_CURRENCIES))
+
+    def test_currencies_endpoint_includes_default(self):
+        app = self._make_app()
+        with app.test_client() as client:
+            response = client.get('/api/currencies')
+        data = response.get_json()
+        self.assertIn('default', data)
+        self.assertEqual(data['default'], 'EUR')
+
+
 if __name__ == '__main__':
     unittest.main()
 
