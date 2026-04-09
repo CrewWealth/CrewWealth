@@ -113,11 +113,21 @@ def _get_projection_inner(uid):
     # ── 2. Check for manual monthly savings override in user settings ──────
     monthly_contribution = 0.0
     contribution_source = 'calculated'
+    base_currency = 'EUR'  # default; overridden below if user has a preference
 
     try:
+        from config.currencies import DEFAULT_BASE_CURRENCY, is_supported_currency
         user_doc = user_ref.get()
         if user_doc.exists:
             user_data = user_doc.to_dict() or {}
+            # Read baseCurrency (new canonical field); fall back to settings.currency
+            raw_currency = (
+                user_data.get('baseCurrency')
+                or (user_data.get('settings') or {}).get('currency')
+                or DEFAULT_BASE_CURRENCY
+            )
+            if is_supported_currency(raw_currency):
+                base_currency = raw_currency
             settings = user_data.get('settings') or {}
             override_val = settings.get('monthlySavings')
             if override_val is not None:
@@ -241,6 +251,7 @@ def _get_projection_inner(uid):
 
     return jsonify({
         'uid': uid,
+        'baseCurrency': base_currency,
         'starting_balance': _safe(round(starting_balance, 2)),
         'monthly_contribution': _safe(round(monthly_contribution, 2)),
         'contribution_source': contribution_source,
