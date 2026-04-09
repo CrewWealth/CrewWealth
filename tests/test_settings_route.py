@@ -15,11 +15,11 @@ Verifies:
 
 import os
 import unittest
+from flask import Flask
 
 
 def _make_app():
     """Create a minimal Flask test app with the main blueprint registered."""
-    from flask import Flask
     from app.routes.main import main_bp
 
     # Resolve the templates folder relative to the repo root so that

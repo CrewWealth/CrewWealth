@@ -297,6 +297,7 @@
         auth.onAuthStateChanged(async (user) => {
             if (user) {
                 currentUser = user;
+                console.log('✅ User authenticated:', user.email);
                 await loadUserSettings();
             } else {
                 console.log('❌ Not authenticated, redirecting to login...');
