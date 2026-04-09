@@ -68,6 +68,15 @@ class TestSupportedCurrencies(unittest.TestCase):
         for code in ['INR', 'NOK', 'SGD', 'AUD', 'JPY', 'CAD', 'THB', '', 'eur', 'usd']:
             self.assertFalse(self.is_supported_currency(code), f"Expected False for '{code}'")
 
+    def test_is_supported_currency_requires_uppercase(self):
+        """Currency codes must be exact-case ISO 4217 uppercase strings."""
+        lowercase_supported = [c.lower() for c in self.SUPPORTED_CURRENCIES]
+        for code in lowercase_supported:
+            self.assertFalse(
+                self.is_supported_currency(code),
+                f"Lowercase '{code}' should not be accepted; codes must be uppercase",
+            )
+
     def test_is_supported_currency_false_for_non_string(self):
         self.assertFalse(self.is_supported_currency(None))
         self.assertFalse(self.is_supported_currency(123))

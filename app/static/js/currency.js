@@ -66,6 +66,9 @@ function formatMoney(amount, currency, locale) {
         }).format(safeAmount);
     } catch (_) {
         // Fallback: manual symbol + fixed decimals (should never happen for our 5 currencies)
+        // Note: this simplified fallback uses comma-grouping regardless of locale, which is
+        // correct for en-US/en-GB/fil-PH but may differ from nl-NL (dot) or id-ID (dot).
+        // Intl.NumberFormat above is the correct path for all supported locales.
         const meta = CURRENCY_MAP[safeCode] || CURRENCY_MAP[DEFAULT_BASE_CURRENCY];
         const decimals = safeCode === 'IDR' ? 0 : 2;
         return meta.symbol + safeAmount.toFixed(decimals).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
