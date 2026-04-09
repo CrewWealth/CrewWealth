@@ -155,22 +155,16 @@
         <div class="settings-section">
             <h2>💱 Currency Settings</h2>
             <div class="form-group">
-                <label for="currencySelect">Default Currency</label>
+                <label for="currencySelect">Base Currency</label>
                 <select id="currencySelect">
-                    <option value="USD">🇺🇸 USD ($) - US Dollar</option>
                     <option value="EUR">🇪🇺 EUR (€) - Euro</option>
+                    <option value="USD">🇺🇸 USD ($) - US Dollar</option>
                     <option value="GBP">🇬🇧 GBP (£) - British Pound</option>
                     <option value="PHP">🇵🇭 PHP (₱) - Philippine Peso</option>
-                    <option value="INR">🇮🇳 INR (₹) - Indian Rupee</option>
                     <option value="IDR">🇮🇩 IDR (Rp) - Indonesian Rupiah</option>
-                    <option value="SGD">🇸🇬 SGD (S$) - Singapore Dollar</option>
-                    <option value="NOK">🇳🇴 NOK (kr) - Norwegian Krone</option>
-                    <option value="AUD">🇦🇺 AUD (A$) - Australian Dollar</option>
-                    <option value="CAD">🇨🇦 CAD (C$) - Canadian Dollar</option>
-                    <option value="JPY">🇯🇵 JPY (¥) - Japanese Yen</option>
                 </select>
                 <div class="currency-info">
-                    💡 Select your primary working currency. All amounts will be displayed in this currency.
+                    💡 Your base currency is used for all dashboard totals and wealth projections. Account and transaction lists always show the original currency. Multi-currency FX rate settings coming soon.
                 </div>
             </div>
             <button onclick="saveCurrency()" class="btn-primary">Save Currency</button>
@@ -223,7 +217,8 @@
                 const doc = await db.collection('users').doc(currentUser.uid).get();
                 if (doc.exists) {
                     const userData = doc.data();
-                    const currency = userData.settings?.currency || 'EUR';
+                    // Prefer new baseCurrency field; fall back to legacy settings.currency
+                    const currency = userData.baseCurrency || userData.settings?.currency || 'EUR';
                     document.getElementById('currencySelect').value = currency;
                 }
             } catch (error) {
@@ -244,6 +239,8 @@
 
             try {
                 await db.collection('users').doc(currentUser.uid).update({
+                    // Write to both canonical field and legacy alias for backward-compat
+                    baseCurrency: currency,
                     'settings.currency': currency,
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
