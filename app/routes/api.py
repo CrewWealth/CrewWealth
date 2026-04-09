@@ -4,6 +4,12 @@ from flask import Blueprint, jsonify, request
 from functools import wraps
 from datetime import datetime, timezone
 
+# ---------------------------------------------------------------------------
+# Supported currencies (ISO 4217).  Keep in sync with frontend currency.js.
+# ---------------------------------------------------------------------------
+SUPPORTED_CURRENCIES = ['EUR', 'USD', 'GBP', 'PHP', 'IDR']
+DEFAULT_CURRENCY = 'EUR'
+
 logger = logging.getLogger(__name__)
 
 # Import Firebase modules at module level; will be None if Firebase is not
@@ -40,6 +46,15 @@ def require_firebase_token(f):
         request.verified_uid = decoded['uid']
         return f(*args, **kwargs)
     return decorated
+
+
+@api_bp.route('/currencies', methods=['GET'])
+def get_currencies():
+    """Return the list of supported currencies and the default base currency."""
+    return jsonify({
+        'supported': SUPPORTED_CURRENCIES,
+        'default': DEFAULT_CURRENCY,
+    })
 
 
 @api_bp.route('/projection', methods=['GET'], strict_slashes=False)
@@ -89,6 +104,36 @@ def _get_projection_inner(uid):
 
     user_ref = db.collection('users').document(uid)
 
+    # ── 0. Read user document (base currency + settings) ──────────────────
+    base_currency = DEFAULT_CURRENCY
+    monthly_contribution = 0.0
+    contribution_source = 'calculated'
+
+    try:
+        user_doc = user_ref.get()
+        if user_doc.exists:
+            user_data = user_doc.to_dict() or {}
+            # baseCurrency field takes precedence; fall back to settings.currency
+            raw_bc = (
+                user_data.get('baseCurrency')
+                or (user_data.get('settings') or {}).get('currency')
+                or DEFAULT_CURRENCY
+            )
+            if raw_bc in SUPPORTED_CURRENCIES:
+                base_currency = raw_bc
+            settings = user_data.get('settings') or {}
+            override_val = settings.get('monthlySavings')
+            if override_val is not None:
+                try:
+                    monthly_contribution = float(override_val)
+                    contribution_source = 'manual'
+                except (TypeError, ValueError):
+                    pass
+    except Exception as exc:
+        logger.warning("Could not read user settings for uid=%s: %s", uid, exc)
+
+    logger.debug("uid=%s base_currency=%s", uid, base_currency)
+
     # ── 1. Starting balance (sum of off-budget accounts only) ──────────────
     off_budget_account_ids: set = set()
     starting_balance = 0.0
@@ -110,26 +155,7 @@ def _get_projection_inner(uid):
         off_budget_account_ids,
     )
 
-    # ── 2. Check for manual monthly savings override in user settings ──────
-    monthly_contribution = 0.0
-    contribution_source = 'calculated'
-
-    try:
-        user_doc = user_ref.get()
-        if user_doc.exists:
-            user_data = user_doc.to_dict() or {}
-            settings = user_data.get('settings') or {}
-            override_val = settings.get('monthlySavings')
-            if override_val is not None:
-                manual_savings = float(override_val)
-                monthly_contribution = manual_savings
-                contribution_source = 'manual'
-    except (TypeError, ValueError):
-        pass
-    except Exception as exc:
-        logger.warning("Could not read user settings for uid=%s: %s", uid, exc)
-
-    # ── 3. Auto-calculate monthly contribution from transfers ──────────────
+    # ── 2. Auto-calculate monthly contribution from transfers ──────────────
     # Only computed when no manual override is in effect.
     if contribution_source == 'calculated':
         now = datetime.now(timezone.utc)
@@ -209,7 +235,7 @@ def _get_projection_inner(uid):
         contribution_source,
     )
 
-    # ── 4. Build 36-month projection (simple linear, no interest) ──────────
+    # ── 3. Build 36-month projection (simple linear, no interest) ──────────
     now = datetime.now(timezone.utc)
     labels = []
     balances = []
@@ -241,6 +267,7 @@ def _get_projection_inner(uid):
 
     return jsonify({
         'uid': uid,
+        'base_currency': base_currency,
         'starting_balance': _safe(round(starting_balance, 2)),
         'monthly_contribution': _safe(round(monthly_contribution, 2)),
         'contribution_source': contribution_source,
