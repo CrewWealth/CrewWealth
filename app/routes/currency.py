@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request
 import requests
 from datetime import datetime
+from app.routes.api import SUPPORTED_CURRENCIES
 
 currency_bp = Blueprint('currency', __name__, url_prefix='/api')
 
@@ -14,14 +15,10 @@ def get_exchange_rates():
         response.raise_for_status()  # Controle op HTTP-statuscode
         data = response.json()
         
-        # Valuta beperken tot specifieke doelen
+        # Valuta beperken tot de ondersteunde set (SUPPORTED_CURRENCIES)
         target_currencies = {
-            'EUR': 1.0,  # Basismunt
-            'USD': data['rates'].get('USD'),
-            'IDR': data['rates'].get('IDR'),
-            'THB': data['rates'].get('THB'),
-            'PHP': data['rates'].get('PHP'),
-            'GBP': data['rates'].get('GBP'),
+            code: (1.0 if code == base_currency else data['rates'].get(code))
+            for code in SUPPORTED_CURRENCIES
         }
         
         # JSON-response zonder HTML of templates
