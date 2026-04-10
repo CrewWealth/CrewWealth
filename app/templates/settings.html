@@ -256,13 +256,15 @@
             }
 
             try {
-                // Use set with merge:true so the write succeeds even when the
-                // user document does not yet exist (avoids "No document to update").
+                // Use set with mergeFields so the write succeeds even when the
+                // user document does not yet exist (avoids "No document to update"),
+                // while only touching the specified fields and leaving all other
+                // document data (including sibling fields in settings) intact.
                 await userRef.set({
                     baseCurrency: currency,
-                    settings: { currency: currency },
+                    'settings.currency': currency,
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                }, { merge: true });
+                }, { mergeFields: ['baseCurrency', 'settings.currency', 'updatedAt'] });
 
                 // Show success message
                 const successMsg = document.getElementById('successMessage');
