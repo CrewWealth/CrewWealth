@@ -404,11 +404,14 @@
         // ============================================
         // CHECK IF ALREADY LOGGED IN
         // ============================================
+        const urlParams = new URLSearchParams(window.location.search);
+        const redirectTo = urlParams.get('redirect') || '/';
+
         auth.onAuthStateChanged((user) => {
             if (user) {
-                // User is already logged in, redirect to dashboard
-                console.log('✅ User already logged in, redirecting to dashboard...');
-                window.location.href = '/';
+                // User is already logged in, redirect to intended page (or dashboard)
+                console.log('✅ User already logged in, redirecting to', redirectTo);
+                window.location.href = redirectTo;
             }
         });
 
@@ -455,11 +458,11 @@
 
                 console.log('✅ Login successful:', user.email);
 
-                showSuccess('Login successful! Redirecting to dashboard...');
+                showSuccess('Login successful! Redirecting...');
                 
-                // Redirect to dashboard
+                // Redirect to intended page (or dashboard)
                 setTimeout(() => {
-                    window.location.href = '/';
+                    window.location.href = redirectTo;
                 }, 1000);
 
             } catch (error) {
