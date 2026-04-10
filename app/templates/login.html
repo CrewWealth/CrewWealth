@@ -405,7 +405,9 @@
         // CHECK IF ALREADY LOGGED IN
         // ============================================
         const urlParams = new URLSearchParams(window.location.search);
-        const redirectTo = urlParams.get('redirect') || '/';
+        const rawRedirect = urlParams.get('redirect') || '/';
+        // Only allow relative paths (must start with '/') to prevent open redirect attacks
+        const redirectTo = (rawRedirect.startsWith('/') && !rawRedirect.startsWith('//')) ? rawRedirect : '/';
 
         auth.onAuthStateChanged((user) => {
             if (user) {
