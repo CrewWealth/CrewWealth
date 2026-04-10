@@ -157,17 +157,11 @@
             <div class="form-group">
                 <label for="currencySelect">Default Currency</label>
                 <select id="currencySelect">
-                    <option value="USD">🇺🇸 USD ($) - US Dollar</option>
                     <option value="EUR">🇪🇺 EUR (€) - Euro</option>
+                    <option value="USD">🇺🇸 USD ($) - US Dollar</option>
                     <option value="GBP">🇬🇧 GBP (£) - British Pound</option>
                     <option value="PHP">🇵🇭 PHP (₱) - Philippine Peso</option>
-                    <option value="INR">🇮🇳 INR (₹) - Indian Rupee</option>
                     <option value="IDR">🇮🇩 IDR (Rp) - Indonesian Rupiah</option>
-                    <option value="SGD">🇸🇬 SGD (S$) - Singapore Dollar</option>
-                    <option value="NOK">🇳🇴 NOK (kr) - Norwegian Krone</option>
-                    <option value="AUD">🇦🇺 AUD (A$) - Australian Dollar</option>
-                    <option value="CAD">🇨🇦 CAD (C$) - Canadian Dollar</option>
-                    <option value="JPY">🇯🇵 JPY (¥) - Japanese Yen</option>
                 </select>
                 <div class="currency-info">
                     💡 Select your primary working currency. All amounts will be displayed in this currency.
@@ -179,6 +173,9 @@
             </div>
         </div>
     </div>
+
+    <!-- Shared currency constants/helpers (SUPPORTED_CURRENCIES, isValidCurrency, formatMoney) -->
+    <script src="/static/js/currency.js"></script>
 
     <!-- Firebase SDKs loaded as compat globals; script must NOT use type="module"
          so that firebase.initializeApp() and firebase.auth() globals are accessible. -->
@@ -225,11 +222,14 @@
                 if (doc.exists) {
                     const userData = doc.data();
                     // baseCurrency takes precedence over legacy settings.currency
-                    const currency = userData.baseCurrency || userData.settings?.currency || 'EUR';
-                    document.getElementById('currencySelect').value = currency;
+                    const currency = userData.baseCurrency || userData.settings?.currency || DEFAULT_CURRENCY;
+                    // Only set if it is a supported code; otherwise leave the default selected
+                    if (isValidCurrency(currency)) {
+                        document.getElementById('currencySelect').value = currency.toUpperCase();
+                    }
                 }
             } catch (error) {
-                console.error('Error loading user settings:', error);
+                console.error('Error loading user settings:', error.code, error.message);
             }
         }
 
@@ -244,12 +244,26 @@
 
             const currency = document.getElementById('currencySelect').value;
 
+            // Validate against the canonical list before touching Firestore
+            if (!isValidCurrency(currency)) {
+                console.warn('saveCurrency: unsupported currency selected:', currency);
+                alert('Unsupported currency. Please select one of: ' + SUPPORTED_CURRENCIES.join(', '));
+                return;
+            }
+
             try {
-                await db.collection('users').doc(currentUser.uid).update({
+                // Use set() with mergeFields so the write succeeds even when the
+                // user document does not yet exist (update() throws NOT_FOUND in
+                // that case).  mergeFields limits the operation to only the three
+                // listed paths, preserving all other fields (e.g. settings.language,
+                // settings.theme) exactly as they were.
+                await db.collection('users').doc(currentUser.uid).set({
                     baseCurrency: currency,
-                    'settings.currency': currency,
+                    settings: { currency: currency },
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
+                }, { mergeFields: ['baseCurrency', 'settings.currency', 'updatedAt'] });
+
+                console.log('Currency saved successfully:', currency);
 
                 // Show success message
                 const successMsg = document.getElementById('successMessage');
@@ -261,8 +275,10 @@
                 }, 3000);
 
             } catch (error) {
-                console.error('Error saving currency:', error);
-                alert('Failed to save currency settings. Please try again.');
+                // Surface the actual Firestore error code to aid debugging
+                console.error('Error saving currency:', error.code, error.message, error);
+                const errorDetail = error.code ? ` [${error.code}]` : '';
+                alert('Failed to save currency settings. Please try again.' + errorDetail);
             }
         };
     </script>
