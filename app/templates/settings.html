@@ -185,13 +185,12 @@
         // FIREBASE CONFIGURATION
         // ============================================
         const firebaseConfig = {
-            apiKey: "AIzaSyBIqnV3EJ0nE8VjCxvJOwuNSowzaP-ZHxw",
-            authDomain: "crewwealth-6af07.firebaseapp.com",
-            projectId: "crewwealth-6af07",
-            storageBucket: "crewwealth-6af07.firebasestorage.app",
-            messagingSenderId: "608726717847",
-            appId: "1:608726717847:web:b2ccae4cc84e9eff6a3e5e",
-            measurementId: "G-42E5PMHRGB"
+            apiKey: "AIzaSyBccv9C4CpjZFeE2HGBKKfUiV9jUw8CZLo",
+            authDomain: "crewwealth-cbe02.firebaseapp.com",
+            projectId: "crewwealth-cbe02",
+            storageBucket: "crewwealth-cbe02.firebasestorage.app",
+            messagingSenderId: "852834158589",
+            appId: "1:852834158589:web:8201ed1d9327841773bb94"
         };
 
         // Initialize Firebase
@@ -209,7 +208,7 @@
                 currentUser = user;
                 await loadUserSettings();
             } else {
-                window.location.href = '/login';
+                window.location.href = '/login?redirect=/settings';
             }
         });
 
@@ -223,7 +222,7 @@
                 const doc = await db.collection('users').doc(currentUser.uid).get();
                 if (doc.exists) {
                     const userData = doc.data();
-                    const currency = userData.settings?.currency || 'EUR';
+                    const currency = userData.baseCurrency || userData.settings?.currency || 'EUR';
                     document.getElementById('currencySelect').value = currency;
                 }
             } catch (error) {
@@ -244,6 +243,7 @@
 
             try {
                 await db.collection('users').doc(currentUser.uid).update({
+                    baseCurrency: currency,
                     'settings.currency': currency,
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
