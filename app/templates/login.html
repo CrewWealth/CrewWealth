@@ -383,6 +383,7 @@
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
     <script>
         // ============================================
@@ -400,6 +401,7 @@
         // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
+        const db = firebase.firestore();
 
         // ============================================
         // RESOLVE INTENDED DESTINATION (supports ?next= param)
@@ -469,6 +471,25 @@
                 const user = userCredential.user;
 
                 console.log('✅ Login successful:', user.email);
+
+                // Ensure user document exists in Firestore.
+                // Only create if missing (preserves createdAt on subsequent logins).
+                try {
+                    const userRef = db.collection('users').doc(user.uid);
+                    const userDoc = await userRef.get();
+                    if (!userDoc.exists) {
+                        await userRef.set({
+                            email: user.email,
+                            baseCurrency: 'EUR',
+                            settings: { currency: 'EUR', language: 'en', theme: 'light' },
+                            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                    }
+                } catch (firestoreError) {
+                    // Non-fatal: log and continue so login is not blocked
+                    console.warn('⚠️ Could not create user document:', firestoreError);
+                }
 
                 const target = getRedirectTarget();
                 showSuccess('Login successful! Redirecting...');
