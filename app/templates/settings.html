@@ -208,11 +208,43 @@
         auth.onAuthStateChanged(async (user) => {
             if (user) {
                 currentUser = user;
+                if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+                    console.log('[CrewWealth] Firebase projectId:', firebaseConfig.projectId);
+                    console.log('[CrewWealth] Signed-in userId:', user.uid);
+                    console.log('[CrewWealth] Target doc path: users/' + user.uid);
+                }
+                await ensureUserDoc();
                 await loadUserSettings();
             } else {
                 window.location.href = '/login?next=/settings';
             }
         });
+
+        // ============================================
+        // ENSURE USER DOC EXISTS (create with defaults if missing)
+        // ============================================
+        async function ensureUserDoc() {
+            if (!currentUser) return;
+            try {
+                const userRef = db.collection('users').doc(currentUser.uid);
+                const snap = await userRef.get();
+                if (!snap.exists) {
+                    await userRef.set({
+                        email: currentUser.email || '',
+                        fullName: currentUser.displayName || '',
+                        baseCurrency: 'EUR',
+                        settings: { currency: 'EUR', language: 'en', theme: 'light' },
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+                        console.log('[CrewWealth] User document created for uid:', currentUser.uid);
+                    }
+                }
+            } catch (error) {
+                console.error('[CrewWealth] Error ensuring user document:', error);
+            }
+        }
 
         // ============================================
         // LOAD USER SETTINGS
@@ -243,13 +275,20 @@
             }
 
             const currency = document.getElementById('currencySelect').value;
+            const userRef = db.collection('users').doc(currentUser.uid);
+
+            if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+                console.log('[CrewWealth] Saving currency:', currency, '→ users/' + currentUser.uid);
+            }
 
             try {
-                await db.collection('users').doc(currentUser.uid).update({
+                // Use set with merge:true so the document is created if it doesn't exist yet.
+                // Only update baseCurrency (the primary field); settings.currency is a legacy
+                // fallback and is not modified here to avoid overwriting language/theme.
+                await userRef.set({
                     baseCurrency: currency,
-                    'settings.currency': currency,
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
+                }, { merge: true });
 
                 // Show success message
                 const successMsg = document.getElementById('successMessage');
@@ -262,7 +301,14 @@
 
             } catch (error) {
                 console.error('Error saving currency:', error);
-                alert('Failed to save currency settings. Please try again.');
+                if (error.code === 'permission-denied' || error.code === 'PERMISSION_DENIED') {
+                    alert('Permission denied. Make sure you are logged in and Firestore rules allow writes to users/' + currentUser.uid + '.');
+                } else if (error.code === 'unauthenticated') {
+                    alert('Your session has expired. Please log in again.');
+                    window.location.href = '/login?next=/settings';
+                } else {
+                    alert('Failed to save currency settings (' + error.code + '). Please try again.');
+                }
             }
         };
     </script>
