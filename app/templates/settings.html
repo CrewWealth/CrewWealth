@@ -237,7 +237,9 @@
                         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                     });
-                    console.log('[CrewWealth] User document created for uid:', currentUser.uid);
+                    if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+                        console.log('[CrewWealth] User document created for uid:', currentUser.uid);
+                    }
                 }
             } catch (error) {
                 console.error('[CrewWealth] Error ensuring user document:', error);
@@ -280,10 +282,11 @@
             }
 
             try {
-                // Use set with merge:true so the document is created if it doesn't exist yet
+                // Use set with merge:true so the document is created if it doesn't exist yet.
+                // Only update baseCurrency (the primary field); settings.currency is a legacy
+                // fallback and is not modified here to avoid overwriting language/theme.
                 await userRef.set({
                     baseCurrency: currency,
-                    settings: { currency: currency },
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 }, { merge: true });
 
