@@ -402,13 +402,28 @@
         const auth = firebase.auth();
 
         // ============================================
+        // RESOLVE INTENDED DESTINATION (supports ?next= param)
+        // ============================================
+        function getRedirectTarget() {
+            const params = new URLSearchParams(window.location.search);
+            const next = params.get('next');
+            // Allow only simple relative paths: must start with '/' but NOT '//'
+            // (protocol-relative URLs like //evil.com or ////evil.com start with '//')
+            if (next && next.startsWith('/') && !next.startsWith('//')) {
+                return next;
+            }
+            return '/';
+        }
+
+        // ============================================
         // CHECK IF ALREADY LOGGED IN
         // ============================================
         auth.onAuthStateChanged((user) => {
             if (user) {
-                // User is already logged in, redirect to dashboard
-                console.log('✅ User already logged in, redirecting to dashboard...');
-                window.location.href = '/';
+                // User is already logged in, redirect to intended destination
+                const target = getRedirectTarget();
+                console.log('✅ User already logged in, redirecting to', target);
+                window.location.href = target;
             }
         });
 
@@ -455,11 +470,12 @@
 
                 console.log('✅ Login successful:', user.email);
 
-                showSuccess('Login successful! Redirecting to dashboard...');
-                
-                // Redirect to dashboard
+                const target = getRedirectTarget();
+                showSuccess('Login successful! Redirecting...');
+
+                // Redirect to intended destination (or dashboard)
                 setTimeout(() => {
-                    window.location.href = '/';
+                    window.location.href = target;
                 }, 1000);
 
             } catch (error) {

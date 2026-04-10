@@ -86,6 +86,11 @@ def login():
     """Login page"""
     return render_template('login.html')
 
+@main_bp.route('/Login')
+def login_case_redirect():
+    """Redirect /Login to /login for case-insensitive robustness (302 so browsers don't cache permanently)"""
+    return redirect(url_for('main.login', **request.args), code=302)
+
 @main_bp.route('/register')
 def register():
     """Registration page"""
