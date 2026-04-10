@@ -145,6 +145,70 @@ formatting (correct thousands separators, decimal marks, and currency symbols).
 
 ---
 
+## Firebase Configuration & Required Firestore Structure
+
+### Active Firebase project
+
+All environments (local dev and production on Render) **must** point to the
+same Firebase project: **`crewwealth-cbe02`**.  The config object is inlined
+in each HTML template (no build-time env substitution is used).
+
+```js
+const firebaseConfig = {
+    apiKey: "AIzaSyBccv9C4CpjZFeE2HGBKKfUiV9jUw8CZLo",
+    authDomain: "crewwealth-cbe02.firebaseapp.com",
+    projectId: "crewwealth-cbe02",
+    storageBucket: "crewwealth-cbe02.firebasestorage.app",
+    messagingSenderId: "852834158589",
+    appId: "1:852834158589:web:8201ed1d9327841773bb94"
+};
+```
+
+If you ever see the error **"No document to update"** in the settings page,
+the most likely causes are:
+
+1. **User document does not exist yet** — the `users/{uid}` document was
+   never created (e.g. the user signed up via a path that skipped doc
+   creation).  The settings save handler now uses `set({...}, {merge: true})`
+   so it will create the document automatically.
+2. **Wrong Firebase project** — the browser is authenticated against a
+   different project than the one where the document lives.  In local dev,
+   open DevTools → Console and check the `[CrewWealth] Firebase projectId`
+   log line to verify.
+3. **Firestore emulator active** — if `FIRESTORE_EMULATOR_HOST` is set in
+   the server environment, the Admin SDK will talk to the emulator while the
+   client SDK talks to production.  Ensure both are consistent.
+
+### Required `users/{uid}` document fields
+
+The settings page reads and writes the following fields on `users/{uid}`:
+
+| Field | Type | Description |
+|---|---|---|
+| `baseCurrency` | string (ISO 4217) | User's display / base currency (e.g. `"EUR"`) |
+| `settings.currency` | string (ISO 4217) | Legacy alias for `baseCurrency` — kept for backwards compat |
+| `updatedAt` | Firestore Timestamp | Last settings update |
+
+The document is created automatically on first save via `set({...}, {merge: true})`.
+
+### Firestore Security Rules
+
+The current rules allow a signed-in user to read and write only their own
+`users/{uid}` document and all sub-collections:
+
+```
+match /users/{userId} {
+  allow read, write: if request.auth != null && request.auth.uid == userId;
+  ...
+}
+```
+
+No `exists()` checks are used, so a missing document will not cause a
+`permission-denied` error — only `update()` (not `set`) raises
+"No document to update" for a missing doc.
+
+---
+
 ## Not In Scope (Day 1)
 
 - Automatic exchange-rate feeds (e.g. ECB or exchangerate-api)
