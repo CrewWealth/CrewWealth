@@ -227,6 +227,15 @@
                     // baseCurrency takes precedence over legacy settings.currency
                     const currency = userData.baseCurrency || userData.settings?.currency || 'EUR';
                     document.getElementById('currencySelect').value = currency;
+                } else {
+                    // Document doesn't exist yet — create it with defaults
+                    await db.collection('users').doc(currentUser.uid).set({
+                        baseCurrency: 'EUR',
+                        settings: { currency: 'EUR', language: 'en', theme: 'light' },
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    }, { merge: true });
+                    document.getElementById('currencySelect').value = 'EUR';
                 }
             } catch (error) {
                 console.error('Error loading user settings:', error);
@@ -245,11 +254,15 @@
             const currency = document.getElementById('currencySelect').value;
 
             try {
-                await db.collection('users').doc(currentUser.uid).update({
+                // Use set with mergeFields so the write succeeds even if the
+                // user document does not exist yet (avoids "No document to update"),
+                // and only the specified fields are touched — other settings fields
+                // (language, theme, etc.) are left untouched.
+                await db.collection('users').doc(currentUser.uid).set({
                     baseCurrency: currency,
-                    'settings.currency': currency,
+                    settings: { currency: currency },
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
+                }, { mergeFields: ['baseCurrency', 'settings.currency', 'updatedAt'] });
 
                 // Show success message
                 const successMsg = document.getElementById('successMessage');
