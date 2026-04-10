@@ -15,11 +15,17 @@ def get_exchange_rates():
         response.raise_for_status()  # Controle op HTTP-statuscode
         data = response.json()
         
-        # Valuta beperken tot de ondersteunde set (SUPPORTED_CURRENCIES)
-        target_currencies = {
-            code: (1.0 if code == base_currency else data['rates'].get(code))
-            for code in SUPPORTED_CURRENCIES
-        }
+        # Valuta beperken tot de ondersteunde set (SUPPORTED_CURRENCIES).
+        # Currencies whose rate is not provided by the API are omitted rather
+        # than included as None, so callers can safely assume numeric values.
+        target_currencies = {}
+        for code in SUPPORTED_CURRENCIES:
+            if code == base_currency:
+                target_currencies[code] = 1.0
+            else:
+                rate = data['rates'].get(code)
+                if rate is not None:
+                    target_currencies[code] = rate
         
         # JSON-response zonder HTML of templates
         return jsonify({
