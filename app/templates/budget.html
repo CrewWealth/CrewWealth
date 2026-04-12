@@ -1569,6 +1569,7 @@
             <form onsubmit="saveEditedTransaction(event)">
                 <input type="hidden" id="editTransactionId">
                 <input type="hidden" id="editTransactionType">
+                <input type="hidden" id="editOriginalType">
                 <input type="hidden" id="editOriginalAmount">
                 <input type="hidden" id="editOriginalAccountId">
                 <input type="hidden" id="editOriginalToAccountId">
@@ -2131,6 +2132,36 @@
             if (normalized === 'expense') return 'payment';
             if (normalized === 'income') return 'deposit';
             return normalized;
+        }
+
+        function applyTransactionBalanceDelta(batch, userRef, type, amount, accountId, toAccountId, direction = 1) {
+            const normalizedType = normalizeTransactionType(type);
+            const normalizedAmount = Math.abs(parseFloat(amount) || 0);
+            if (!normalizedAmount) return;
+
+            const signedAmount = normalizedAmount * (direction >= 0 ? 1 : -1);
+            const accountsRef = userRef.collection('accounts');
+
+            if (normalizedType === 'payment' && accountId) {
+                batch.update(accountsRef.doc(accountId), {
+                    balance: firebase.firestore.FieldValue.increment(-signedAmount)
+                });
+            } else if ((normalizedType === 'deposit' || normalizedType === 'salary') && accountId) {
+                batch.update(accountsRef.doc(accountId), {
+                    balance: firebase.firestore.FieldValue.increment(signedAmount)
+                });
+            } else if (normalizedType === 'transfer') {
+                if (accountId) {
+                    batch.update(accountsRef.doc(accountId), {
+                        balance: firebase.firestore.FieldValue.increment(-signedAmount)
+                    });
+                }
+                if (toAccountId) {
+                    batch.update(accountsRef.doc(toAccountId), {
+                        balance: firebase.firestore.FieldValue.increment(signedAmount)
+                    });
+                }
+            }
         }
 
         function getAccountCurrencyById(accountCurrencyById, accountId) {
@@ -3171,53 +3202,12 @@
             }
 
             try {
-                const normalizedType = normalizeTransactionType(type);
-                // Delete transaction from Firestore
-                await db.collection('users').doc(currentUser.uid)
-                    .collection('transactions').doc(transactionId).delete();
-
-                // Update account balances based on transaction type
-                if (normalizedType === 'payment') {
-                    // Payment: Add back to account balance (we subtracted it before)
-                    const account = accounts.find(a => a.id === accountId);
-                    if (account) {
-                        const newBalance = (parseFloat(account.balance) || 0) + amount;
-                        await db.collection('users').doc(currentUser.uid)
-                            .collection('accounts').doc(accountId).update({
-                                balance: newBalance
-                            });
-                    }
-                } else if (normalizedType === 'deposit' || normalizedType === 'salary') {
-                    // Deposit/Salary: Subtract from account balance (we added it before)
-                    const account = accounts.find(a => a.id === accountId);
-                    if (account) {
-                        const newBalance = (parseFloat(account.balance) || 0) - amount;
-                        await db.collection('users').doc(currentUser.uid)
-                            .collection('accounts').doc(accountId).update({
-                                balance: newBalance
-                            });
-                    }
-                } else if (normalizedType === 'transfer') {
-                    // Transfer: Reverse both account changes
-                    const fromAccount = accounts.find(a => a.id === accountId);
-                    const toAccount = accounts.find(a => a.id === toAccountId);
-                    
-                    if (fromAccount) {
-                        const newBalance = (parseFloat(fromAccount.balance) || 0) + amount;
-                        await db.collection('users').doc(currentUser.uid)
-                            .collection('accounts').doc(accountId).update({
-                                balance: newBalance
-                            });
-                    }
-                    
-                    if (toAccount) {
-                        const newBalance = (parseFloat(toAccount.balance) || 0) - amount;
-                        await db.collection('users').doc(currentUser.uid)
-                            .collection('accounts').doc(toAccountId).update({
-                                balance: newBalance
-                            });
-                    }
-                }
+                const userRef = db.collection('users').doc(currentUser.uid);
+                const txRef = userRef.collection('transactions').doc(transactionId);
+                const batch = db.batch();
+                applyTransactionBalanceDelta(batch, userRef, type, amount, accountId, toAccountId, -1);
+                batch.delete(txRef);
+                await batch.commit();
 
                 console.log('✅ Transaction deleted successfully');
 
@@ -3242,6 +3232,7 @@
             // Store original values for balance calculation
             document.getElementById('editTransactionId').value = transaction.id;
             document.getElementById('editTransactionType').value = transactionType;
+            document.getElementById('editOriginalType').value = transactionType;
             document.getElementById('editOriginalAmount').value = transaction.amount;
             document.getElementById('editOriginalAccountId').value = transaction.accountId;
             document.getElementById('editOriginalToAccountId').value = transaction.toAccountId || '';
@@ -3313,6 +3304,7 @@
 
             const transactionId = document.getElementById('editTransactionId').value;
             const type = normalizeTransactionType(document.getElementById('editTransactionType').value);
+            const originalType = normalizeTransactionType(document.getElementById('editOriginalType').value);
             const originalAmount = parseFloat(document.getElementById('editOriginalAmount').value);
             const originalAccountId = document.getElementById('editOriginalAccountId').value;
             const originalToAccountId = document.getElementById('editOriginalToAccountId').value;
@@ -3342,76 +3334,22 @@
                     return;
                 }
 
-                // Step 1: Reverse original transaction's effect on balances
-                if (type === 'payment') {
-                    const account = accounts.find(a => a.id === originalAccountId);
-                    if (account) {
-                        const balance = (parseFloat(account.balance) || 0) + originalAmount;
-                        await db.collection('users').doc(currentUser.uid)
-                            .collection('accounts').doc(originalAccountId).update({ balance });
-                    }
-                } else if (type === 'deposit' || type === 'salary') {
-                    const account = accounts.find(a => a.id === originalAccountId);
-                    if (account) {
-                        const balance = (parseFloat(account.balance) || 0) - originalAmount;
-                        await db.collection('users').doc(currentUser.uid)
-                            .collection('accounts').doc(originalAccountId).update({ balance });
-                    }
-                } else if (type === 'transfer') {
-                    const fromAccount = accounts.find(a => a.id === originalAccountId);
-                    const toAccount = accounts.find(a => a.id === originalToAccountId);
-                    if (fromAccount) {
-                        const balance = (parseFloat(fromAccount.balance) || 0) + originalAmount;
-                        await db.collection('users').doc(currentUser.uid)
-                            .collection('accounts').doc(originalAccountId).update({ balance });
-                    }
-                    if (toAccount) {
-                        const balance = (parseFloat(toAccount.balance) || 0) - originalAmount;
-                        await db.collection('users').doc(currentUser.uid)
-                            .collection('accounts').doc(originalToAccountId).update({ balance });
-                    }
-                }
+                const userRef = db.collection('users').doc(currentUser.uid);
+                const txRef = userRef.collection('transactions').doc(transactionId);
+                const batch = db.batch();
 
-                // Step 2: Update transaction in Firestore
-                await db.collection('users').doc(currentUser.uid)
-                    .collection('transactions').doc(transactionId).update({
-                        amount: newAmount,
-                        accountId: newAccountId,
-                        toAccountId: newToAccountId,
-                        categoryId: newCategoryId,
-                        date: firebase.firestore.Timestamp.fromDate(new Date(newDate)),
-                        note: newNote
-                    });
-
-                // Step 3: Apply new transaction's effect on balances
-                if (type === 'payment') {
-                    const account = accounts.find(a => a.id === newAccountId);
-                    if (account) {
-                        const balance = (parseFloat(account.balance) || 0) - newAmount;
-                        await db.collection('users').doc(currentUser.uid)
-                            .collection('accounts').doc(newAccountId).update({ balance });
-                    }
-                } else if (type === 'deposit' || type === 'salary') {
-                    const account = accounts.find(a => a.id === newAccountId);
-                    if (account) {
-                        const balance = (parseFloat(account.balance) || 0) + newAmount;
-                        await db.collection('users').doc(currentUser.uid)
-                            .collection('accounts').doc(newAccountId).update({ balance });
-                    }
-                } else if (type === 'transfer') {
-                    const fromAccount = accounts.find(a => a.id === newAccountId);
-                    const toAccount = accounts.find(a => a.id === newToAccountId);
-                    if (fromAccount) {
-                        const balance = (parseFloat(fromAccount.balance) || 0) - newAmount;
-                        await db.collection('users').doc(currentUser.uid)
-                            .collection('accounts').doc(newAccountId).update({ balance });
-                    }
-                    if (toAccount) {
-                        const balance = (parseFloat(toAccount.balance) || 0) + newAmount;
-                        await db.collection('users').doc(currentUser.uid)
-                            .collection('accounts').doc(newToAccountId).update({ balance });
-                    }
-                }
+                // Reverse old effect, update transaction, then apply new effect atomically.
+                applyTransactionBalanceDelta(batch, userRef, originalType, originalAmount, originalAccountId, originalToAccountId, -1);
+                batch.update(txRef, {
+                    amount: newAmount,
+                    accountId: newAccountId,
+                    toAccountId: newToAccountId,
+                    categoryId: newCategoryId,
+                    date: firebase.firestore.Timestamp.fromDate(new Date(newDate)),
+                    note: newNote
+                });
+                applyTransactionBalanceDelta(batch, userRef, type, newAmount, newAccountId, newToAccountId, 1);
+                await batch.commit();
 
                 console.log('✅ Transaction updated successfully');
 
