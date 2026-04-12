@@ -48,3 +48,24 @@ Backend (Flask)
   └── all other routes        ← serve HTML templates
 ```
 
+## Korte gebruikershandleiding — Budgets & Accounts (nieuw)
+
+- Bovenaan zie je nu direct de 3 belangrijkste signalen: **To budget**, **Available funds** en **Overspent warning**.
+- Onder **Quick actions** staat de primaire actie (**New Payment**) en snelle budgetstart (**Add Budget**).
+- Minder gebruikte acties staan onder **More actions** (Salary, Deposit, Transfer, Add Account).
+- Via **Open Smart Tools** ga je direct naar import/scenario tools (Dag 3 pagina).
+- In Smart Tools kun je na parse nu **Apply to Budgets & Accounts** gebruiken (met target account), waarna Budgets & Accounts automatisch verversen; gebruik **Refresh now** als handmatige fallback.
+
+## Testinstructie
+
+1. Open `/budget` en controleer of KPI’s bovenaan direct zichtbaar zijn.
+2. Test **Quick actions**:
+   - `New Payment` opent payment-modal.
+   - `Add Budget` opent category/budget-flow.
+3. Open **More actions** en verifieer Salary/Deposit/Transfer/Add Account.
+4. Ga naar `/day3`, parse een bankbestand of loonstrook, kies een target account en klik **Apply to Budgets & Accounts**.
+5. Keer terug naar `/budget`.
+   - Controleer dat account- en budgetoverzichten automatisch updaten.
+   - Controleer dat `Sync ready/Auto-sync active` status wijzigt na updates.
+6. Verifieer dat bestaande berekeningen ongewijzigd zijn:
+   - `To Budget`, `Overspent`, `Budgeted`, `Total spent` blijven consistent met transacties.
