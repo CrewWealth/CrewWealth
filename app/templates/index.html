@@ -1712,7 +1712,10 @@
             if (event.key === 'Escape') {
                 const overlay = document.getElementById('crewwealthTourOverlay');
                 if (overlay && overlay.classList.contains('active')) {
-                    pauseCrewwealthTour();
+                    // Escape pauses the tour so users can resume from the same step later.
+                    if (typeof pauseCrewwealthTour === 'function') {
+                        pauseCrewwealthTour();
+                    }
                 }
             }
         });

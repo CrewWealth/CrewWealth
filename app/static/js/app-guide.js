@@ -2,6 +2,7 @@
     const GUIDE_STATE_KEY = 'cw_app_guide_state_v1';
     const HIGHLIGHT_CLASS = 'cw-guide-highlight';
     const OVERLAY_ID = 'crewwealthTourOverlay';
+    const PAGE_TRANSITION_DELAY_MS = 16;
     const STEPS = [
         {
             page: 'dashboard',
@@ -270,7 +271,12 @@
         writeState({ status: 'active', stepIndex });
 
         if (step.page !== currentPage) {
-            window.location.href = step.url;
+            // CrewWealth is multi-page (non-SPA), so full navigation is required
+            // to load each section's DOM before applying the next step highlight.
+            writeState({ status: 'active', stepIndex });
+            window.setTimeout(() => {
+                window.location.href = step.url;
+            }, PAGE_TRANSITION_DELAY_MS);
             return;
         }
 
@@ -286,7 +292,17 @@
         nextBtn.textContent = stepIndex >= STEPS.length - 1 ? 'Finish' : 'Next →';
 
         clearHighlight();
-        const target = step.selector ? document.querySelector(step.selector) : null;
+        let target = null;
+        if (step.selector) {
+            try {
+                target = document.querySelector(step.selector);
+            } catch (error) {
+                console.warn(
+                    '⚠️ Guide selector not found or invalid:',
+                    { stepIndex, page: step.page, selector: step.selector, error }
+                );
+            }
+        }
         if (target) {
             highlightedEl = target;
             highlightedEl.classList.add(HIGHLIGHT_CLASS);
