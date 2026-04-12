@@ -468,16 +468,16 @@
     async function undoLastAction() {
         const entry = undoStack.pop();
         document.getElementById('undoBtn').disabled = undoStack.length === 0;
-        const action = typeof entry === 'function' ? entry : entry?.action;
+        const action = entry?.action;
         if (!action) return;
+        const statusId = entry?.statusId || 'presetStatus';
         try {
             await action();
-            const statusId = (entry && typeof entry === 'object' && entry.statusId) ? entry.statusId : 'presetStatus';
-            const successMessage = (entry && typeof entry === 'object' && entry.successMessage) ? entry.successMessage : 'Last action undone.';
+            const successMessage = entry?.successMessage || 'Last action undone.';
             setStatus(statusId, successMessage, 'success');
         } catch (error) {
             console.error('Undo failed:', error);
-            setStatus('quickStatus', 'Undo failed.', 'error');
+            setStatus(statusId, 'Undo failed.', 'error');
         }
     }
     window.undoLastAction = undoLastAction;
