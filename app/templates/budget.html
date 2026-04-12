@@ -2134,6 +2134,20 @@
             return normalized;
         }
 
+        function normalizeDocumentId(value) {
+            const normalized = String(value ?? '').trim();
+            if (!normalized || normalized === 'undefined' || normalized === 'null') return null;
+            return normalized;
+        }
+
+        function resolveTransactionAccountId(transaction) {
+            return normalizeDocumentId(transaction?.accountId || transaction?.fromAccountId);
+        }
+
+        function resolveTransactionToAccountId(transaction) {
+            return normalizeDocumentId(transaction?.toAccountId);
+        }
+
         function applyTransactionBalanceDelta(batch, userRef, type, amount, accountId, toAccountId, direction = 1) {
             const normalizedType = normalizeTransactionType(type);
             const normalizedAmount = Math.abs(parseFloat(amount) || 0);
@@ -2141,23 +2155,26 @@
 
             const signedAmount = normalizedAmount * (direction >= 0 ? 1 : -1);
             const accountsRef = userRef.collection('accounts');
+            const normalizedAccountId = normalizeDocumentId(accountId);
+            const normalizedToAccountId = normalizeDocumentId(toAccountId);
+            const accountExists = (docId) => !!docId && accounts.some(account => account.id === docId);
 
-            if (normalizedType === 'payment' && accountId) {
-                batch.update(accountsRef.doc(accountId), {
+            if (normalizedType === 'payment' && accountExists(normalizedAccountId)) {
+                batch.update(accountsRef.doc(normalizedAccountId), {
                     balance: firebase.firestore.FieldValue.increment(-signedAmount)
                 });
-            } else if ((normalizedType === 'deposit' || normalizedType === 'salary') && accountId) {
-                batch.update(accountsRef.doc(accountId), {
+            } else if ((normalizedType === 'deposit' || normalizedType === 'salary') && accountExists(normalizedAccountId)) {
+                batch.update(accountsRef.doc(normalizedAccountId), {
                     balance: firebase.firestore.FieldValue.increment(signedAmount)
                 });
             } else if (normalizedType === 'transfer') {
-                if (accountId) {
-                    batch.update(accountsRef.doc(accountId), {
+                if (accountExists(normalizedAccountId)) {
+                    batch.update(accountsRef.doc(normalizedAccountId), {
                         balance: firebase.firestore.FieldValue.increment(-signedAmount)
                     });
                 }
-                if (toAccountId) {
-                    batch.update(accountsRef.doc(toAccountId), {
+                if (accountExists(normalizedToAccountId)) {
+                    batch.update(accountsRef.doc(normalizedToAccountId), {
                         balance: firebase.firestore.FieldValue.increment(signedAmount)
                     });
                 }
@@ -2888,7 +2905,7 @@
             }
 
             const amount = parseFloat(document.getElementById('paymentAmount').value);
-            const accountId = document.getElementById('paymentAccount').value;
+            const accountId = normalizeDocumentId(document.getElementById('paymentAccount').value);
             const categoryId = document.getElementById('paymentCategory').value || null;
             const date = document.getElementById('paymentDate').value;
             const note = document.getElementById('paymentNote').value.trim();
@@ -2956,7 +2973,7 @@
             }
 
             const amount = parseFloat(document.getElementById('depositAmount').value);
-            const accountId = document.getElementById('depositAccount').value;
+            const accountId = normalizeDocumentId(document.getElementById('depositAccount').value);
             const categoryId = document.getElementById('depositCategory').value || null;
             const date = document.getElementById('depositDate').value;
             const note = document.getElementById('depositNote').value.trim();
@@ -3024,8 +3041,8 @@
             }
 
             const amount = parseFloat(document.getElementById('transferAmount').value);
-            const fromAccountId = document.getElementById('transferFromAccount').value;
-            const toAccountId = document.getElementById('transferToAccount').value;
+            const fromAccountId = normalizeDocumentId(document.getElementById('transferFromAccount').value);
+            const toAccountId = normalizeDocumentId(document.getElementById('transferToAccount').value);
             const date = document.getElementById('transferDate').value;
             const note = document.getElementById('transferNote').value.trim();
 
@@ -3129,7 +3146,7 @@
             }
 
             const amount = parseFloat(document.getElementById('salaryAmount').value);
-            const accountId = document.getElementById('salaryAccount').value;
+            const accountId = normalizeDocumentId(document.getElementById('salaryAccount').value);
             const date = document.getElementById('salaryDate').value;
             const note = document.getElementById('salaryNote').value.trim() || 'Salary';
 
@@ -3190,7 +3207,7 @@
         // ============================================
         // DELETE TRANSACTION
         // ============================================
-        async function deleteTransaction(transactionId, type, amount, accountId, toAccountId) {
+        async function deleteTransaction(transactionId) {
             // Confirmation dialog
             if (!confirm('Are you sure you want to delete this transaction?')) {
                 return;
@@ -3204,8 +3221,28 @@
             try {
                 const userRef = db.collection('users').doc(currentUser.uid);
                 const txRef = userRef.collection('transactions').doc(transactionId);
+                const txDoc = await txRef.get();
+                if (!txDoc.exists) {
+                    console.warn('⚠️ Transaction already deleted:', transactionId);
+                    await loadAllData();
+                    renderAccounts();
+                    renderCategories();
+                    renderTransactions();
+                    updateOverview();
+                    return;
+                }
+
+                const persistedTransaction = txDoc.data() || {};
                 const batch = db.batch();
-                applyTransactionBalanceDelta(batch, userRef, type, amount, accountId, toAccountId, -1);
+                applyTransactionBalanceDelta(
+                    batch,
+                    userRef,
+                    persistedTransaction.type,
+                    persistedTransaction.amount,
+                    resolveTransactionAccountId(persistedTransaction),
+                    resolveTransactionToAccountId(persistedTransaction),
+                    -1
+                );
                 batch.delete(txRef);
                 await batch.commit();
 
@@ -3306,22 +3343,22 @@
             const type = normalizeTransactionType(document.getElementById('editTransactionType').value);
             const originalType = normalizeTransactionType(document.getElementById('editOriginalType').value);
             const originalAmount = parseFloat(document.getElementById('editOriginalAmount').value);
-            const originalAccountId = document.getElementById('editOriginalAccountId').value;
-            const originalToAccountId = document.getElementById('editOriginalToAccountId').value;
+            const originalAccountId = normalizeDocumentId(document.getElementById('editOriginalAccountId').value);
+            const originalToAccountId = normalizeDocumentId(document.getElementById('editOriginalToAccountId').value);
 
             try {
                 let newAmount, newAccountId, newToAccountId, newCategoryId, newDate, newNote;
 
                 if (type === 'transfer') {
                     newAmount = parseFloat(document.getElementById('editTransferAmount').value);
-                    newAccountId = document.getElementById('editFromAccount').value;
-                    newToAccountId = document.getElementById('editToAccount').value;
+                    newAccountId = normalizeDocumentId(document.getElementById('editFromAccount').value);
+                    newToAccountId = normalizeDocumentId(document.getElementById('editToAccount').value);
                     newDate = document.getElementById('editTransferDate').value;
                     newNote = document.getElementById('editTransferNote').value.trim();
                     newCategoryId = null;
                 } else {
                     newAmount = parseFloat(document.getElementById('editAmount').value);
-                    newAccountId = document.getElementById('editAccount').value;
+                    newAccountId = normalizeDocumentId(document.getElementById('editAccount').value);
                     newCategoryId = document.getElementById('editCategory').value || null;
                     newDate = document.getElementById('editDate').value;
                     newNote = document.getElementById('editNote').value.trim();
@@ -3336,18 +3373,36 @@
 
                 const userRef = db.collection('users').doc(currentUser.uid);
                 const txRef = userRef.collection('transactions').doc(transactionId);
+                const persistedTxDoc = await txRef.get();
+                const persistedTransaction = persistedTxDoc.exists
+                    ? persistedTxDoc.data() || {}
+                    : {
+                        type: originalType,
+                        amount: originalAmount,
+                        accountId: originalAccountId,
+                        toAccountId: originalToAccountId
+                    };
                 const batch = db.batch();
 
                 // Reverse old effect, update transaction, then apply new effect atomically.
-                applyTransactionBalanceDelta(batch, userRef, originalType, originalAmount, originalAccountId, originalToAccountId, -1);
-                batch.update(txRef, {
+                applyTransactionBalanceDelta(
+                    batch,
+                    userRef,
+                    persistedTransaction.type,
+                    persistedTransaction.amount,
+                    resolveTransactionAccountId(persistedTransaction),
+                    resolveTransactionToAccountId(persistedTransaction),
+                    -1
+                );
+                batch.set(txRef, {
+                    type,
                     amount: newAmount,
                     accountId: newAccountId,
                     toAccountId: newToAccountId,
                     categoryId: newCategoryId,
                     date: firebase.firestore.Timestamp.fromDate(new Date(newDate)),
                     note: newNote
-                });
+                }, { merge: true });
                 applyTransactionBalanceDelta(batch, userRef, type, newAmount, newAccountId, newToAccountId, 1);
                 await batch.commit();
 
@@ -3476,7 +3531,7 @@
                     </div>
                     <div class="transaction-date">${formattedDate}</div>
                     <div class="transaction-account">${account?.name || 'Unknown'} • ${fxMeta}</div>
-                    <div class="transaction-delete" onclick="event.stopPropagation(); deleteTransaction('${tx.id}', '${tx.type}', ${tx.amount}, '${tx.accountId}', '${tx.toAccountId || ''}')">×</div>
+                    <div class="transaction-delete" onclick="event.stopPropagation(); deleteTransaction('${tx.id}')">×</div>
                 `;
                 container.appendChild(div);
             });
