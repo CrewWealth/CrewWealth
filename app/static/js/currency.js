@@ -93,9 +93,51 @@ function isValidCurrency(code) {
     return typeof code === 'string' && SUPPORTED_CURRENCIES.includes(code.toUpperCase());
 }
 
+function buildFxPairKey(fromCurrency, toCurrency) {
+    const from = (fromCurrency || '').toUpperCase();
+    const to = (toCurrency || '').toUpperCase();
+    return `${from}_${to}`;
+}
+
+function resolveFxRate(fromCurrency, toCurrency, fxRates) {
+    const from = (fromCurrency || DEFAULT_CURRENCY).toUpperCase();
+    const to = (toCurrency || DEFAULT_CURRENCY).toUpperCase();
+    if (from === to) return 1;
+
+    const rates = fxRates || {};
+    const direct = rates[buildFxPairKey(from, to)];
+    if (typeof direct === 'number' && isFinite(direct) && direct > 0) {
+        return direct;
+    }
+
+    const inverse = rates[buildFxPairKey(to, from)];
+    if (typeof inverse === 'number' && isFinite(inverse) && inverse > 0) {
+        return 1 / inverse;
+    }
+
+    return null;
+}
+
+function convertMoney(amount, fromCurrency, toCurrency, fxRates) {
+    const value = typeof amount === 'number' && isFinite(amount) ? amount : 0;
+    const rate = resolveFxRate(fromCurrency, toCurrency, fxRates);
+    if (rate === null) return null;
+    return value * rate;
+}
+
 // ---------------------------------------------------------------------------
 // Export for Node/Jest environments (tree-shaken in browser builds).
 // ---------------------------------------------------------------------------
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { SUPPORTED_CURRENCIES, DEFAULT_CURRENCY, CURRENCY_META, formatMoney, getCurrencySymbol, isValidCurrency };
+    module.exports = {
+        SUPPORTED_CURRENCIES,
+        DEFAULT_CURRENCY,
+        CURRENCY_META,
+        formatMoney,
+        getCurrencySymbol,
+        isValidCurrency,
+        buildFxPairKey,
+        resolveFxRate,
+        convertMoney
+    };
 }
