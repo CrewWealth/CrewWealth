@@ -8,6 +8,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="/static/js/currency.js"></script>
+    <script src="/static/js/app-guide.js"></script>
     <style>
         :root {
             --color-primary: #208089;
@@ -162,7 +163,7 @@
         }
     </style>
 </head>
-<body>
+<body data-guide-page="smart-tools">
 <div class="container">
     <div class="nav-row">
         <a class="nav-link" href="/">← Dashboard</a>
@@ -170,7 +171,7 @@
         <a class="nav-link" href="/settings">⚙️ Settings</a>
     </div>
 
-    <div class="hero">
+    <div class="hero" id="smartToolsHero">
         <h1>🚀 Smart Tools Hub</h1>
         <p>Day 3 advanced workspace for sharing, what-if forecasting, smart transaction intelligence, import/export and personal presets.</p>
         <div id="tutorialBox" class="tutorial" style="display:none;">
@@ -186,7 +187,7 @@
     </div>
 
     <div class="card-grid">
-        <section class="card">
+        <section class="card" id="scenarioCard">
             <h2>👥 Multi-user sharing</h2>
             <p class="muted">Invite partners/members with role and visibility controls.</p>
             <div class="row-3" style="margin-top:10px;">
@@ -219,7 +220,7 @@
             <div id="membersList" class="list"></div>
         </section>
 
-        <section class="card">
+        <section class="card" id="importCard">
             <h2>📈 Advanced scenario forecasting</h2>
             <p class="muted">Temporary "what-if" preview, no permanent data overwrite.</p>
             <div class="row">

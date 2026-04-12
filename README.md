@@ -62,6 +62,8 @@ Backend (Flask)
 - **Fast export shortcuts**: Dashboard and Budget include direct **Export PDF** actions.
 - **First-login onboarding**: new users receive a one-time in-app tour automatically.
 - **Single guide entry point**: the guide is now available only through the **ℹ️ App Guide** icon next to the CrewWealth logo on the Dashboard.
+- **Section-by-section walkthrough**: the guide now continues across all main modules (Dashboard, Budget & Accounts, Goals, Reports, FX Center, Smart Tools Hub, Settings) with contextual highlights.
+- **Pause and resume**: users can pause the walkthrough and resume from where they stopped; finishing marks onboarding as completed.
 
 ## Test instructions
 

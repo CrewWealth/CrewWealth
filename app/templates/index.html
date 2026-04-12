@@ -921,7 +921,7 @@
         }
     </style>
 </head>
-<body>
+<body data-guide-page="dashboard">
     <div class="layout">
         <!-- Sidebar -->
         <aside class="sidebar">
@@ -949,7 +949,7 @@
         <main class="main">
             <div class="main-top-bar">
                 <div class="main-brand">💰 CrewWealth</div>
-                <button type="button" class="info-guide-btn" id="tourInfoButton" onclick="openCrewwealthTour(true)" title="Open app guide" aria-label="Open app guide">
+                <button type="button" class="info-guide-btn" id="tourInfoButton" onclick="openCrewwealthTour()" title="Open app guide" aria-label="Open app guide">
                     <span aria-hidden="true">ℹ️</span>
                     <span>App Guide</span>
                 </button>
@@ -1368,27 +1368,13 @@
         </main>
     </div>
 
-    <div class="tour-overlay" id="crewwealthTourOverlay" role="dialog" aria-modal="true" aria-labelledby="tourTitle" aria-describedby="tourText">
-        <div class="tour-modal">
-            <div class="tour-title" id="tourTitle">CrewWealth App Guide</div>
-            <div class="tour-text" id="tourText"></div>
-            <div class="tour-progress" id="tourProgress"></div>
-            <div class="tour-actions">
-                <div style="display:flex; gap:8px;">
-                    <button type="button" class="tour-btn" id="tourBackBtn" onclick="previousTourStep()">← Back</button>
-                    <button type="button" class="tour-btn primary" id="tourNextBtn" onclick="nextTourStep()">Next →</button>
-                </div>
-                <button type="button" class="tour-btn" onclick="skipTour()">Close guide</button>
-            </div>
-        </div>
-    </div>
-
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="/static/js/currency.js"></script>
+    <script src="/static/js/app-guide.js"></script>
 
     <script>
         // ============================================
@@ -1419,9 +1405,6 @@
         const GHOST_TRANSACTION_CLEANUP_VERSION = 'v2';
         const LEGACY_TRANSACTION_STORAGE_HINTS = ['transaction', 'recenttx', 'budgettx'];
         const TOUR_STORAGE_KEY_PREFIX = 'cw_onboarding_seen_';
-        let tourSteps = [];
-        let tourStepIndex = 0;
-        let highlightedTourElement = null;
 
         // ============================================
         // CURRENCY FUNCTIONS
@@ -1477,13 +1460,6 @@
             return currentUser ? `${TOUR_STORAGE_KEY_PREFIX}${currentUser.uid}` : TOUR_STORAGE_KEY_PREFIX;
         }
 
-        function clearTourHighlight() {
-            if (highlightedTourElement) {
-                highlightedTourElement.classList.remove('tour-highlight');
-                highlightedTourElement = null;
-            }
-        }
-
         async function persistTourDismissedPreference() {
             if (!currentUser) return;
             try {
@@ -1505,115 +1481,7 @@
             }
         }
 
-        function buildCrewwealthTourSteps() {
-            return [
-                {
-                    elementId: 'monthOverviewCard',
-                    title: 'Start here: your financial command center',
-                    text: 'This dashboard combines net worth, account balances, monthly performance, and trend indicators so you can see your complete financial position in one place.'
-                },
-                {
-                    elementId: 'recentTransactionsCard',
-                    title: 'Transaction timeline and spending control',
-                    text: 'Recent transactions appear here for fast review. Add income, payments, deposits, and transfers from Budget & Accounts to keep your records accurate and fully Firestore-based.'
-                },
-                {
-                    elementId: 'navBudgetLink',
-                    title: 'Budget & Accounts workspace',
-                    text: 'Create on-budget and off-budget accounts, define categories, and manage monthly budgeting workflows including available funds, overspending control, and account-level insights.'
-                },
-                {
-                    elementId: 'navSmartToolsLink',
-                    title: 'Smart Tools Hub',
-                    text: 'Use imports, categorization helpers, presets, scenario previews, and quick automations to reduce manual work and speed up daily money management.'
-                },
-                {
-                    elementId: 'navReportsLink',
-                    title: 'Reports and professional exports',
-                    text: 'Generate monthly insights, net worth summaries, and 36-month projections. Export complete PDF reports and FX-aware exports for planning, reviews, and sharing.'
-                },
-                {
-                    elementId: 'navSettingsLink',
-                    title: 'Settings and personalization',
-                    text: 'Configure app preferences, currency behavior, onboarding defaults, and account-level preferences to match your workflow and reporting style.'
-                },
-                {
-                    elementId: 'heroGreeting',
-                    title: 'What CrewWealth offers today',
-                    text: 'CrewWealth already supports budgeting, account tracking, transaction management, projections, reporting, FX tooling, and guided onboarding in one integrated platform.'
-                },
-                {
-                    elementId: 'projectionWidget',
-                    title: 'What is coming next',
-                    text: 'The product vision includes deeper analytics, richer reporting, stronger automation, smarter data validation, and expanded collaboration capabilities for advanced users.'
-                },
-                {
-                    elementId: 'tourInfoButton',
-                    title: 'Your single guide entry point',
-                    text: 'Use this ℹ️ App Guide icon next to the CrewWealth logo whenever you want to review onboarding. It is the only in-app location for help and guide access.'
-                }
-            ];
-        }
-
-        function showTourStep(index) {
-            const overlay = document.getElementById('crewwealthTourOverlay');
-            if (!overlay || !tourSteps.length) return;
-            const boundedIndex = Math.max(0, Math.min(index, tourSteps.length - 1));
-            tourStepIndex = boundedIndex;
-            const step = tourSteps[tourStepIndex];
-            document.getElementById('tourTitle').textContent = step.title;
-            document.getElementById('tourText').textContent = step.text;
-            document.getElementById('tourProgress').textContent = `Step ${tourStepIndex + 1} of ${tourSteps.length}`;
-            const nextButton = document.getElementById('tourNextBtn');
-            const backButton = document.getElementById('tourBackBtn');
-            backButton.disabled = tourStepIndex === 0;
-            nextButton.textContent = tourStepIndex >= tourSteps.length - 1 ? 'Finish' : 'Next →';
-
-            clearTourHighlight();
-            const element = step.elementId ? document.getElementById(step.elementId) : null;
-            if (element) {
-                highlightedTourElement = element;
-                highlightedTourElement.classList.add('tour-highlight');
-                highlightedTourElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-        }
-
-        function openCrewwealthTour(forceStart = false) {
-            tourSteps = buildCrewwealthTourSteps();
-            if (!tourSteps.length) return;
-            const overlay = document.getElementById('crewwealthTourOverlay');
-            overlay.classList.add('active');
-            if (forceStart) {
-                tourStepIndex = 0;
-            }
-            showTourStep(tourStepIndex);
-        }
-
-        async function closeCrewwealthTour(markAsDismissed = false) {
-            const overlay = document.getElementById('crewwealthTourOverlay');
-            overlay.classList.remove('active');
-            clearTourHighlight();
-            if (markAsDismissed) {
-                await persistTourDismissedPreference();
-            }
-        }
-
-        function nextTourStep() {
-            if (tourStepIndex >= tourSteps.length - 1) {
-                closeCrewwealthTour(true);
-                return;
-            }
-            showTourStep(tourStepIndex + 1);
-        }
-
-        function previousTourStep() {
-            if (tourStepIndex <= 0) return;
-            showTourStep(tourStepIndex - 1);
-        }
-
-        function skipTour() {
-            closeCrewwealthTour(true);
-        }
+        window.onCrewwealthTourCompleted = persistTourDismissedPreference;
 
         async function maybeStartOnboardingTour() {
             if (!currentUser) return;
@@ -1844,7 +1712,7 @@
             if (event.key === 'Escape') {
                 const overlay = document.getElementById('crewwealthTourOverlay');
                 if (overlay && overlay.classList.contains('active')) {
-                    closeCrewwealthTour(true);
+                    pauseCrewwealthTour();
                 }
             }
         });
