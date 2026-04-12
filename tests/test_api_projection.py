@@ -45,7 +45,7 @@ def _make_user_doc(settings=None):
 
 
 def _call_projection_inner(api_module, uid, mock_db, accounts, transactions,
-                           user_settings=None, use_field_filter=False):
+                           user_settings=None, use_field_filter=False, fx_rates=None):
     """
     Helper: configure mocks and call _get_projection_inner.
 
@@ -55,6 +55,7 @@ def _call_projection_inner(api_module, uid, mock_db, accounts, transactions,
     """
     account_docs = [_make_mock_doc(a) for a in accounts]
     tx_docs = [_make_mock_doc(t) for t in transactions]
+    fx_rate_docs = [_make_mock_doc(r) for r in (fx_rates or [])]
 
     # user document
     if user_settings is not None:
@@ -74,12 +75,16 @@ def _call_projection_inner(api_module, uid, mock_db, accounts, transactions,
     # also support FieldFilter-style where(filter=...)
     mock_tx_col.where.return_value = MagicMock()
     mock_tx_col.where.return_value.get.return_value = tx_docs
+    mock_fx_col = MagicMock()
+    mock_fx_col.get.return_value = fx_rate_docs
 
     def _collection_side_effect(name):
         if name == 'accounts':
             return mock_accounts_col
         if name == 'transactions':
             return mock_tx_col
+        if name == 'fxRates':
+            return mock_fx_col
         return MagicMock()
 
     mock_doc_ref.collection.side_effect = _collection_side_effect
@@ -224,6 +229,55 @@ class TestProjectionOffBudgetAccounts(unittest.TestCase):
         self.assertIn('monthly_contribution', data)
         self.assertIn('contribution_source', data)
         self.assertNotIn('monthly_net', data)
+
+    def test_off_budget_balance_converts_to_base_currency_with_fx_rate(self):
+        """Off-budget balances are converted to base_currency using a valid FX rate."""
+        import app.routes.api as api_module
+
+        uid = 'uid_fx_convert'
+        accounts = [{'_id': 'acc_eur', 'balance': 1200.0, 'offBudget': True, 'currency': 'EUR'}]
+        fx_rates = [{'_id': 'r1', 'base': 'EUR', 'quote': 'PHP', 'rate': 62.0}]
+        mock_db = MagicMock()
+        self._setup_firestore(api_module, mock_db)
+
+        response = _call_projection_inner(
+            api_module,
+            uid,
+            mock_db,
+            accounts=accounts,
+            transactions=[],
+            user_settings={'currency': 'PHP'},
+            fx_rates=fx_rates,
+        )
+        data = response.get_json()
+
+        self.assertEqual(data['base_currency'], 'PHP')
+        self.assertEqual(data['starting_balance'], 74400.0)
+        self.assertEqual(data.get('missing_fx_pairs'), [])
+
+    def test_off_budget_balance_requires_fx_rate_when_currency_differs(self):
+        """Missing FX rates exclude unmatched balances and return missing pair list."""
+        import app.routes.api as api_module
+
+        uid = 'uid_fx_missing'
+        accounts = [{'_id': 'acc_eur', 'balance': 1200.0, 'offBudget': True, 'currency': 'EUR'}]
+        mock_db = MagicMock()
+        self._setup_firestore(api_module, mock_db)
+
+        response = _call_projection_inner(
+            api_module,
+            uid,
+            mock_db,
+            accounts=accounts,
+            transactions=[],
+            user_settings={'currency': 'PHP'},
+            fx_rates=[],
+        )
+        data = response.get_json()
+
+        self.assertEqual(data['base_currency'], 'PHP')
+        self.assertEqual(data['starting_balance'], 0.0)
+        self.assertIn('EUR->PHP', data.get('missing_fx_pairs', []))
 
 
 class TestProjectionManualSavingsOverride(unittest.TestCase):
@@ -749,4 +803,3 @@ class TestCurrenciesEndpoint(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-

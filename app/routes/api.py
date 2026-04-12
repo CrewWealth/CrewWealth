@@ -26,6 +26,27 @@ except Exception:
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
 
+def _fx_pair_key(base_currency, quote_currency):
+    return f"{(base_currency or '').upper()}_{(quote_currency or '').upper()}"
+
+
+def _resolve_fx_rate(from_currency, to_currency, fx_rates):
+    source = (from_currency or DEFAULT_CURRENCY).upper()
+    target = (to_currency or DEFAULT_CURRENCY).upper()
+    if source == target:
+        return 1.0
+
+    direct = fx_rates.get(_fx_pair_key(source, target))
+    if isinstance(direct, (int, float)) and direct > 0:
+        return float(direct)
+
+    inverse = fx_rates.get(_fx_pair_key(target, source))
+    if isinstance(inverse, (int, float)) and inverse > 0:
+        return 1.0 / float(inverse)
+
+    return None
+
+
 def require_firebase_token(f):
     """Decorator: validates Firebase ID token from Authorization header."""
     @wraps(f)
@@ -134,16 +155,50 @@ def _get_projection_inner(uid):
 
     logger.debug("uid=%s base_currency=%s", uid, base_currency)
 
+    # ── 0b. Read manual FX rates (users/{uid}/fxRates) ─────────────────────
+    fx_rates = {}
+    try:
+        fx_snap = user_ref.collection('fxRates').get()
+        for doc in fx_snap:
+            data = doc.to_dict() or {}
+            base = (data.get('base') or '').upper()
+            quote = (data.get('quote') or '').upper()
+            raw_rate = data.get('rate')
+            try:
+                rate = float(raw_rate)
+            except (TypeError, ValueError):
+                continue
+            if (
+                not base
+                or not quote
+                or not math.isfinite(rate)
+                or rate <= 0
+            ):
+                continue
+            fx_rates[_fx_pair_key(base, quote)] = rate
+    except Exception as exc:
+        logger.warning("Could not read fxRates for uid=%s: %s", uid, exc)
+
     # ── 1. Starting balance (sum of off-budget accounts only) ──────────────
     off_budget_account_ids: set = set()
+    account_currency_by_id: dict = {}
+    missing_fx_pairs: set = set()
     starting_balance = 0.0
 
     try:
         accounts_snap = user_ref.collection('accounts').get()
         for doc in accounts_snap:
             data = doc.to_dict() or {}
+            account_currency = (data.get('currency') or base_currency).upper()
+            account_currency_by_id[doc.id] = account_currency
             if data.get('offBudget'):
-                starting_balance += float(data.get('balance', 0) or 0)
+                raw_balance = float(data.get('balance', 0) or 0)
+                rate = _resolve_fx_rate(account_currency, base_currency, fx_rates)
+                if rate is None:
+                    if account_currency != base_currency:
+                        missing_fx_pairs.add(f"{account_currency}->{base_currency}")
+                    continue
+                starting_balance += raw_balance * rate
                 off_budget_account_ids.add(doc.id)
     except Exception as exc:
         logger.warning("Could not read accounts for uid=%s: %s", uid, exc)
@@ -211,9 +266,21 @@ def _get_projection_inner(uid):
                 # Net flow INTO off-budget accounts
                 net_delta = 0.0
                 if to_account_id in off_budget_account_ids:
-                    net_delta += amount
+                    to_currency = account_currency_by_id.get(to_account_id, base_currency)
+                    rate = _resolve_fx_rate(to_currency, base_currency, fx_rates)
+                    if rate is None:
+                        if to_currency != base_currency:
+                            missing_fx_pairs.add(f"{to_currency}->{base_currency}")
+                        continue
+                    net_delta += amount * rate
                 if from_account_id in off_budget_account_ids:
-                    net_delta -= amount
+                    from_currency = account_currency_by_id.get(from_account_id, base_currency)
+                    rate = _resolve_fx_rate(from_currency, base_currency, fx_rates)
+                    if rate is None:
+                        if from_currency != base_currency:
+                            missing_fx_pairs.add(f"{from_currency}->{base_currency}")
+                        continue
+                    net_delta -= amount * rate
 
                 if month_key is not None and net_delta != 0.0:
                     monthly_buckets.setdefault(month_key, 0.0)
@@ -271,6 +338,7 @@ def _get_projection_inner(uid):
         'starting_balance': _safe(round(starting_balance, 2)),
         'monthly_contribution': _safe(round(monthly_contribution, 2)),
         'contribution_source': contribution_source,
+        'missing_fx_pairs': sorted(missing_fx_pairs),
         'balance_12m': safe_balances[11] if len(safe_balances) >= 12 else None,
         'balance_24m': safe_balances[23] if len(safe_balances) >= 24 else None,
         'balance_36m': safe_balances[35] if len(safe_balances) >= 36 else None,
