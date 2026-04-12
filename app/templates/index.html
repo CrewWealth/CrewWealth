@@ -1624,6 +1624,13 @@
             return div.innerHTML;
         }
 
+        function normalizeTransactionType(type) {
+            const normalized = String(type || '').toLowerCase();
+            if (normalized === 'expense') return 'payment';
+            if (normalized === 'income') return 'deposit';
+            return normalized;
+        }
+
         // ============================================
         // DASHBOARD WIDGETS
         // ============================================
@@ -1681,7 +1688,6 @@
             // Transactions
             const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
             const monthEnd = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0, 23, 59, 59);
-            
             unsubscribeTransactions = db.collection('users')
                 .doc(currentUser.uid)
                 .collection('transactions')
@@ -1691,6 +1697,7 @@
                     console.log('🔄 Transactions updated in real-time');
                     loadRecentTransactions();
                     loadMonthOverview();
+                    calculateNetWorth();
                 });
 
             // Goals
@@ -1780,18 +1787,19 @@
         let totalIncome = 0;
 
         transactionsSnapshot.docs.forEach(doc => {
-            const transaction = doc.data();
+            const transaction = doc.data() || {};
+            const transactionType = normalizeTransactionType(transaction.type);
             const amount = Math.abs(parseFloat(transaction.amount) || 0);
             const txCurrency = accountCurrencyById[transaction.accountId] || window.userLegacyCurrency || window.userCurrency || DEFAULT_CURRENCY;
             const convertedAmount = convertToBaseCurrency(amount, txCurrency, missingPairs, usedPairs, excludedAmounts);
             if (convertedAmount === null) return;
 
             // Uitgaven
-            if (transaction.type === 'payment') {
+            if (transactionType === 'payment') {
                 totalSpent += convertedAmount;
             }
             // Inkomsten (sluit aan bij je bestaande logica: salary/deposit als income)
-            else if (transaction.type === 'salary' || transaction.type === 'deposit') {
+            else if (transactionType === 'salary' || transactionType === 'deposit') {
                 totalIncome += convertedAmount;
             }
         });
@@ -1884,7 +1892,8 @@
                     const amount = parseFloat(transaction.amount) || 0;
                     const date = transaction.date ? transaction.date.toDate() : new Date();
                     const relativeDate = getRelativeDate(date);
-                    const isIncome = transaction.type === 'salary' || transaction.type === 'deposit';
+                    const transactionType = normalizeTransactionType(transaction.type);
+                    const isIncome = transactionType === 'salary' || transactionType === 'deposit';
                     const amountClass = isIncome ? 'income' : 'expense';
                     const amountSign = isIncome ? '+' : '-';
                     const txCurrency = accountCurrencyById[transaction.accountId] || window.userCurrency || DEFAULT_CURRENCY;

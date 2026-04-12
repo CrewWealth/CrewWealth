@@ -2126,6 +2126,20 @@
             return div.innerHTML;
         }
 
+        function normalizeTransactionType(type) {
+            const normalized = String(type || '').toLowerCase();
+            if (normalized === 'expense') return 'payment';
+            if (normalized === 'income') return 'deposit';
+            return normalized;
+        }
+
+        function getAccountCurrencyById(accountCurrencyById, accountId) {
+            if (accountCurrencyById instanceof Map) {
+                return accountCurrencyById.get(accountId);
+            }
+            return accountCurrencyById ? accountCurrencyById[accountId] : null;
+        }
+
         function updateMonthDisplay() {
             const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
                 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -2456,7 +2470,7 @@
             
             return transactions
                 .filter(t => {
-                    if (!t.date || t.categoryId !== categoryId || t.type !== 'payment') return false;
+                    if (!t.date || t.categoryId !== categoryId || normalizeTransactionType(t.type) !== 'payment') return false;
                     
                     // Account filter - only include if no specific account selected or matches selected account
                     const accountMatch = selectedAccountId === null || t.accountId === selectedAccountId;
@@ -2476,7 +2490,7 @@
                 })
                 .reduce((sum, t) => {
                     const amount = parseFloat(t.amount) || 0;
-                    const currency = currencyMap.get(t.accountId) || userLegacyCurrency || userCurrency || DEFAULT_CURRENCY;
+                    const currency = getAccountCurrencyById(currencyMap, t.accountId) || userLegacyCurrency || userCurrency || DEFAULT_CURRENCY;
                     const converted = convertToUserCurrency(amount, currency, missingPairs, usedPairs);
                     return sum + (converted === null ? 0 : converted);
                 }, 0);
@@ -2504,8 +2518,23 @@
                 sum + getBudgetValueInUserCurrency(monthKey, cat.id, missingPairs, usedPairs)
             ), 0);
 
-            // Calculate total spent
-            const totalSpent = categories.reduce((sum, cat) => sum + calculateSpent(cat.id, monthKey, missingPairs, usedPairs, accountCurrencyById), 0);
+            // Calculate total spent (including uncategorized payment-like transactions)
+            const [year, month] = monthKey.split('-').map(Number);
+            const totalSpent = transactions
+                .filter(t => {
+                    if (!t.date || normalizeTransactionType(t.type) !== 'payment') return false;
+                    const accountMatch = selectedAccountId === null || t.accountId === selectedAccountId;
+                    if (!accountMatch) return false;
+
+                    const txDate = t.date?.toDate ? t.date.toDate() : new Date(t.date);
+                    return txDate.getFullYear() === year && txDate.getMonth() === month - 1;
+                })
+                .reduce((sum, t) => {
+                    const amount = parseFloat(t.amount) || 0;
+                    const currency = getAccountCurrencyById(accountCurrencyById, t.accountId) || userLegacyCurrency || userCurrency || DEFAULT_CURRENCY;
+                    const converted = convertToUserCurrency(amount, currency, missingPairs, usedPairs);
+                    return sum + (converted === null ? 0 : converted);
+                }, 0);
 
             // Calculate to budget
             const toBudget = availableFunds - totalBudgeted + totalSpent;
@@ -2848,9 +2877,13 @@
             }
 
             try {
-                // Create transaction
-                await db.collection('users').doc(currentUser.uid)
-                    .collection('transactions').add({
+                const userRef = db.collection('users').doc(currentUser.uid);
+                const txRef = userRef.collection('transactions').doc();
+                const accountRef = userRef.collection('accounts').doc(accountId);
+                const batch = db.batch();
+
+                // Create transaction + update account balance atomically
+                batch.set(txRef, {
                         type: 'payment',
                         amount: amount,
                         accountId: accountId,
@@ -2859,16 +2892,10 @@
                         note: note,
                         createdAt: firebase.firestore.Timestamp.now()
                     });
-
-                // Update account balance
-                const account = accounts.find(a => a.id === accountId);
-                if (account) {
-                    const newBalance = (parseFloat(account.balance) || 0) - amount;
-                    await db.collection('users').doc(currentUser.uid)
-                        .collection('accounts').doc(accountId).update({
-                            balance: newBalance
-                        });
-                }
+                batch.update(accountRef, {
+                    balance: firebase.firestore.FieldValue.increment(-amount)
+                });
+                await batch.commit();
 
                 // Reset form and close modal
                 document.getElementById('paymentAmount').value = '';
@@ -2918,9 +2945,13 @@
             }
 
             try {
-                // Create transaction
-                await db.collection('users').doc(currentUser.uid)
-                    .collection('transactions').add({
+                const userRef = db.collection('users').doc(currentUser.uid);
+                const txRef = userRef.collection('transactions').doc();
+                const accountRef = userRef.collection('accounts').doc(accountId);
+                const batch = db.batch();
+
+                // Create transaction + update account balance atomically
+                batch.set(txRef, {
                         type: 'deposit',
                         amount: amount,
                         accountId: accountId,
@@ -2929,16 +2960,10 @@
                         note: note,
                         createdAt: firebase.firestore.Timestamp.now()
                     });
-
-                // Update account balance
-                const account = accounts.find(a => a.id === accountId);
-                if (account) {
-                    const newBalance = (parseFloat(account.balance) || 0) + amount;
-                    await db.collection('users').doc(currentUser.uid)
-                        .collection('accounts').doc(accountId).update({
-                            balance: newBalance
-                        });
-                }
+                batch.update(accountRef, {
+                    balance: firebase.firestore.FieldValue.increment(amount)
+                });
+                await batch.commit();
 
                 // Reset form and close modal
                 document.getElementById('depositAmount').value = '';
@@ -2996,9 +3021,14 @@
             }
 
             try {
-                // Create transaction
-                await db.collection('users').doc(currentUser.uid)
-                    .collection('transactions').add({
+                const userRef = db.collection('users').doc(currentUser.uid);
+                const txRef = userRef.collection('transactions').doc();
+                const fromAccountRef = userRef.collection('accounts').doc(fromAccountId);
+                const toAccountRef = userRef.collection('accounts').doc(toAccountId);
+                const batch = db.batch();
+
+                // Create transaction + update balances atomically
+                batch.set(txRef, {
                         type: 'transfer',
                         amount: amount,
                         accountId: fromAccountId,
@@ -3007,26 +3037,13 @@
                         note: note,
                         createdAt: firebase.firestore.Timestamp.now()
                     });
-
-                // Update from account balance
-                const fromAccount = accounts.find(a => a.id === fromAccountId);
-                if (fromAccount) {
-                    const newBalance = (parseFloat(fromAccount.balance) || 0) - amount;
-                    await db.collection('users').doc(currentUser.uid)
-                        .collection('accounts').doc(fromAccountId).update({
-                            balance: newBalance
-                        });
-                }
-
-                // Update to account balance
-                const toAccount = accounts.find(a => a.id === toAccountId);
-                if (toAccount) {
-                    const newBalance = (parseFloat(toAccount.balance) || 0) + amount;
-                    await db.collection('users').doc(currentUser.uid)
-                        .collection('accounts').doc(toAccountId).update({
-                            balance: newBalance
-                        });
-                }
+                batch.update(fromAccountRef, {
+                    balance: firebase.firestore.FieldValue.increment(-amount)
+                });
+                batch.update(toAccountRef, {
+                    balance: firebase.firestore.FieldValue.increment(amount)
+                });
+                await batch.commit();
 
                 // Reset form and close modal
                 document.getElementById('transferAmount').value = '';
@@ -3100,9 +3117,13 @@
             }
 
             try {
-                // Create salary transaction (type: 'salary', no categoryId)
-                await db.collection('users').doc(currentUser.uid)
-                    .collection('transactions').add({
+                const userRef = db.collection('users').doc(currentUser.uid);
+                const txRef = userRef.collection('transactions').doc();
+                const accountRef = userRef.collection('accounts').doc(accountId);
+                const batch = db.batch();
+
+                // Create salary transaction + update balance atomically
+                batch.set(txRef, {
                         type: 'salary',
                         amount: amount,
                         accountId: accountId,
@@ -3111,16 +3132,10 @@
                         note: note,
                         createdAt: firebase.firestore.Timestamp.now()
                     });
-
-                // Update account balance (add salary)
-                const account = accounts.find(a => a.id === accountId);
-                if (account) {
-                    const newBalance = (parseFloat(account.balance) || 0) + amount;
-                    await db.collection('users').doc(currentUser.uid)
-                        .collection('accounts').doc(accountId).update({
-                            balance: newBalance
-                        });
-                }
+                batch.update(accountRef, {
+                    balance: firebase.firestore.FieldValue.increment(amount)
+                });
+                await batch.commit();
 
                 // Reset form and close modal
                 document.getElementById('salaryAmount').value = '';
@@ -3156,12 +3171,13 @@
             }
 
             try {
+                const normalizedType = normalizeTransactionType(type);
                 // Delete transaction from Firestore
                 await db.collection('users').doc(currentUser.uid)
                     .collection('transactions').doc(transactionId).delete();
 
                 // Update account balances based on transaction type
-                if (type === 'payment') {
+                if (normalizedType === 'payment') {
                     // Payment: Add back to account balance (we subtracted it before)
                     const account = accounts.find(a => a.id === accountId);
                     if (account) {
@@ -3171,7 +3187,7 @@
                                 balance: newBalance
                             });
                     }
-                } else if (type === 'deposit' || type === 'salary') {
+                } else if (normalizedType === 'deposit' || normalizedType === 'salary') {
                     // Deposit/Salary: Subtract from account balance (we added it before)
                     const account = accounts.find(a => a.id === accountId);
                     if (account) {
@@ -3181,7 +3197,7 @@
                                 balance: newBalance
                             });
                     }
-                } else if (type === 'transfer') {
+                } else if (normalizedType === 'transfer') {
                     // Transfer: Reverse both account changes
                     const fromAccount = accounts.find(a => a.id === accountId);
                     const toAccount = accounts.find(a => a.id === toAccountId);
@@ -3222,9 +3238,10 @@
         // EDIT TRANSACTION
         // ============================================
         function editTransaction(transaction) {
+            const transactionType = normalizeTransactionType(transaction.type);
             // Store original values for balance calculation
             document.getElementById('editTransactionId').value = transaction.id;
-            document.getElementById('editTransactionType').value = transaction.type;
+            document.getElementById('editTransactionType').value = transactionType;
             document.getElementById('editOriginalAmount').value = transaction.amount;
             document.getElementById('editOriginalAccountId').value = transaction.accountId;
             document.getElementById('editOriginalToAccountId').value = transaction.toAccountId || '';
@@ -3249,7 +3266,7 @@
             const txDate = transaction.date?.toDate ? transaction.date.toDate() : new Date(transaction.date);
             const dateString = txDate.toISOString().split('T')[0];
 
-            if (transaction.type === 'transfer') {
+            if (transactionType === 'transfer') {
                 // Show transfer fields
                 document.getElementById('editStandardFields').style.display = 'none';
                 document.getElementById('editTransferFields').style.display = 'block';
@@ -3265,13 +3282,13 @@
                 document.getElementById('editStandardFields').style.display = 'block';
                 document.getElementById('editTransferFields').style.display = 'none';
 
-                if (transaction.type === 'payment') {
+                if (transactionType === 'payment') {
                     document.getElementById('editModalHeader').textContent = 'Edit Payment';
                     document.getElementById('editCategoryGroup').style.display = 'block';
-                } else if (transaction.type === 'salary') {
+                } else if (transactionType === 'salary') {
                     document.getElementById('editModalHeader').textContent = 'Edit Salary';
                     document.getElementById('editCategoryGroup').style.display = 'none';
-                } else if (transaction.type === 'deposit') {
+                } else if (transactionType === 'deposit') {
                     document.getElementById('editModalHeader').textContent = 'Edit Deposit';
                     document.getElementById('editCategoryGroup').style.display = 'block';
                 }
@@ -3295,7 +3312,7 @@
             }
 
             const transactionId = document.getElementById('editTransactionId').value;
-            const type = document.getElementById('editTransactionType').value;
+            const type = normalizeTransactionType(document.getElementById('editTransactionType').value);
             const originalAmount = parseFloat(document.getElementById('editOriginalAmount').value);
             const originalAccountId = document.getElementById('editOriginalAccountId').value;
             const originalToAccountId = document.getElementById('editOriginalToAccountId').value;
@@ -3433,10 +3450,9 @@
             // Smart filtering based on selection
             let filteredTransactions;
             if (selectedAccountId === null) {
-                // All Accounts view: Show only budget-relevant transactions
-                // (categorized payments only - excludes salary, transfers, uncategorized)
-                filteredTransactions = transactions.filter(t => 
-                    t.type === 'payment' && t.categoryId !== null
+                // All Accounts view: show payment transactions (normalized from expense/payment, including uncategorized)
+                filteredTransactions = transactions.filter(t =>
+                    normalizeTransactionType(t.type) === 'payment'
                 );
                 header.textContent = 'Recent Transactions - Budget Overview';
             } else {
@@ -3478,23 +3494,30 @@
                 
                 let icon, amountClass, description;
                 
-                if (tx.type === 'salary') {
+                const txType = normalizeTransactionType(tx.type);
+
+                if (txType === 'salary') {
                     icon = '💰';
                     amountClass = 'income';
                     description = tx.note || 'Salary';
-                } else if (tx.type === 'payment') {
+                } else if (txType === 'payment') {
                     icon = '💸';
                     amountClass = 'expense';
                     description = tx.note || 'Payment';
-                } else if (tx.type === 'deposit') {
+                } else if (txType === 'deposit') {
                     icon = '💰';
                     amountClass = 'income';
                     description = tx.note || 'Deposit';
-                } else if (tx.type === 'transfer') {
+                } else if (txType === 'transfer') {
                     icon = '🔄';
                     amountClass = '';
                     const toAccount = accounts.find(a => a.id === tx.toAccountId);
                     description = tx.note || `Transfer to ${toAccount?.name || 'Unknown'}`;
+                } else {
+                    console.warn('⚠️ Unknown transaction type encountered:', tx.type);
+                    icon = '📝';
+                    amountClass = '';
+                    description = tx.note || 'Transaction';
                 }
 
                 const txDate = tx.date?.toDate ? tx.date.toDate() : new Date(tx.date);
@@ -3511,7 +3534,7 @@
                     <div class="transaction-description">${escapeHtml(description)}</div>
                     <div class="transaction-category">${category?.name || '—'}</div>
                     <div class="transaction-amount ${amountClass}">
-                        ${tx.type === 'payment' ? '-' : (tx.type === 'deposit' || tx.type === 'salary') ? '+' : ''}${displayAmount}
+                        ${txType === 'payment' ? '-' : (txType === 'deposit' || txType === 'salary') ? '+' : ''}${displayAmount}
                     </div>
                     <div class="transaction-date">${formattedDate}</div>
                     <div class="transaction-account">${account?.name || 'Unknown'} • ${fxMeta}</div>
