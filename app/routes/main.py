@@ -75,7 +75,7 @@ def whatsapp_webhook():
 
         total_balance = _get_user_total_balance(user_doc)
         currency = _get_user_currency(user_doc)
-        resp.message(f"💰 Balance: {total_balance:,.2f} {currency}")
+        resp.message(f"💰 Balance: {total_balance:.2f} {currency}")
         return str(resp)
     
     resp = MessagingResponse()
