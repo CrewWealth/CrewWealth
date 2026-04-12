@@ -1798,6 +1798,9 @@
         let userFxRates = {};
         let realtimeUnsubscribers = [];
         let realtimeRefreshTimer = null;
+        // Short debounce to collapse bursty Firestore updates from imports/batch writes.
+        // A REALTIME_REFRESH_DEBOUNCE_MS delay keeps UI responsive while avoiding duplicate renders on batched writes.
+        const REALTIME_REFRESH_DEBOUNCE_MS = 250;
 
         // ============================================
         // CURRENCY FUNCTIONS
@@ -2013,14 +2016,16 @@
                     console.warn('⚠️ Realtime refresh failed:', error);
                     setSyncStatus('Sync issue. Use Refresh now.');
                 });
-            }, 250);
+            }, REALTIME_REFRESH_DEBOUNCE_MS);
         }
 
         function clearRealtimeSync() {
             realtimeUnsubscribers.forEach(unsubscribe => {
                 try {
                     unsubscribe();
-                } catch (_) {}
+                } catch (error) {
+                    console.warn('⚠️ Failed to detach realtime listener:', error);
+                }
             });
             realtimeUnsubscribers = [];
         }
@@ -2029,6 +2034,8 @@
             let initialized = false;
             const unsubscribe = queryRef.onSnapshot(() => {
                 if (!initialized) {
+                    // onSnapshot immediately emits current data; skip it to avoid redundant re-render
+                    // because loadAllData() already performed the initial UI population.
                     initialized = true;
                     return;
                 }
@@ -2137,7 +2144,12 @@
         }
 
         function showError(message) {
-            alert(message); // Kan later vervangen worden door een mooiere UI-melding
+            const syncStatus = document.getElementById('syncStatus');
+            if (syncStatus) {
+                syncStatus.textContent = `Error: ${message}`;
+            } else {
+                alert(message);
+            }
         }
 
         function navigateToSmartTools() {

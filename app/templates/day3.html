@@ -413,6 +413,10 @@
     let lastScenarioPayload = null;
     const undoStack = [];
     const MAX_UNDO_ACTIONS = 20;
+    // Worst-case = account update + N transactions + N category creates => (2N + 1) writes.
+    // Cap at 249 rows so worst-case stays within Firestore 500-write batch limit (499 writes).
+    const MAX_IMPORT_SYNC_ROWS = 249;
+    const IMPORT_SALARY_PATTERN = /(salary|payslip|payroll|wage|loon)/i;
     let day3Accounts = [];
 
     function setQuickType(type) {
@@ -714,8 +718,8 @@
 
     function inferImportedTransactionType(transaction) {
         const amount = Number(transaction?.amount || 0);
-        const description = String(transaction?.description || '').toLowerCase();
-        if (amount > 0 && /(salary|payslip|payroll|wage|loon)/.test(description)) {
+        const description = String(transaction?.description || '');
+        if (amount > 0 && IMPORT_SALARY_PATTERN.test(description)) {
             return 'salary';
         }
         return amount < 0 ? 'payment' : 'deposit';
@@ -732,8 +736,8 @@
             setStatus('importStatus', 'Parse an import file first.', 'error');
             return;
         }
-        if (importedTransactions.length > 450) {
-            setStatus('importStatus', 'Please import max 450 rows at once for safe sync.', 'error');
+        if (importedTransactions.length > MAX_IMPORT_SYNC_ROWS) {
+            setStatus('importStatus', `Please import max ${MAX_IMPORT_SYNC_ROWS} rows at once for safe sync.`, 'error');
             return;
         }
 
@@ -786,7 +790,10 @@
             }
 
             let txDate = new Date(raw?.date || '');
-            if (!isFinite(txDate.getTime())) txDate = new Date();
+            const needsFallbackDate = Number.isNaN(txDate.getTime());
+            if (needsFallbackDate) txDate = new Date();
+            const baseNote = description || `Imported ${type}`;
+            const finalNote = `${baseNote}${needsFallbackDate ? ' (date auto-assigned)' : ''}`;
 
             const txRef = db.collection('users').doc(currentUser.uid).collection('transactions').doc();
             batch.set(txRef, {
@@ -795,7 +802,7 @@
                 accountId: targetAccountId,
                 categoryId: categoryId || null,
                 date: firebase.firestore.Timestamp.fromDate(txDate),
-                note: description || `Imported ${type}`,
+                note: finalNote,
                 currency: String(raw?.currency || accountCurrency || DEFAULT_CURRENCY).toUpperCase(),
                 source: 'day3-import-sync',
                 createdAt: firebase.firestore.Timestamp.now(),
