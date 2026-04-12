@@ -576,14 +576,14 @@
                 // Update UI
                 document.getElementById('netWorthValue').textContent = formatCurrency(netWorth);
                 document.getElementById('netWorthSubtitle').textContent = 
-                    formatCurrency(offBudgetTotal) + ' Savings + ' + formatCurrency(onBudgetTotal) + ' On budget cash';
+                    formatCurrency(offBudgetTotal) + ' Savings + ' + formatCurrency(onBudgetTotal) + ' Available funds';
                 renderReportsFxInfo();
 
                 console.log('✅ Net worth calculated:', {
                     netWorth,
                     savings: offBudgetTotal,
                     onBudgetTotal,
-                    available: toBudget
+                    toBudget
                 });
 
             } catch (error) {
