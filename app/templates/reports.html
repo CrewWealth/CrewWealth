@@ -340,12 +340,32 @@
             return `${from}->${to} @ ${rate.toFixed(6)}`;
         }
 
-        function renderReportsFxInfo(missingPairs, usedPairs) {
+        function recordFxExclusion(excludedAmounts, fromCurrency, toCurrency, rawAmount) {
+            if (!excludedAmounts) return;
+            const source = (fromCurrency || DEFAULT_CURRENCY).toUpperCase();
+            const target = (toCurrency || DEFAULT_CURRENCY).toUpperCase();
+            if (source === target) return;
+            const amount = Number(rawAmount);
+            if (!isFinite(amount)) return;
+            const key = `${source}->${target}`;
+            const current = excludedAmounts.get(key) || {
+                source,
+                target,
+                total: 0,
+                count: 0
+            };
+            current.total += amount;
+            current.count += 1;
+            excludedAmounts.set(key, current);
+        }
+
+        function renderReportsFxInfo(missingPairs, usedPairs, excludedAmounts) {
             const infoEl = document.getElementById('reportsFxRateInfo');
             if (!infoEl) return;
             const missing = Array.from(missingPairs || []);
             const used = Array.from(usedPairs || []);
-            if (!missing.length && !used.length) {
+            const excluded = Array.from((excludedAmounts || new Map()).values());
+            if (!missing.length && !used.length && !excluded.length) {
                 infoEl.style.display = 'none';
                 infoEl.textContent = '';
                 return;
@@ -353,6 +373,13 @@
             const notes = [];
             if (missing.length) {
                 notes.push(`Missing FX rates: ${missing.join(', ')} (excluded).`);
+            }
+            if (excluded.length) {
+                const excludedDetails = excluded
+                    .sort((a, b) => `${a.source}->${a.target}`.localeCompare(`${b.source}->${b.target}`))
+                    .map(item => `${item.source}->${item.target}: ${formatMoney(item.total, item.source)} ${item.source} (${item.count} item${item.count === 1 ? '' : 's'})`)
+                    .join('; ');
+                notes.push(`Excluded amounts: ${excludedDetails}.`);
             }
             if (used.length) {
                 notes.push(`Converted with FX: ${used.join(', ')}.`);
@@ -384,7 +411,7 @@
             return rates;
         }
 
-        function convertToUserCurrency(amount, fromCurrency, missingPairs, usedPairs) {
+        function convertToUserCurrency(amount, fromCurrency, missingPairs, usedPairs, excludedAmounts) {
             const source = (fromCurrency || userCurrency || DEFAULT_CURRENCY).toUpperCase();
             const target = (userCurrency || DEFAULT_CURRENCY).toUpperCase();
             const converted = convertMoney(amount, source, target, userFxRates || {});
@@ -392,6 +419,7 @@
                 if (source !== target && missingPairs) {
                     missingPairs.add(`${source}->${target}`);
                 }
+                recordFxExclusion(excludedAmounts, source, target, amount);
                 return null;
             }
             if (source !== target && usedPairs) {
@@ -462,12 +490,13 @@
                 let onBudgetTotal = 0;  // All on-budget money
                 const missingPairs = new Set();
                 const usedPairs = new Set();
+                const excludedAmounts = new Map();
                 
                 accountsSnapshot.docs.forEach(doc => {
                     const account = doc.data();
                     const balance = parseFloat(account.balance) || 0;
                     const accountCurrency = resolveAccountCurrency(account);
-                    const convertedBalance = convertToUserCurrency(balance, accountCurrency, missingPairs, usedPairs);
+                    const convertedBalance = convertToUserCurrency(balance, accountCurrency, missingPairs, usedPairs, excludedAmounts);
                     if (convertedBalance === null) return;
                     
                     if (account.offBudget) {
@@ -498,7 +527,7 @@
                         if (key === '__currency' || key === 'createdAt' || key === 'updatedAt') {
                             return sum;
                         }
-                        const converted = convertToUserCurrency(parseFloat(val) || 0, budgetCurrency, missingPairs, usedPairs);
+                        const converted = convertToUserCurrency(parseFloat(val) || 0, budgetCurrency, missingPairs, usedPairs, excludedAmounts);
                         return sum + (converted === null ? 0 : converted);
                     }, 0);
                 }
@@ -513,7 +542,7 @@
                 document.getElementById('netWorthValue').textContent = formatCurrency(netWorth);
                 document.getElementById('netWorthSubtitle').textContent = 
                     formatCurrency(offBudgetTotal) + ' Savings + ' + formatCurrency(toBudget) + ' Available';
-                renderReportsFxInfo(missingPairs, usedPairs);
+                renderReportsFxInfo(missingPairs, usedPairs, excludedAmounts);
 
                 console.log('✅ Net worth calculated:', {
                     netWorth,
@@ -555,12 +584,13 @@
                 let totalSpending = 0;
                 const missingPairs = new Set();
                 const usedPairs = new Set();
+                const excludedAmounts = new Map();
 
                 transactionsSnapshot.docs.forEach(doc => {
                     const transaction = doc.data();
                     const amount = parseFloat(transaction.amount) || 0;
                     const txCurrency = accountCurrencyById[transaction.accountId] || userLegacyCurrency || userCurrency || DEFAULT_CURRENCY;
-                    const convertedAmount = convertToUserCurrency(Math.abs(amount), txCurrency, missingPairs, usedPairs);
+                    const convertedAmount = convertToUserCurrency(Math.abs(amount), txCurrency, missingPairs, usedPairs, excludedAmounts);
                     if (convertedAmount === null) return;
                     
                     if (transaction.type === 'salary' || transaction.type === 'deposit') {
@@ -572,7 +602,7 @@
 
                 document.getElementById('totalIncomeValue').textContent = formatCurrency(totalIncome);
                 document.getElementById('totalSpendingValue').textContent = formatCurrency(totalSpending);
-                renderReportsFxInfo(missingPairs, usedPairs);
+                renderReportsFxInfo(missingPairs, usedPairs, excludedAmounts);
 
                 // Load projection from backend API (token-authenticated)
                 await loadProjectionFromAPI();

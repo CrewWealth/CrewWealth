@@ -279,6 +279,34 @@ class TestProjectionOffBudgetAccounts(unittest.TestCase):
         self.assertEqual(data['starting_balance'], 0.0)
         self.assertIn('EUR->PHP', data.get('missing_fx_pairs', []))
 
+    def test_off_budget_balance_converts_via_indirect_fx_path(self):
+        """Balances convert through intermediate FX paths when direct pair is missing."""
+        import app.routes.api as api_module
+
+        uid = 'uid_fx_indirect'
+        accounts = [{'_id': 'acc_eur', 'balance': 1200.0, 'offBudget': True, 'currency': 'EUR'}]
+        fx_rates = [
+            {'_id': 'r1', 'base': 'EUR', 'quote': 'USD', 'rate': 1.1},
+            {'_id': 'r2', 'base': 'USD', 'quote': 'GBP', 'rate': 0.8},
+        ]
+        mock_db = MagicMock()
+        self._setup_firestore(api_module, mock_db)
+
+        response = _call_projection_inner(
+            api_module,
+            uid,
+            mock_db,
+            accounts=accounts,
+            transactions=[],
+            user_settings={'currency': 'GBP'},
+            fx_rates=fx_rates,
+        )
+        data = response.get_json()
+
+        self.assertEqual(data['base_currency'], 'GBP')
+        self.assertEqual(data['starting_balance'], 1056.0)
+        self.assertEqual(data.get('missing_fx_pairs'), [])
+
 
 class TestProjectionManualSavingsOverride(unittest.TestCase):
     """Verify that settings.monthlySavings overrides the auto-calculated value."""
@@ -459,6 +487,42 @@ class TestProjectionTransferCalculation(unittest.TestCase):
         # Month 36: 1000 + 100*36 = 4600
         self.assertAlmostEqual(balances[35], 4600.0)
         self.assertAlmostEqual(data['balance_36m'], 4600.0)
+
+    def test_transfer_conversion_uses_indirect_fx_path(self):
+        """Transfer contribution converts through intermediate FX rates if needed."""
+        import app.routes.api as api_module
+
+        uid = 'uid_transfer_indirect_fx'
+        accounts = [{'_id': 'savings', 'balance': 1000.0, 'offBudget': True, 'currency': 'EUR'}]
+        now = datetime.now(timezone.utc)
+        transactions = [{
+            '_id': 'tx1',
+            'type': 'transfer',
+            'amount': 100.0,
+            'accountId': 'checking',
+            'toAccountId': 'savings',
+            'date': datetime(now.year, now.month, 1, tzinfo=timezone.utc),
+        }]
+        fx_rates = [
+            {'_id': 'r1', 'base': 'EUR', 'quote': 'USD', 'rate': 1.1},
+            {'_id': 'r2', 'base': 'USD', 'quote': 'GBP', 'rate': 0.8},
+        ]
+        mock_db = MagicMock()
+        self._setup_firestore(api_module, mock_db)
+
+        response = _call_projection_inner(
+            api_module,
+            uid,
+            mock_db,
+            accounts=accounts,
+            transactions=transactions,
+            user_settings={'currency': 'GBP'},
+            fx_rates=fx_rates,
+        )
+        data = response.get_json()
+
+        self.assertEqual(data['base_currency'], 'GBP')
+        self.assertEqual(data['monthly_contribution'], 88.0)
 
 
 class TestProjectionMissingToken(unittest.TestCase):
