@@ -361,9 +361,9 @@
                     </select>
                 </div>
                 <div id="quickToAccountWrap" style="display:none;">
-                    <label for="quickToAccount">To account</label>
+                    <label for="quickToAccount">To Account</label>
                     <select id="quickToAccount">
-                        <option value="">Select destination account...</option>
+                        <option value="">Select to account...</option>
                     </select>
                 </div>
             </div>
@@ -748,7 +748,7 @@
         );
         quickAccount.innerHTML = quickOptions.join('');
 
-        const toOptions = ['<option value="">Select destination account...</option>'].concat(
+        const toOptions = ['<option value="">Select to account...</option>'].concat(
             day3Accounts.map(account => `<option value="${account.id}">${escapeHtml(account.name || account.id)}</option>`)
         );
         quickToAccount.innerHTML = toOptions.join('');
@@ -927,14 +927,22 @@
         if (!currentUser) return;
         const quickType = document.getElementById('quickType').value;
         const description = String(document.getElementById('quickDescription').value || '').trim();
-        const amount = Math.abs(Number(document.getElementById('quickAmount').value || 0));
+        const rawAmount = Number(document.getElementById('quickAmount').value || 0);
         const currency = document.getElementById('quickCurrency').value;
         const accountId = document.getElementById('quickAccount').value;
         const toAccountId = document.getElementById('quickToAccount').value;
         const categoryId = document.getElementById('quickCategory').value || null;
-        const type = quickType === 'expense' ? 'payment' : (quickType === 'income' ? 'deposit' : 'transfer');
+        const typeMap = { expense: 'payment', income: 'deposit', transfer: 'transfer' };
+        const type = typeMap[quickType];
+        const amount = Math.abs(rawAmount);
+        const hadNegativeInput = rawAmount < 0;
 
-        if (!description || !isFinite(amount) || amount === 0) {
+        if (!type) {
+            setStatus('quickStatus', 'Unknown quick transaction type selected.', 'error');
+            return;
+        }
+
+        if (!description || !isFinite(rawAmount) || rawAmount === 0) {
             setStatus('quickStatus', 'Enter a description and non-zero amount.', 'error');
             return;
         }
@@ -961,53 +969,64 @@
             return;
         }
 
-        const userRef = db.collection('users').doc(currentUser.uid);
-        const txRef = userRef.collection('transactions').doc();
-        const fromAccountRef = userRef.collection('accounts').doc(accountId);
-        const toAccountRef = type === 'transfer' ? userRef.collection('accounts').doc(toAccountId) : null;
-        const previousFromBalance = Number(fromAccount.balance || 0);
-        const previousToBalance = type === 'transfer' ? Number(toAccount.balance || 0) : null;
+        try {
+            const userRef = db.collection('users').doc(currentUser.uid);
+            const txRef = userRef.collection('transactions').doc();
+            const fromAccountRef = userRef.collection('accounts').doc(accountId);
+            const toAccountRef = type === 'transfer' ? userRef.collection('accounts').doc(toAccountId) : null;
+            const timestampNow = firebase.firestore.Timestamp.now();
 
-        const batch = db.batch();
-        batch.set(txRef, {
-            type,
-            description,
-            amount,
-            currency,
-            accountId,
-            toAccountId: type === 'transfer' ? toAccountId : null,
-            categoryId: type === 'payment' ? categoryId : null,
-            date: firebase.firestore.Timestamp.now(),
-            createdAt: firebase.firestore.Timestamp.now(),
-            createdAtMs: Date.now(),
-            source: 'day3-quick-widget',
-        });
+            const batch = db.batch();
+            batch.set(txRef, {
+                type,
+                description,
+                amount,
+                currency,
+                accountId,
+                toAccountId: type === 'transfer' ? toAccountId : null,
+                categoryId: (type === 'payment' || type === 'deposit') ? categoryId : null,
+                date: timestampNow,
+                createdAt: timestampNow,
+                createdAtMs: Date.now(),
+                source: 'day3-quick-widget',
+            });
 
-        if (type === 'payment') {
-            batch.update(fromAccountRef, { balance: previousFromBalance - amount });
-        } else if (type === 'transfer') {
-            batch.update(fromAccountRef, { balance: previousFromBalance - amount });
-            batch.update(toAccountRef, { balance: previousToBalance + amount });
-        } else {
-            batch.update(fromAccountRef, { balance: previousFromBalance + amount });
-        }
-
-        await batch.commit();
-        pushUndo(async () => {
-            const undoBatch = db.batch();
-            undoBatch.delete(txRef);
-            undoBatch.update(fromAccountRef, { balance: previousFromBalance });
-            if (type === 'transfer') {
-                undoBatch.update(toAccountRef, { balance: previousToBalance });
+            if (type === 'payment') {
+                batch.update(fromAccountRef, { balance: firebase.firestore.FieldValue.increment(-amount) });
+            } else if (type === 'transfer') {
+                batch.update(fromAccountRef, { balance: firebase.firestore.FieldValue.increment(-amount) });
+                batch.update(toAccountRef, { balance: firebase.firestore.FieldValue.increment(amount) });
+            } else {
+                batch.update(fromAccountRef, { balance: firebase.firestore.FieldValue.increment(amount) });
             }
-            await undoBatch.commit();
-        });
 
-        await loadAccountsForImport();
-        setStatus('quickStatus', 'Quick transaction saved.', 'success');
-        document.getElementById('quickDescription').value = '';
-        document.getElementById('quickAmount').value = '';
-        document.getElementById('quickCategory').value = '';
+            await batch.commit();
+            pushUndo(async () => {
+                const undoBatch = db.batch();
+                undoBatch.delete(txRef);
+                if (type === 'payment') {
+                    undoBatch.update(fromAccountRef, { balance: firebase.firestore.FieldValue.increment(amount) });
+                } else if (type === 'transfer') {
+                    undoBatch.update(fromAccountRef, { balance: firebase.firestore.FieldValue.increment(amount) });
+                    undoBatch.update(toAccountRef, { balance: firebase.firestore.FieldValue.increment(-amount) });
+                } else {
+                    undoBatch.update(fromAccountRef, { balance: firebase.firestore.FieldValue.increment(-amount) });
+                }
+                await undoBatch.commit();
+            });
+
+            await loadAccountsForImport();
+            const successMessage = hadNegativeInput
+                ? 'Quick transaction saved (amount converted to positive value).'
+                : 'Quick transaction saved.';
+            setStatus('quickStatus', successMessage, 'success');
+            document.getElementById('quickDescription').value = '';
+            document.getElementById('quickAmount').value = '';
+            document.getElementById('quickCategory').value = '';
+        } catch (error) {
+            console.error('Failed to save quick transaction:', error);
+            setStatus('quickStatus', 'Failed to save quick transaction. Please try again.', 'error');
+        }
     }
     window.saveQuickTransaction = saveQuickTransaction;
 
