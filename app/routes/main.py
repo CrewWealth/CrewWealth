@@ -6,6 +6,41 @@ from firebase_admin import firestore
 # Create Blueprint (EÉN KEER)
 main_bp = Blueprint('main', __name__)
 
+
+def _get_user_by_phone(phone):
+    if not phone:
+        return None
+    users_ref = firestore.client().collection('users')
+    query = users_ref.where('phone', '==', phone).limit(1).get()
+    if not query:
+        return None
+    return query[0]
+
+
+def _get_user_total_balance(user_doc):
+    if not user_doc:
+        return 0.0
+    total = 0.0
+    for account_doc in user_doc.reference.collection('accounts').get():
+        data = account_doc.to_dict() or {}
+        try:
+            total += float(data.get('balance', 0) or 0)
+        except (TypeError, ValueError):
+            continue
+    return total
+
+
+def _get_user_currency(user_doc):
+    if not user_doc:
+        return 'EUR'
+    data = user_doc.to_dict() or {}
+    currency = (
+        data.get('baseCurrency')
+        or (data.get('settings') or {}).get('currency')
+        or 'EUR'
+    )
+    return str(currency).upper()
+
 @main_bp.route('/whatsapp', methods=['POST'])
 def whatsapp_webhook():
     incoming = request.form.get('Body', '').strip().lower()
@@ -32,8 +67,15 @@ def whatsapp_webhook():
         return str(resp)
     
     elif incoming == 'balance':
+        user_doc = _get_user_by_phone(phone)
         resp = MessagingResponse()
-        resp.message("💰 Balance: €1,234.56\n*spent €15 lunch* to log expenses!")
+        if not user_doc:
+            resp.message("❌ No linked account found. Use *link email@crewwealth.app* first.")
+            return str(resp)
+
+        total_balance = _get_user_total_balance(user_doc)
+        currency = _get_user_currency(user_doc)
+        resp.message(f"💰 Balance: {total_balance:,.2f} {currency}")
         return str(resp)
     
     resp = MessagingResponse()
@@ -41,7 +83,7 @@ def whatsapp_webhook():
 🚢 CrewWealth Bot
 • *balance* - See balance
 • *link email@crewwealth.app* - Link account  
-• *spent €15 lunch* - Log expense
+• *spent <amount> <note>* - Log expense
 • *help* - Show this
     """)
     return str(resp)
