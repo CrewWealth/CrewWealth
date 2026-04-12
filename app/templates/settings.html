@@ -155,6 +155,34 @@
             margin-top: var(--spacing-md);
             font-size: 14px;
         }
+
+        .fx-rate-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr auto;
+            gap: 12px;
+            align-items: end;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            font-size: 15px;
+            background: white;
+            color: var(--color-text);
+        }
+
+        .fx-rate-list {
+            margin-top: var(--spacing-md);
+            font-size: 14px;
+            color: var(--color-text-secondary);
+        }
+
+        .fx-rate-item {
+            padding: 8px 0;
+            border-bottom: 1px solid var(--color-border);
+        }
     </style>
 </head>
 <body>
@@ -184,6 +212,35 @@
             <div id="errorMessage" class="error-message">
                 ❌ Invalid currency selected. Please choose a supported currency.
             </div>
+        </div>
+
+        <div class="settings-section">
+            <h2>📈 Manual FX Rates</h2>
+            <div class="currency-info">
+                ℹ️ CrewWealth automatically fetches the latest FX rates from a public API. You can override any pair below.
+            </div>
+            <div class="fx-rate-grid" style="margin-top: 16px;">
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label for="fxBaseCurrency">From</label>
+                    <select id="fxBaseCurrency"></select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label for="fxQuoteCurrency">To</label>
+                    <select id="fxQuoteCurrency"></select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label for="fxRateValue">Rate</label>
+                    <input id="fxRateValue" type="number" min="0.000001" step="0.000001" placeholder="e.g. 1.082500">
+                </div>
+                <button onclick="saveFxRate()" class="btn-primary">Save rate</button>
+            </div>
+            <div id="fxSuccessMessage" class="success-message" style="margin-top: 12px;">
+                ✅ FX rate saved successfully!
+            </div>
+            <div id="fxErrorMessage" class="error-message" style="margin-top: 12px;">
+                ❌ Please select two different currencies and enter a valid positive rate.
+            </div>
+            <div id="fxRatesList" class="fx-rate-list"></div>
         </div>
     </div>
 
@@ -225,10 +282,23 @@
                 }
                 await ensureUserDoc();
                 await loadUserSettings();
+                initializeFxSelectors();
+                await loadManualFxRates();
             } else {
                 window.location.href = '/login?next=/settings';
             }
         });
+
+        function initializeFxSelectors() {
+            const baseSelect = document.getElementById('fxBaseCurrency');
+            const quoteSelect = document.getElementById('fxQuoteCurrency');
+            if (!baseSelect || !quoteSelect) return;
+
+            const options = SUPPORTED_CURRENCIES.map(code => `<option value="${code}">${code}</option>`).join('');
+            baseSelect.innerHTML = options;
+            quoteSelect.innerHTML = options;
+            quoteSelect.value = 'USD';
+        }
 
         // ============================================
         // ENSURE USER DOC EXISTS (create with defaults if missing)
@@ -272,6 +342,47 @@
                 }
             } catch (error) {
                 console.error('Error loading user settings:', error);
+            }
+        }
+
+        async function loadManualFxRates() {
+            if (!currentUser) return;
+            const listEl = document.getElementById('fxRatesList');
+            if (!listEl) return;
+            try {
+                const snapshot = await db.collection('users')
+                    .doc(currentUser.uid)
+                    .collection('fxRates')
+                    .get();
+
+                if (snapshot.empty) {
+                    listEl.innerHTML = '<div class="fx-rate-item">No manual FX overrides yet.</div>';
+                    return;
+                }
+
+                const items = snapshot.docs
+                    .map(doc => {
+                        const data = doc.data() || {};
+                        const base = String(data.base || '').toUpperCase();
+                        const quote = String(data.quote || '').toUpperCase();
+                        const rate = Number(data.rate);
+                        if (!base || !quote || !isFinite(rate) || rate <= 0) return null;
+                        return { base, quote, rate };
+                    })
+                    .filter(Boolean)
+                    .sort((a, b) => `${a.base}->${a.quote}`.localeCompare(`${b.base}->${b.quote}`));
+
+                if (!items.length) {
+                    listEl.innerHTML = '<div class="fx-rate-item">No manual FX overrides yet.</div>';
+                    return;
+                }
+
+                listEl.innerHTML = items
+                    .map(item => `<div class="fx-rate-item">${item.base} → ${item.quote}: ${item.rate}</div>`)
+                    .join('');
+            } catch (error) {
+                console.error('Error loading manual FX rates:', error);
+                listEl.innerHTML = '<div class="fx-rate-item">Could not load manual FX rates.</div>';
             }
         }
 
@@ -329,6 +440,46 @@
                 } else {
                     alert('Failed to save currency settings (' + error.code + '). Please try again.');
                 }
+            }
+        };
+
+        window.saveFxRate = async function() {
+            if (!currentUser) return;
+
+            const base = String(document.getElementById('fxBaseCurrency').value || '').toUpperCase();
+            const quote = String(document.getElementById('fxQuoteCurrency').value || '').toUpperCase();
+            const rate = Number(document.getElementById('fxRateValue').value);
+            const successEl = document.getElementById('fxSuccessMessage');
+            const errorEl = document.getElementById('fxErrorMessage');
+
+            if (!isValidCurrency(base) || !isValidCurrency(quote) || base === quote || !isFinite(rate) || rate <= 0) {
+                errorEl.style.display = 'block';
+                successEl.style.display = 'none';
+                return;
+            }
+
+            errorEl.style.display = 'none';
+
+            try {
+                await db.collection('users')
+                    .doc(currentUser.uid)
+                    .collection('fxRates')
+                    .doc(`${base}_${quote}`)
+                    .set({
+                        base,
+                        quote,
+                        rate,
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    }, { merge: true });
+
+                successEl.style.display = 'block';
+                setTimeout(() => { successEl.style.display = 'none'; }, 3000);
+                document.getElementById('fxRateValue').value = '';
+                await loadManualFxRates();
+            } catch (error) {
+                console.error('Error saving FX rate:', error);
+                errorEl.style.display = 'block';
+                successEl.style.display = 'none';
             }
         };
     </script>

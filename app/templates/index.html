@@ -838,7 +838,7 @@
                         <span class="divider">•</span>
                         <span id="toBudgetAmount"><span class="currency-symbol">€</span>0 Available</span>
                     </div>
-                    <div id="fxRateWarning" class="stat-subtitle text-warning" style="display:none;"></div>
+                    <div id="fxRateWarning" class="stat-subtitle" style="display:none;"></div>
                 </div>
             </div>
 
@@ -1310,9 +1310,8 @@
             const warningEl = document.getElementById('fxRateWarning');
             if (!warningEl) return;
             const pairs = Array.from(missingPairs || []);
-            const used = Array.from(usedPairs || []);
             const excluded = Array.from((excludedAmounts || new Map()).values());
-            if (!pairs.length && !used.length && !excluded.length) {
+            if (!pairs.length && !excluded.length) {
                 warningEl.style.display = 'none';
                 warningEl.textContent = '';
                 return;
@@ -1320,17 +1319,14 @@
             warningEl.style.display = 'block';
             const notes = [];
             if (pairs.length) {
-                notes.push(`Missing FX rates for: ${pairs.join(', ')}. Totals exclude those amounts.`);
+                notes.push(`Using fallback FX (${DEFAULT_FX_FALLBACK_RATE}) for: ${pairs.join(', ')}.`);
             }
             if (excluded.length) {
                 const excludedDetails = excluded
                     .sort((a, b) => `${a.source}->${a.target}`.localeCompare(`${b.source}->${b.target}`))
                     .map(item => `${item.source}->${item.target}: ${formatRecordCurrency(item.total, item.source)} (${item.count} item${item.count === 1 ? '' : 's'})`)
                     .join('; ');
-                notes.push(`Excluded amounts: ${excludedDetails}.`);
-            }
-            if (used.length) {
-                notes.push(`Converted using FX: ${used.join(', ')}.`);
+                notes.push(`Fallback applied for: ${excludedDetails}.`);
             }
             warningEl.textContent = notes.join(' ');
         }
@@ -1382,6 +1378,16 @@
                 });
             } catch (error) {
                 console.warn('⚠️ Could not load FX rates:', error);
+            }
+            try {
+                const publicRates = await fetchPublicFxRates(window.userCurrency || DEFAULT_CURRENCY, SUPPORTED_CURRENCIES);
+                Object.entries(publicRates || {}).forEach(([pairKey, rate]) => {
+                    if (!(pairKey in rates)) {
+                        rates[pairKey] = rate;
+                    }
+                });
+            } catch (_) {
+                // Ignore public FX API failures; shared helper fallback remains active.
             }
             window.userFxRates = rates;
             return rates;
