@@ -221,3 +221,60 @@ These will be addressed in subsequent days of the multi-currency rollout.
 6. Simulate API failure (network/dev tools) while using FX Center refresh:
    - Verify short error status on FX Center.
    - Verify previously saved rates remain available.
+
+---
+
+## Day 3 — Integrated Collaboration & Intelligence (Delivered)
+
+### What changed
+
+1. **New Day 3 Center page (`/day3`)**
+   - Subtle dedicated workspace so advanced features do not clutter the dashboard.
+   - Quick links added from Dashboard, FX Center and Settings.
+
+2. **Multi-user/sharing controls**
+   - Invite flow with `email`, `role` (`viewer`/`editor`/`owner`) and `visibility` scope.
+   - Saved under `users/{uid}/sharedMembers/{email}`.
+   - Undo support for invite add/remove.
+
+3. **Advanced scenario forecasting (temporary activation)**
+   - New API: `POST /api/day3/scenario/forecast`.
+   - Supports what-if deltas (income, expense, FX shift, one-off).
+   - Scenario preview can be toggled active in UI without permanent writes.
+
+4. **Smarter transaction recognition/categorization**
+   - New API: `POST /api/day3/transactions/categorize`.
+   - Description + amount heuristics return category, confidence and smart tags.
+   - Optional user smart-tag presets stored in `users/{uid}/smartTagRules`.
+
+5. **Import/export integrations**
+   - New API: `POST /api/day3/import/parse` for CSV and MT940 parsing.
+   - New API: `POST /api/day3/export` for CSV/JSON export payload generation.
+   - Preview table in Day 3 Center for quick validation before export.
+
+6. **Mobile/UX polish**
+   - Mobile-friendly responsive layout for all Day 3 cards.
+   - Quick transaction input widget for fast mobile entry.
+   - Tutorial tip, undo action stack and personalized presets (favorite currency + report preset).
+
+### Day 3 quick test checklist
+
+1. Open **Day 3 Center** (`/day3`) on desktop and mobile widths:
+   - Verify layout remains readable and cards stack cleanly.
+2. Add a sharing invite with role/visibility:
+   - Verify invite appears in member list and can be removed.
+   - Click **Undo last action** to restore.
+3. Run a scenario with non-zero deltas:
+   - Verify baseline/scenario/delta values are returned.
+   - Toggle preview active/inactive without any permanent data mutation.
+4. Enter a sample transaction description (`Uber airport`) and amount:
+   - Verify suggested category + confidence + smart tags.
+   - Save smart-tag preset and test undo.
+5. Import a CSV file and (optionally) an MT940 sample:
+   - Verify parsed rows are shown in preview.
+   - Export to CSV and JSON and verify downloaded content exists.
+6. Use mobile quick transaction widget:
+   - Save a quick entry and verify status success.
+   - Undo should remove the newly created transaction.
+7. Save personal presets:
+   - Favorite currency + report preset persist after page reload.

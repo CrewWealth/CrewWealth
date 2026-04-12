@@ -1,6 +1,9 @@
 import logging
 import math
 import requests
+import csv
+import io
+import re
 from flask import Blueprint, jsonify, request, current_app
 from functools import wraps
 from datetime import datetime, timezone
@@ -27,6 +30,10 @@ except Exception:
     FieldFilter = None
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
+
+ALLOWED_SHARE_ROLES = {'owner', 'editor', 'viewer'}
+ALLOWED_VISIBILITY_SCOPES = {'all', 'budget', 'goals', 'reports'}
+DEFAULT_REPORT_PRESETS = {'monthly', 'quarterly', 'voyage'}
 
 
 def _fx_pair_key(base_currency, quote_currency):
@@ -122,6 +129,122 @@ def _load_public_fx_rates(base_currency):
         rates[_fx_pair_key(target, source)] = 1.0 / rate
 
     return rates
+
+
+def _to_float(value, default=0.0):
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError):
+        return float(default)
+    if not math.isfinite(numeric):
+        return float(default)
+    return numeric
+
+
+def _build_projection_series(starting_balance, monthly_contribution, months):
+    labels = []
+    balances = []
+    running = _to_float(starting_balance)
+    monthly = _to_float(monthly_contribution)
+    safe_months = max(1, min(int(months or 12), 120))
+    for idx in range(safe_months):
+        running += monthly
+        labels.append(f"Month {idx + 1}")
+        balances.append(round(running, 2))
+    return labels, balances
+
+
+def _infer_transaction_category(description, amount):
+    normalized = (description or '').strip().lower()
+    amount_num = _to_float(amount, 0.0)
+    keyword_map = {
+        'Housing': ['rent', 'mortgage', 'housing', 'apartment', 'utility'],
+        'Transport': ['uber', 'taxi', 'fuel', 'train', 'flight', 'transport', 'parking'],
+        'Groceries': ['supermarket', 'grocery', 'aldi', 'lidl', 'carrefour', 'tesco'],
+        'Dining': ['restaurant', 'cafe', 'coffee', 'takeaway', 'food'],
+        'Income': ['salary', 'payroll', 'wage', 'bonus', 'income'],
+        'Travel': ['hotel', 'airbnb', 'booking', 'trip', 'voyage'],
+        'Subscriptions': ['netflix', 'spotify', 'subscription', 'icloud', 'adobe'],
+    }
+
+    matches = []
+    chosen_category = 'Uncategorized'
+    for category, keywords in keyword_map.items():
+        for keyword in keywords:
+            if keyword in normalized:
+                matches.append(keyword)
+                chosen_category = category
+    smart_tags = sorted(set(matches))
+    if amount_num < 0:
+        smart_tags.append('refund')
+    elif amount_num > 0:
+        smart_tags.append('expense')
+
+    if chosen_category == 'Uncategorized' and amount_num < 0:
+        chosen_category = 'Income'
+    confidence = 0.35 if chosen_category == 'Uncategorized' else min(0.95, 0.55 + (0.1 * len(matches)))
+    return {
+        'category': chosen_category,
+        'confidence': round(confidence, 2),
+        'smart_tags': smart_tags[:8],
+        'matched_keywords': smart_tags,
+    }
+
+
+def _parse_csv_transactions(content):
+    rows = []
+    reader = csv.DictReader(io.StringIO(content or ''))
+    for row in reader:
+        amount = _to_float(row.get('amount'), 0.0)
+        currency = (row.get('currency') or DEFAULT_CURRENCY).upper()
+        if currency not in SUPPORTED_CURRENCIES:
+            currency = DEFAULT_CURRENCY
+        rows.append({
+            'date': (row.get('date') or '').strip(),
+            'description': (row.get('description') or '').strip(),
+            'amount': amount,
+            'currency': currency,
+            'category': (row.get('category') or '').strip() or None,
+        })
+    return rows
+
+
+def _parse_mt940_transactions(content):
+    transactions = []
+    current = {}
+    for raw_line in (content or '').splitlines():
+        line = raw_line.strip()
+        if line.startswith(':61:'):
+            if current:
+                transactions.append(current)
+            payload = line[4:]
+            date_raw = payload[:6]
+            dc_mark = payload[6:7].upper()
+            amount_match = re.search(r'([0-9]+,[0-9]{0,2})', payload)
+            amount = _to_float((amount_match.group(1) if amount_match else '0').replace(',', '.'), 0.0)
+            if dc_mark == 'D':
+                amount = abs(amount)
+            elif dc_mark == 'C':
+                amount = -abs(amount)
+            current = {
+                'date': date_raw,
+                'description': '',
+                'amount': amount,
+                'currency': DEFAULT_CURRENCY,
+                'category': None,
+            }
+        elif line.startswith(':86:') and current:
+            current['description'] = line[4:].strip()
+    if current:
+        transactions.append(current)
+    return transactions
+
+
+def _sanitize_csv_cell(value):
+    text = str(value or '')
+    if text.startswith(('=', '+', '-', '@')):
+        return f"'{text}"
+    return text
 
 
 def require_firebase_token(f):
@@ -439,4 +562,173 @@ def _get_projection_inner(uid):
         'balance_36m': safe_balances[35] if len(safe_balances) >= 36 else None,
         'labels': labels,
         'balances': safe_balances,
+    })
+
+
+@api_bp.route('/day3/scenario/forecast', methods=['POST'])
+def day3_forecast_scenario():
+    payload = request.get_json(silent=True) or {}
+    base_starting = _to_float(payload.get('starting_balance'), 0.0)
+    base_monthly = _to_float(payload.get('monthly_contribution'), 0.0)
+    months = max(1, min(int(payload.get('months') or 12), 120))
+    scenario = payload.get('scenario') or {}
+
+    income_delta = _to_float(scenario.get('income_delta'), 0.0)
+    expense_delta = _to_float(scenario.get('expense_delta'), 0.0)
+    one_off_adjustment = _to_float(scenario.get('one_off_adjustment'), 0.0)
+    fx_shift_percent = _to_float(scenario.get('fx_shift_percent'), 0.0)
+    fx_multiplier = 1.0 + (fx_shift_percent / 100.0)
+    if not math.isfinite(fx_multiplier) or fx_multiplier <= 0:
+        fx_multiplier = 1.0
+
+    scenario_starting = (base_starting * fx_multiplier) + one_off_adjustment
+    scenario_monthly = (base_monthly + income_delta - expense_delta) * fx_multiplier
+
+    labels, baseline_balances = _build_projection_series(base_starting, base_monthly, months)
+    _, scenario_balances = _build_projection_series(scenario_starting, scenario_monthly, months)
+    delta_balances = [round(s - b, 2) for b, s in zip(baseline_balances, scenario_balances)]
+
+    return jsonify({
+        'temporary_preview': True,
+        'labels': labels,
+        'baseline': {
+            'starting_balance': round(base_starting, 2),
+            'monthly_contribution': round(base_monthly, 2),
+            'balances': baseline_balances,
+        },
+        'scenario': {
+            'starting_balance': round(scenario_starting, 2),
+            'monthly_contribution': round(scenario_monthly, 2),
+            'balances': scenario_balances,
+            'delta_vs_baseline': delta_balances,
+            'config': {
+                'income_delta': round(income_delta, 2),
+                'expense_delta': round(expense_delta, 2),
+                'fx_shift_percent': round(fx_shift_percent, 2),
+                'one_off_adjustment': round(one_off_adjustment, 2),
+            },
+        },
+    })
+
+
+@api_bp.route('/day3/transactions/categorize', methods=['POST'])
+def day3_categorize_transaction():
+    payload = request.get_json(silent=True) or {}
+    description = str(payload.get('description') or '').strip()
+    amount = _to_float(payload.get('amount'), 0.0)
+    result = _infer_transaction_category(description, amount)
+    result.update({
+        'description': description,
+        'amount': amount,
+    })
+    return jsonify(result)
+
+
+@api_bp.route('/day3/sharing/validate', methods=['POST'])
+def day3_validate_sharing():
+    payload = request.get_json(silent=True) or {}
+    invites = payload.get('invites') or []
+    normalized = []
+    for raw_invite in invites:
+        invite = raw_invite or {}
+        email = str(invite.get('email') or '').strip().lower()
+        role = str(invite.get('role') or 'viewer').strip().lower()
+        visibility = str(invite.get('visibility') or 'all').strip().lower()
+        can_edit = bool(invite.get('canEdit', role in {'owner', 'editor'}))
+        if '@' not in email:
+            continue
+        if role not in ALLOWED_SHARE_ROLES:
+            role = 'viewer'
+        if visibility not in ALLOWED_VISIBILITY_SCOPES:
+            visibility = 'all'
+        normalized.append({
+            'email': email,
+            'role': role,
+            'visibility': visibility,
+            'canEdit': can_edit and role != 'viewer',
+        })
+    return jsonify({
+        'invites': normalized,
+        'count': len(normalized),
+    })
+
+
+@api_bp.route('/day3/import/parse', methods=['POST'])
+def day3_parse_import():
+    payload = request.get_json(silent=True) or {}
+    fmt = str(payload.get('format') or 'csv').strip().lower()
+    content = str(payload.get('content') or '')
+
+    if len(content) > 1_000_000:
+        return jsonify({'error': 'Import file too large (max 1MB).'}), 400
+
+    if fmt == 'csv':
+        transactions = _parse_csv_transactions(content)
+    elif fmt == 'mt940':
+        transactions = _parse_mt940_transactions(content)
+    else:
+        return jsonify({'error': f'Unsupported import format: {fmt}'}), 400
+
+    return jsonify({
+        'format': fmt,
+        'transactions': transactions[:1000],
+        'count': len(transactions),
+    })
+
+
+@api_bp.route('/day3/export', methods=['POST'])
+def day3_export_transactions():
+    payload = request.get_json(silent=True) or {}
+    export_format = str(payload.get('format') or 'csv').strip().lower()
+    transactions = payload.get('transactions') or []
+
+    normalized_rows = []
+    for tx in transactions:
+        row = tx or {}
+        normalized_rows.append({
+            'date': _sanitize_csv_cell(row.get('date') or ''),
+            'description': _sanitize_csv_cell(row.get('description') or ''),
+            'amount': _to_float(row.get('amount'), 0.0),
+            'currency': str(row.get('currency') or DEFAULT_CURRENCY).upper(),
+            'category': _sanitize_csv_cell(row.get('category') or ''),
+            'tags': _sanitize_csv_cell(','.join([str(tag) for tag in (row.get('smart_tags') or [])][:8])),
+        })
+
+    if export_format == 'json':
+        return jsonify({
+            'format': 'json',
+            'filename': 'crewwealth-export.json',
+            'mimeType': 'application/json',
+            'rows': normalized_rows,
+            'count': len(normalized_rows),
+        })
+
+    if export_format != 'csv':
+        return jsonify({'error': f'Unsupported export format: {export_format}'}), 400
+
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=['date', 'description', 'amount', 'currency', 'category', 'tags'])
+    writer.writeheader()
+    writer.writerows(normalized_rows)
+    return jsonify({
+        'format': 'csv',
+        'filename': 'crewwealth-export.csv',
+        'mimeType': 'text/csv',
+        'content': output.getvalue(),
+        'count': len(normalized_rows),
+    })
+
+
+@api_bp.route('/day3/presets/validate', methods=['POST'])
+def day3_validate_presets():
+    payload = request.get_json(silent=True) or {}
+    favorite_currency = str(payload.get('favoriteCurrency') or DEFAULT_CURRENCY).upper()
+    report_preset = str(payload.get('reportPreset') or 'monthly').lower()
+    if favorite_currency not in SUPPORTED_CURRENCIES:
+        favorite_currency = DEFAULT_CURRENCY
+    if report_preset not in DEFAULT_REPORT_PRESETS:
+        report_preset = 'monthly'
+    return jsonify({
+        'favoriteCurrency': favorite_currency,
+        'reportPreset': report_preset,
     })

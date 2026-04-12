@@ -81,6 +81,11 @@ def fx_center():
     """Advanced FX settings page"""
     return render_template('fx.html')
 
+@main_bp.route('/day3')
+def day3_center():
+    """Day 3 integrated collaboration and forecasting page"""
+    return render_template('day3.html')
+
 @main_bp.route('/migrate-goals')
 def migrate_goals():
     """Goals Migration page"""
