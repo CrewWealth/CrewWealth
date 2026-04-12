@@ -3,7 +3,6 @@ import math
 import requests
 import csv
 import io
-import re
 from flask import Blueprint, jsonify, request, current_app
 from functools import wraps
 from datetime import datetime, timezone
@@ -15,6 +14,7 @@ SUPPORTED_CURRENCIES = ['EUR', 'USD', 'GBP', 'PHP', 'IDR']
 DEFAULT_CURRENCY = 'EUR'
 DEFAULT_FX_FALLBACK_RATE = 1.0
 PUBLIC_FX_API_BASE_URL = 'https://open.er-api.com/v6/latest/'
+MAX_IMPORT_FILE_SIZE = 1_000_000
 
 logger = logging.getLogger(__name__)
 
@@ -176,9 +176,9 @@ def _infer_transaction_category(description, amount):
                 chosen_category = category
     smart_tags = sorted(set(matches))
     if amount_num < 0:
-        smart_tags.append('refund')
+        smart_tags.append('incoming')
     elif amount_num > 0:
-        smart_tags.append('expense')
+        smart_tags.append('outgoing')
 
     if chosen_category == 'Uncategorized' and amount_num < 0:
         chosen_category = 'Income'
@@ -187,7 +187,7 @@ def _infer_transaction_category(description, amount):
         'category': chosen_category,
         'confidence': round(confidence, 2),
         'smart_tags': smart_tags[:8],
-        'matched_keywords': smart_tags,
+        'matched_keywords': matches,
     }
 
 
@@ -220,8 +220,14 @@ def _parse_mt940_transactions(content):
             payload = line[4:]
             date_raw = payload[:6]
             dc_mark = payload[6:7].upper()
-            amount_match = re.search(r'([0-9]+,[0-9]{0,2})', payload)
-            amount = _to_float((amount_match.group(1) if amount_match else '0').replace(',', '.'), 0.0)
+            amount_chars = []
+            for char in payload[7:]:
+                if char.isdigit() or char == ',':
+                    amount_chars.append(char)
+                    continue
+                if amount_chars:
+                    break
+            amount = _to_float(''.join(amount_chars).replace(',', '.'), 0.0)
             if dc_mark == 'D':
                 amount = abs(amount)
             elif dc_mark == 'C':
@@ -659,7 +665,7 @@ def day3_parse_import():
     fmt = str(payload.get('format') or 'csv').strip().lower()
     content = str(payload.get('content') or '')
 
-    if len(content) > 1_000_000:
+    if len(content) > MAX_IMPORT_FILE_SIZE:
         return jsonify({'error': 'Import file too large (max 1MB).'}), 400
 
     if fmt == 'csv':
