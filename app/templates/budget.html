@@ -1799,7 +1799,7 @@
         let userFxRates = {};
         let realtimeUnsubscribers = [];
         let realtimeRefreshTimer = null;
-        const GHOST_TRANSACTION_CLEANUP_VERSION = 'v1';
+        const GHOST_TRANSACTION_CLEANUP_VERSION = 'v2';
         const LEGACY_TRANSACTION_STORAGE_HINTS = ['transaction', 'recenttx', 'budgettx'];
         // Short debounce to collapse bursty Firestore updates from imports/batch writes.
         // A REALTIME_REFRESH_DEBOUNCE_MS delay keeps UI responsive while avoiding duplicate renders on batched writes.
@@ -1992,8 +1992,12 @@
             try {
                 return await queryRef.get({ source: 'server' });
             } catch (error) {
-                console.warn(`⚠️ Falling back to default Firestore source for ${label}:`, error);
-                return queryRef.get();
+                const fallbackSnapshot = await queryRef.get();
+                if (fallbackSnapshot.metadata && fallbackSnapshot.metadata.fromCache) {
+                    throw error;
+                }
+                console.warn(`⚠️ Server source unavailable for ${label}; using non-cache fallback.`);
+                return fallbackSnapshot;
             }
         }
 

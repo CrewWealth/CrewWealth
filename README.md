@@ -79,3 +79,33 @@ users/{userId}/transactions/{transactionId}
 ```
 
 Net als `accounts` en `fxRateHistory` staat `transactions` dus direct onder `users/{userId}` en is deze collectie in de Firebase Console direct CRUD-baar (aanmaken, bekijken, bewerken, verwijderen).
+
+### Voorbeeld save/load logica
+
+```javascript
+const userRef = db.collection('users').doc(currentUser.uid);
+
+// Save
+const txRef = userRef.collection('transactions').doc();
+await txRef.set({
+  type: 'payment',
+  amount: 60,
+  accountId: 'account123',
+  date: firebase.firestore.Timestamp.fromDate(new Date()),
+  createdAt: firebase.firestore.Timestamp.now()
+});
+
+// Load
+const txSnapshot = await userRef
+  .collection('transactions')
+  .orderBy('date', 'desc')
+  .get({ source: 'server' });
+```
+
+### Korte gebruikershandleiding: waar staan transacties nu?
+
+1. Log in op Firebase Console en open **Firestore Database**.
+2. Ga naar `users` → `<jouw userId>` → **transactions**.
+3. Elke transactie staat hier als los document (`transactionId`) met velden zoals `type`, `amount`, `accountId`, `date`.
+4. In CrewWealth worden dashboard, widgets en overzichten alleen gevuld vanuit deze subcollectie.
+5. Oude lokale “ghost” transacties worden opgeschoond en niet meer getoond als ze niet in Firestore staan.
