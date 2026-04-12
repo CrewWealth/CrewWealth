@@ -2133,6 +2133,13 @@
             return normalized;
         }
 
+        function getAccountCurrencyById(accountCurrencyById, accountId) {
+            if (accountCurrencyById instanceof Map) {
+                return accountCurrencyById.get(accountId);
+            }
+            return accountCurrencyById ? accountCurrencyById[accountId] : null;
+        }
+
         function updateMonthDisplay() {
             const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
                 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -2483,7 +2490,7 @@
                 })
                 .reduce((sum, t) => {
                     const amount = parseFloat(t.amount) || 0;
-                    const currency = currencyMap.get(t.accountId) || userLegacyCurrency || userCurrency || DEFAULT_CURRENCY;
+                    const currency = getAccountCurrencyById(currencyMap, t.accountId) || userLegacyCurrency || userCurrency || DEFAULT_CURRENCY;
                     const converted = convertToUserCurrency(amount, currency, missingPairs, usedPairs);
                     return sum + (converted === null ? 0 : converted);
                 }, 0);
@@ -2524,7 +2531,7 @@
                 })
                 .reduce((sum, t) => {
                     const amount = parseFloat(t.amount) || 0;
-                    const currency = accountCurrencyById.get(t.accountId) || userLegacyCurrency || userCurrency || DEFAULT_CURRENCY;
+                    const currency = getAccountCurrencyById(accountCurrencyById, t.accountId) || userLegacyCurrency || userCurrency || DEFAULT_CURRENCY;
                     const converted = convertToUserCurrency(amount, currency, missingPairs, usedPairs);
                     return sum + (converted === null ? 0 : converted);
                 }, 0);
@@ -3443,7 +3450,7 @@
             // Smart filtering based on selection
             let filteredTransactions;
             if (selectedAccountId === null) {
-                // All Accounts view: show expense/payment transactions (including uncategorized)
+                // All Accounts view: show payment transactions (normalized from expense/payment, including uncategorized)
                 filteredTransactions = transactions.filter(t =>
                     normalizeTransactionType(t.type) === 'payment'
                 );
@@ -3507,6 +3514,7 @@
                     const toAccount = accounts.find(a => a.id === tx.toAccountId);
                     description = tx.note || `Transfer to ${toAccount?.name || 'Unknown'}`;
                 } else {
+                    console.warn('⚠️ Unknown transaction type encountered:', tx.type);
                     icon = '📝';
                     amountClass = '';
                     description = tx.note || 'Transaction';

@@ -1686,9 +1686,13 @@
                 });
 
             // Transactions
+            const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+            const monthEnd = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0, 23, 59, 59);
             unsubscribeTransactions = db.collection('users')
                 .doc(currentUser.uid)
                 .collection('transactions')
+                .where('date', '>=', firebase.firestore.Timestamp.fromDate(monthStart))
+                .where('date', '<=', firebase.firestore.Timestamp.fromDate(monthEnd))
                 .onSnapshot(() => {
                     console.log('🔄 Transactions updated in real-time');
                     loadRecentTransactions();
@@ -1775,6 +1779,8 @@
             .collection('users')
             .doc(currentUser.uid)
             .collection('transactions')
+            .where('date', '>=', firebase.firestore.Timestamp.fromDate(monthStart))
+            .where('date', '<=', firebase.firestore.Timestamp.fromDate(monthEnd))
             .get();
 
         let totalSpent = 0;
@@ -1782,11 +1788,6 @@
 
         transactionsSnapshot.docs.forEach(doc => {
             const transaction = doc.data() || {};
-            const txDate = transaction.date?.toDate ? transaction.date.toDate() : new Date(transaction.date);
-            if (Number.isNaN(txDate.getTime()) || txDate < monthStart || txDate > monthEnd) {
-                return;
-            }
-
             const transactionType = normalizeTransactionType(transaction.type);
             const amount = Math.abs(parseFloat(transaction.amount) || 0);
             const txCurrency = accountCurrencyById[transaction.accountId] || window.userLegacyCurrency || window.userCurrency || DEFAULT_CURRENCY;
