@@ -19,13 +19,14 @@ These routes render HTML templates for the web application.
 | GET | `/goals` | Financial Goals page |
 | GET | `/reports` | Reports page |
 | GET | `/settings` | Settings page |
-| GET | `/guide` | Compact user guide page |
 | GET | `/migrate-goals` | Goals Migration page |
 | GET | `/login` | Login page |
 | GET | `/register` | Registration page |
 | GET | `/logout` | Redirects to `/login` |
 | GET | `/dashboard` | Redirects to `/` |
 | GET | `/income` | Redirects to `/` |
+
+The app guide/onboarding is now shown in-app from the Dashboard info icon (`ℹ️ App Guide`) next to the CrewWealth logo.
 
 ---
 
