@@ -69,3 +69,13 @@ Backend (Flask)
    - Controleer dat `Sync ready/Auto-sync active` status wijzigt na updates.
 6. Verifieer dat bestaande berekeningen ongewijzigd zijn:
    - `To Budget`, `Overspent`, `Budgeted`, `Total spent` blijven consistent met transacties.
+
+## Firestore structuur (transacties)
+
+Transacties worden opgeslagen als eigen subcollectie onder de gebruiker:
+
+```
+users/{userId}/transactions/{transactionId}
+```
+
+Net als `accounts` en `fxRateHistory` staat `transactions` dus direct onder `users/{userId}` en is deze collectie in de Firebase Console direct CRUD-baar (aanmaken, bekijken, bewerken, verwijderen).
