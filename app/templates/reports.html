@@ -570,18 +570,19 @@
                 // To Budget = On Budget Total - Total Budgeted
                 const toBudget = onBudgetTotal - totalBudgeted;
 
-                // Net Worth = Off Budget (Savings) + To Budget (Available)
-                const netWorth = offBudgetTotal + toBudget;
+                // Net Worth = total of all account balances (on + off budget)
+                const netWorth = offBudgetTotal + onBudgetTotal;
 
                 // Update UI
                 document.getElementById('netWorthValue').textContent = formatCurrency(netWorth);
                 document.getElementById('netWorthSubtitle').textContent = 
-                    formatCurrency(offBudgetTotal) + ' Savings + ' + formatCurrency(toBudget) + ' Available';
+                    formatCurrency(offBudgetTotal) + ' Savings + ' + formatCurrency(onBudgetTotal) + ' On budget cash';
                 renderReportsFxInfo();
 
                 console.log('✅ Net worth calculated:', {
                     netWorth,
                     savings: offBudgetTotal,
+                    onBudgetTotal,
                     available: toBudget
                 });
 
