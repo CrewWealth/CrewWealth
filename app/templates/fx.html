@@ -202,6 +202,8 @@
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.firestore();
+        const DAILY_REFRESH_THRESHOLD_MS = 24 * 60 * 60 * 1000;
+        const MAX_HISTORY_ENTRIES = 120;
         let currentUser = null;
         let pairDocsByKey = {};
 
@@ -467,7 +469,7 @@
                     .get();
                 const data = snap.exists ? (snap.data() || {}) : {};
                 const lastMs = Number(data.lastSuccessfulSyncAtMs || 0);
-                const stale = !isFinite(lastMs) || !lastMs || (Date.now() - lastMs > (24 * 60 * 60 * 1000));
+                const stale = !isFinite(lastMs) || !lastMs || (Date.now() - lastMs > DAILY_REFRESH_THRESHOLD_MS);
                 if (stale) {
                     await refreshAllAutoRates();
                     return;
@@ -535,7 +537,7 @@
                 const snapshot = await db.collection('users')
                     .doc(currentUser.uid)
                     .collection('fxRateHistory')
-                    .limit(120)
+                    .limit(MAX_HISTORY_ENTRIES)
                     .get();
                 const entries = snapshot.docs
                     .map(doc => ({ id: doc.id, ...(doc.data() || {}) }))
