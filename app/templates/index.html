@@ -1272,41 +1272,16 @@
             return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
         }
 
+        // Delegate to formatMoney() from the shared currency.js helper so that
+        // formatting stays consistent with the rest of the app and only the
+        // five supported currencies (EUR, USD, GBP, PHP, IDR) are handled.
         function formatCurrency(amount) {
-            const currencyConfig = {
-                'USD': { symbol: '$', decimals: 2 },
-                'EUR': { symbol: '€', decimals: 2 },
-                'GBP': { symbol: '£', decimals: 2 },
-                'PHP': { symbol: '₱', decimals: 2 },
-                'INR': { symbol: '₹', decimals: 2 },
-                'IDR': { symbol: 'Rp', decimals: 0 },
-                'SGD': { symbol: 'S$', decimals: 2 },
-                'NOK': { symbol: 'kr', decimals: 2 },
-                'AUD': { symbol: 'A$', decimals: 2 },
-                'CAD': { symbol: 'C$', decimals: 2 },
-                'JPY': { symbol: '¥', decimals: 0 }
-            };
-            
-            const currency = window.userCurrency || 'EUR';
-            const config = currencyConfig[currency] || currencyConfig['EUR'];
-            const formatted = (amount || 0).toFixed(config.decimals)
-                .replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-            
-            return config.symbol + formatted;
-        }
-
-        function getCurrencySymbol() {
-            const symbols = {
-                'EUR': '€', 'USD': '$', 'GBP': '£', 'PHP': '₱',
-                'INR': '₹', 'AUD': 'A$', 'CAD': 'C$', 'SGD': 'S$',
-                'NOK': 'kr', 'JPY': '¥'
-            };
-            return symbols[userCurrency] || '€';
+            return formatMoney(amount, window.userCurrency || DEFAULT_CURRENCY);
         }
 
         function updateCurrencyLabels() {
             document.querySelectorAll('.currency-symbol').forEach(el => {
-                el.textContent = getCurrencySymbol(window.userCurrency);
+                el.textContent = getCurrencySymbol(window.userCurrency || DEFAULT_CURRENCY);
             });
         }
 
