@@ -815,6 +815,7 @@
                 <a href="/budget">💳 Budget & Accounts</a>
                 <a href="/goals">🎯 Goals</a>
                 <a href="/reports">📊 Reports</a>
+                <a href="/fx">💱 FX Center</a>
                 <a href="/settings">⚙️ Settings</a>
             </nav>
 
@@ -838,7 +839,7 @@
                         <span class="divider">•</span>
                         <span id="toBudgetAmount"><span class="currency-symbol">€</span>0 Available</span>
                     </div>
-                    <div id="fxRateWarning" class="stat-subtitle" style="display:none;"></div>
+                    <div id="fxRateAsOfLabel" class="stat-subtitle" style="display:none;"></div>
                 </div>
             </div>
 
@@ -1267,6 +1268,7 @@
         window.userCurrency = 'EUR'; // global variable for currency
         window.userLegacyCurrency = 'EUR'; // legacy settings.currency fallback
         window.userFxRates = {};
+        window.fxRateAsOfLabel = '';
 
         // ============================================
         // CURRENCY FUNCTIONS
@@ -1306,29 +1308,16 @@
             excludedAmounts.set(key, current);
         }
 
-        function renderFxWarning(missingPairs, usedPairs, excludedAmounts) {
-            const warningEl = document.getElementById('fxRateWarning');
+        function renderFxWarning() {
+            const warningEl = document.getElementById('fxRateAsOfLabel');
             if (!warningEl) return;
-            const pairs = Array.from(missingPairs || []);
-            const excluded = Array.from((excludedAmounts || new Map()).values());
-            if (!pairs.length && !excluded.length) {
+            if (!window.fxRateAsOfLabel) {
                 warningEl.style.display = 'none';
                 warningEl.textContent = '';
                 return;
             }
             warningEl.style.display = 'block';
-            const notes = [];
-            if (pairs.length) {
-                notes.push(`Using fallback FX (${DEFAULT_FX_FALLBACK_RATE}) for: ${pairs.join(', ')}.`);
-            }
-            if (excluded.length) {
-                const excludedDetails = excluded
-                    .sort((a, b) => `${a.source}->${a.target}`.localeCompare(`${b.source}->${b.target}`))
-                    .map(item => `${item.source}->${item.target}: ${formatRecordCurrency(item.total, item.source)} (${item.count} item${item.count === 1 ? '' : 's'})`)
-                    .join('; ');
-                notes.push(`Fallback applied for: ${excludedDetails}.`);
-            }
-            warningEl.textContent = notes.join(' ');
+            warningEl.textContent = window.fxRateAsOfLabel;
         }
 
         function getAccountCurrency(account) {
@@ -1363,6 +1352,7 @@
         async function loadUserFxRates() {
             if (!currentUser) return {};
             const rates = {};
+            let latestRateTs = 0;
             try {
                 const fxSnapshot = await db.collection('users')
                     .doc(currentUser.uid)
@@ -1375,6 +1365,11 @@
                     const rate = Number(data.rate);
                     if (!base || !quote || !isFinite(rate) || rate <= 0) return;
                     rates[buildFxPairKey(base, quote)] = rate;
+                    const updatedAtMs = Number(data.updatedAtMs || 0);
+                    if (isFinite(updatedAtMs) && updatedAtMs > latestRateTs) latestRateTs = updatedAtMs;
+                    if (data.updatedAt && typeof data.updatedAt.toMillis === 'function') {
+                        latestRateTs = Math.max(latestRateTs, data.updatedAt.toMillis());
+                    }
                 });
             } catch (error) {
                 console.warn('⚠️ Could not load FX rates:', error);
@@ -1390,7 +1385,37 @@
                 // Ignore public FX API failures; shared helper fallback remains active.
             }
             window.userFxRates = rates;
+            if (latestRateTs > 0) {
+                window.fxRateAsOfLabel = `Rate as of ${new Date(latestRateTs).toLocaleString()}`;
+            } else {
+                window.fxRateAsOfLabel = '';
+            }
+            renderFxWarning();
             return rates;
+        }
+
+        async function loadFxStatusMeta() {
+            if (!currentUser) return;
+            try {
+                const statusDoc = await db.collection('users')
+                    .doc(currentUser.uid)
+                    .collection('fxStatus')
+                    .doc('current')
+                    .get();
+                if (!statusDoc.exists) return;
+                const data = statusDoc.data() || {};
+                const raw = data.lastSuccessfulSyncAtMs
+                    || (data.lastSuccessfulSyncAt && typeof data.lastSuccessfulSyncAt.toMillis === 'function'
+                        ? data.lastSuccessfulSyncAt.toMillis()
+                        : null);
+                const asOfTs = Number(raw);
+                if (isFinite(asOfTs) && asOfTs > 0) {
+                    window.fxRateAsOfLabel = `Rate as of ${new Date(asOfTs).toLocaleString()}`;
+                    renderFxWarning();
+                }
+            } catch (error) {
+                console.warn('Could not load FX status metadata:', error);
+            }
         }
 
         function convertToBaseCurrency(amount, fromCurrency, missingPairs, usedPairs, excludedAmounts) {
@@ -1450,6 +1475,7 @@
             // Load user settings first
             await loadUserSettings();
             await loadUserFxRates();
+            await loadFxStatusMeta();
 
             // Update greeting
             const firstName = user.displayName 

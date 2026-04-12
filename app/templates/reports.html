@@ -205,6 +205,7 @@
 <body>
     <div class="container">
         <a href="/" class="nav-back">← Back to Dashboard</a>
+        <a href="/fx" class="nav-back" style="margin-left: 8px;">💱 FX Center</a>
         <h1>📊 Reports</h1>
         
         <div id="loadingState" class="loading">
@@ -232,6 +233,11 @@
                     <div class="report-value" id="totalSpendingValue">€0.00</div>
                     <div class="report-subtitle">This month</div>
                 </div>
+            </div>
+            <div style="margin-bottom: 16px;">
+                <button onclick="exportReportsWithFxInfo()" style="background: #208089; color: #fff; border: 0; border-radius: 8px; padding: 10px 14px; font-weight: 600; cursor: pointer;">
+                    Export report + FX info
+                </button>
             </div>
            
             <section class="card">
@@ -303,6 +309,7 @@
         let userCurrency = 'EUR'; // global variable for currency
         let userLegacyCurrency = 'EUR';
         let userFxRates = {};
+        let fxAsOfText = '';
 
         // ============================================
         // CURRENCY FUNCTIONS
@@ -359,34 +366,22 @@
             excludedAmounts.set(key, current);
         }
 
-        function renderReportsFxInfo(missingPairs, usedPairs, excludedAmounts) {
+        function renderReportsFxInfo() {
             const infoEl = document.getElementById('reportsFxRateInfo');
             if (!infoEl) return;
-            const missing = Array.from(missingPairs || []);
-            const excluded = Array.from((excludedAmounts || new Map()).values());
-            if (!missing.length && !excluded.length) {
+            if (!fxAsOfText) {
                 infoEl.style.display = 'none';
                 infoEl.textContent = '';
                 return;
             }
-            const notes = [];
-            if (missing.length) {
-                notes.push(`Using fallback FX (${DEFAULT_FX_FALLBACK_RATE}) for: ${missing.join(', ')}.`);
-            }
-            if (excluded.length) {
-                const excludedDetails = excluded
-                    .sort((a, b) => `${a.source}->${a.target}`.localeCompare(`${b.source}->${b.target}`))
-                    .map(item => `${item.source}->${item.target}: ${formatMoney(item.total, item.source)} ${item.source} (${item.count} item${item.count === 1 ? '' : 's'})`)
-                    .join('; ');
-                notes.push(`Fallback applied for: ${excludedDetails}.`);
-            }
             infoEl.style.display = 'block';
-            infoEl.textContent = notes.join(' ');
+            infoEl.textContent = fxAsOfText;
         }
 
         async function loadUserFxRates() {
             if (!currentUser) return {};
             const rates = {};
+            let latestRateTs = 0;
             try {
                 const fxSnapshot = await db.collection('users')
                     .doc(currentUser.uid)
@@ -399,6 +394,11 @@
                     const rate = Number(data.rate);
                     if (!base || !quote || !isFinite(rate) || rate <= 0) return;
                     rates[buildFxPairKey(base, quote)] = rate;
+                    const updatedAtMs = Number(data.updatedAtMs || 0);
+                    if (isFinite(updatedAtMs) && updatedAtMs > latestRateTs) latestRateTs = updatedAtMs;
+                    if (data.updatedAt && typeof data.updatedAt.toMillis === 'function') {
+                        latestRateTs = Math.max(latestRateTs, data.updatedAt.toMillis());
+                    }
                 });
             } catch (error) {
                 console.warn('⚠️ Could not load FX rates:', error);
@@ -414,7 +414,35 @@
                 // Ignore public FX API failures; shared helper fallback remains active.
             }
             userFxRates = rates;
+            if (latestRateTs > 0) {
+                fxAsOfText = `Rate as of ${new Date(latestRateTs).toLocaleString()}`;
+            }
+            renderReportsFxInfo();
             return rates;
+        }
+
+        async function loadFxStatusMeta() {
+            if (!currentUser) return;
+            try {
+                const statusDoc = await db.collection('users')
+                    .doc(currentUser.uid)
+                    .collection('fxStatus')
+                    .doc('current')
+                    .get();
+                if (!statusDoc.exists) return;
+                const data = statusDoc.data() || {};
+                const raw = data.lastSuccessfulSyncAtMs
+                    || (data.lastSuccessfulSyncAt && typeof data.lastSuccessfulSyncAt.toMillis === 'function'
+                        ? data.lastSuccessfulSyncAt.toMillis()
+                        : null);
+                const asOfTs = Number(raw);
+                if (isFinite(asOfTs) && asOfTs > 0) {
+                    fxAsOfText = `Rate as of ${new Date(asOfTs).toLocaleString()}`;
+                    renderReportsFxInfo();
+                }
+            } catch (error) {
+                console.warn('Could not load FX status metadata:', error);
+            }
         }
 
         function convertToUserCurrency(amount, fromCurrency, missingPairs, usedPairs, excludedAmounts) {
@@ -459,6 +487,7 @@
             currentUser = user;
             await loadUserSettings();
             await loadUserFxRates();
+            await loadFxStatusMeta();
             await loadReportsData();
         });
 
@@ -548,7 +577,7 @@
                 document.getElementById('netWorthValue').textContent = formatCurrency(netWorth);
                 document.getElementById('netWorthSubtitle').textContent = 
                     formatCurrency(offBudgetTotal) + ' Savings + ' + formatCurrency(toBudget) + ' Available';
-                renderReportsFxInfo(missingPairs, usedPairs, excludedAmounts);
+                renderReportsFxInfo();
 
                 console.log('✅ Net worth calculated:', {
                     netWorth,
@@ -608,7 +637,7 @@
 
                 document.getElementById('totalIncomeValue').textContent = formatCurrency(totalIncome);
                 document.getElementById('totalSpendingValue').textContent = formatCurrency(totalSpending);
-                renderReportsFxInfo(missingPairs, usedPairs, excludedAmounts);
+                renderReportsFxInfo();
 
                 // Load projection from backend API (token-authenticated)
                 await loadProjectionFromAPI();
@@ -653,7 +682,7 @@
                     }
                 }
                 if (Array.isArray(data.missing_fx_pairs) && data.missing_fx_pairs.length) {
-                    renderReportsFxInfo(new Set(data.missing_fx_pairs), null);
+                    renderReportsFxInfo();
                 }
 
                 // Resolve monthly contribution: backend returns monthly_contribution;
@@ -851,7 +880,29 @@
             return `${year}-${month}`;
 
             
-        }    
+        }
+
+        window.exportReportsWithFxInfo = async function() {
+            if (!currentUser) return;
+            const payload = {
+                exportedAt: new Date().toISOString(),
+                currency: userCurrency || DEFAULT_CURRENCY,
+                fxRateAsOf: fxAsOfText || null,
+                netWorth: document.getElementById('netWorthValue')?.textContent || null,
+                totalIncome: document.getElementById('totalIncomeValue')?.textContent || null,
+                totalSpending: document.getElementById('totalSpendingValue')?.textContent || null,
+                rates: userFxRates || {}
+            };
+            const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `crewwealth-report-fx-${new Date().toISOString().slice(0, 10)}.json`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+        };
         
 </script>
 

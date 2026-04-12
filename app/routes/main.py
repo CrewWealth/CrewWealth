@@ -76,6 +76,11 @@ def settings():
     """Settings page"""
     return render_template('settings.html')
 
+@main_bp.route('/fx')
+def fx_center():
+    """Advanced FX settings page"""
+    return render_template('fx.html')
+
 @main_bp.route('/migrate-goals')
 def migrate_goals():
     """Goals Migration page"""

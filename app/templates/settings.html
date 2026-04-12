@@ -219,6 +219,9 @@
             <div class="currency-info">
                 ℹ️ CrewWealth automatically fetches the latest FX rates from a public API. You can override any pair below.
             </div>
+            <div class="currency-info" style="margin-top: 8px; background: #f8fafc; border-color: #cbd5e1; color: #334155;">
+                Advanced FX options (history, audit trail, daily auto-sync, auto vs fixed mode) are available in <a href="/fx" style="color:#1d4ed8; font-weight:600;">FX Center</a>.
+            </div>
             <div class="fx-rate-grid" style="margin-top: 16px;">
                 <div class="form-group" style="margin-bottom: 0;">
                     <label for="fxBaseCurrency">From</label>
@@ -367,7 +370,7 @@
                         const quote = String(data.quote || '').toUpperCase();
                         const rate = Number(data.rate);
                         if (!base || !quote || !isFinite(rate) || rate <= 0) return null;
-                        return { base, quote, rate };
+                        return { base, quote, rate, mode: data.mode || 'fixed', source: data.source || 'manual' };
                     })
                     .filter(Boolean)
                     .sort((a, b) => `${a.base}->${a.quote}`.localeCompare(`${b.base}->${b.quote}`));
@@ -378,7 +381,7 @@
                 }
 
                 listEl.innerHTML = items
-                    .map(item => `<div class="fx-rate-item">${item.base} → ${item.quote}: ${item.rate}</div>`)
+                    .map(item => `<div class="fx-rate-item">${item.base} → ${item.quote}: ${item.rate} <span style="color:#64748b;">(${item.mode}, ${item.source})</span></div>`)
                     .join('');
             } catch (error) {
                 console.error('Error loading manual FX rates:', error);
@@ -469,8 +472,25 @@
                         base,
                         quote,
                         rate,
-                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                        source: 'manual',
+                        mode: 'fixed',
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        updatedAtMs: Date.now()
                     }, { merge: true });
+
+                await db.collection('users')
+                    .doc(currentUser.uid)
+                    .collection('fxRateHistory')
+                    .add({
+                        pairKey: `${base}_${quote}`,
+                        base,
+                        quote,
+                        rate,
+                        source: 'manual',
+                        mode: 'fixed',
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        updatedAtMs: Date.now()
+                    });
 
                 successEl.style.display = 'block';
                 setTimeout(() => { successEl.style.display = 'none'; }, 3000);
