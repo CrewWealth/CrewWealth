@@ -235,7 +235,6 @@ def _get_projection_inner(uid):
                     raw_monthly_currency = (
                         settings.get('monthlySavingsCurrency')
                         or legacy_currency
-                        or base_currency
                     ).upper()
                     if raw_monthly_currency in SUPPORTED_CURRENCIES:
                         manual_monthly_savings_currency = raw_monthly_currency

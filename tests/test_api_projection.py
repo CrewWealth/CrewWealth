@@ -62,7 +62,7 @@ def _call_projection_inner(api_module, uid, mock_db, accounts, transactions,
     if user_settings is not None:
         user_doc = _make_user_doc(user_settings)
         if user_base_currency is not None:
-            user_data = user_doc.to_dict.return_value
+            user_data = user_doc.to_dict()
             user_data['baseCurrency'] = user_base_currency
             user_doc.to_dict.return_value = user_data
     else:
