@@ -197,6 +197,12 @@
             gap: var(--spacing-md);
         }
 
+        .top-bar-right {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+
         .back-btn {
             padding: var(--spacing-sm) var(--spacing-md);
             background: rgba(32, 128, 137, 0.1);
@@ -996,6 +1002,12 @@
                 width: 100%;
                 justify-content: space-between;
             }
+
+            .top-bar-right {
+                width: 100%;
+                justify-content: space-between;
+                flex-wrap: wrap;
+            }
             
             .page-title {
                 font-size: 20px;
@@ -1233,10 +1245,14 @@
                     <a href="/" class="back-btn">← Dashboard</a>
                     <h1 class="page-title">Budget</h1>
                 </div>
-                <div class="month-selector">
-                    <button class="month-btn" onclick="changeMonth(-1)">◀</button>
-                    <div class="current-month" id="currentMonth">January 2026</div>
-                    <button class="month-btn" onclick="changeMonth(1)">▶</button>
+                <div class="top-bar-right">
+                    <div class="month-selector">
+                        <button class="month-btn" onclick="changeMonth(-1)">◀</button>
+                        <div class="current-month" id="currentMonth">January 2026</div>
+                        <button class="month-btn" onclick="changeMonth(1)">▶</button>
+                    </div>
+                    <a href="/reports?export=pdf" class="back-btn">📄 Export PDF</a>
+                    <a href="/guide" class="back-btn">📘 Guide</a>
                 </div>
             </div>
 

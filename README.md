@@ -56,6 +56,13 @@ Backend (Flask)
 - Via **Open Smart Tools** ga je direct naar import/scenario tools (Dag 3 pagina).
 - In Smart Tools kun je na parse nu **Apply to Budgets & Accounts** gebruiken (met target account), waarna Budgets & Accounts automatisch verversen; gebruik **Refresh now** als handmatige fallback.
 
+## Live polish toevoegingen
+
+- **PDF export**: via `Reports` kun je nu **Export complete PDF** gebruiken voor maand-/dashboardsamenvatting, accountoverzicht, projectie en volledige transactiehistorie.
+- **Snelle exportknoppen**: op Dashboard en Budget vind je een directe **Export PDF** snelkoppeling.
+- **Eerste-login rondleiding**: nieuwe gebruikers krijgen éénmalig een interactieve tour; via **ℹ️ Rondleiding** op Dashboard kan deze altijd handmatig opnieuw gestart worden.
+- **Handleidingpagina**: compacte gebruikershandleiding beschikbaar op `/guide`.
+
 ## Testinstructie
 
 1. Open `/budget` en controleer of KPI’s bovenaan direct zichtbaar zijn.
