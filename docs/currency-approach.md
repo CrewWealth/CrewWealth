@@ -228,7 +228,7 @@ These will be addressed in subsequent days of the multi-currency rollout.
 
 ### What changed
 
-1. **New Day 3 Center page (`/day3`)**
+1. **New Smart Tools Hub (Day 3) page (`/day3`)**
    - Subtle dedicated workspace so advanced features do not clutter the dashboard.
    - Quick links added from Dashboard, FX Center and Settings.
 
@@ -250,7 +250,7 @@ These will be addressed in subsequent days of the multi-currency rollout.
 5. **Import/export integrations**
    - New API: `POST /api/day3/import/parse` for CSV and MT940 parsing.
    - New API: `POST /api/day3/export` for CSV/JSON export payload generation.
-   - Preview table in Day 3 Center for quick validation before export.
+   - Preview table in Smart Tools Hub for quick validation before export.
 
 6. **Mobile/UX polish**
    - Mobile-friendly responsive layout for all Day 3 cards.
@@ -259,7 +259,7 @@ These will be addressed in subsequent days of the multi-currency rollout.
 
 ### Day 3 quick test checklist
 
-1. Open **Day 3 Center** (`/day3`) on desktop and mobile widths:
+1. Open **Smart Tools Hub** (`/day3`) on desktop and mobile widths:
    - Verify layout remains readable and cards stack cleanly.
 2. Add a sharing invite with role/visibility:
    - Verify invite appears in member list and can be removed.
@@ -278,3 +278,17 @@ These will be addressed in subsequent days of the multi-currency rollout.
    - Undo should remove the newly created transaction.
 7. Save personal presets:
    - Favorite currency + report preset persist after page reload.
+
+### Day 3 evaluation (current state)
+
+- **Feature summary (present now):**
+  - Multi-user/sharing validation + UI invite workflow with undo.
+  - Scenario forecasting API + temporary active/inactive preview flow.
+  - Smart categorization API + smart-tag preset support.
+  - Import/export APIs (CSV + MT940 parse, CSV/JSON export) with UI preview.
+  - Mobile polish (responsive cards + quick input) and UX tutoring extras (quick start, undo, presets).
+- **Potential Day 3 expansions (optional, not blockers):**
+  - More granular permission roles for sharing and deeper visibility subsets.
+  - Richer scenario charting/comparison history for multiple saved previews.
+  - Additional direct banking connectors beyond file-based import formats.
+- **Go/no-go for Day 4:** **Go** — Day 3 scope is delivered, integrated, and testable.
