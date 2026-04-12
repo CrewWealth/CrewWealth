@@ -1270,6 +1270,7 @@
         window.userLegacyCurrency = 'EUR'; // legacy settings.currency fallback
         window.userFxRates = {};
         window.fxRateAsOfLabel = '';
+        const GHOST_TRANSACTION_CLEANUP_VERSION = 'v1';
 
         // ============================================
         // CURRENCY FUNCTIONS
@@ -1472,6 +1473,7 @@
 
             console.log('✅ User authenticated:', user.email);
             currentUser = user;
+            runGhostTransactionCleanupMigration(user.uid);
 
             // Load user settings first
             await loadUserSettings();
@@ -1632,6 +1634,47 @@
             return normalized;
         }
 
+        function isLegacyTransactionStorageKey(key, userId) {
+            const normalizedKey = String(key || '').toLowerCase();
+            if (!normalizedKey) return false;
+            const hasTransactionHint = normalizedKey.includes('transaction') || normalizedKey.includes('recenttx') || normalizedKey.includes('budgettx');
+            if (!hasTransactionHint) return false;
+            if (normalizedKey.includes('crewwealth') || normalizedKey.includes('cw_')) return true;
+            if (normalizedKey.startsWith('transactions') || normalizedKey.startsWith('recenttransactions')) return true;
+            return !!userId && normalizedKey.includes(String(userId).toLowerCase());
+        }
+
+        function purgeLegacyTransactionStorage(storage, userId) {
+            if (!storage) return 0;
+            let removed = 0;
+            for (let i = storage.length - 1; i >= 0; i--) {
+                const key = storage.key(i);
+                if (!isLegacyTransactionStorageKey(key, userId)) continue;
+                storage.removeItem(key);
+                removed += 1;
+            }
+            return removed;
+        }
+
+        function runGhostTransactionCleanupMigration(userId) {
+            if (!userId || !window.localStorage) return;
+            const markerKey = `cw_ghost_transaction_cleanup_${GHOST_TRANSACTION_CLEANUP_VERSION}_${userId}`;
+            if (window.localStorage.getItem(markerKey)) return;
+            const removedFromLocal = purgeLegacyTransactionStorage(window.localStorage, userId);
+            const removedFromSession = purgeLegacyTransactionStorage(window.sessionStorage, userId);
+            window.localStorage.setItem(markerKey, new Date().toISOString());
+            console.log(`🧹 Ghost transaction cleanup completed (${removedFromLocal + removedFromSession} local keys removed)`);
+        }
+
+        async function getFirestoreSnapshotFromServer(queryRef, label) {
+            try {
+                return await queryRef.get({ source: 'server' });
+            } catch (error) {
+                console.warn(`⚠️ Falling back to default Firestore source for ${label}:`, error);
+                return queryRef.get();
+            }
+        }
+
         // ============================================
         // DASHBOARD WIDGETS
         // ============================================
@@ -1776,13 +1819,15 @@
         // ================================
         // Transacties voor huidige maand
         // ================================
-        const transactionsSnapshot = await db
-            .collection('users')
-            .doc(currentUser.uid)
-            .collection('transactions')
-            .where('date', '>=', firebase.firestore.Timestamp.fromDate(monthStart))
-            .where('date', '<=', firebase.firestore.Timestamp.fromDate(monthEnd))
-            .get();
+        const transactionsSnapshot = await getFirestoreSnapshotFromServer(
+            db
+                .collection('users')
+                .doc(currentUser.uid)
+                .collection('transactions')
+                .where('date', '>=', firebase.firestore.Timestamp.fromDate(monthStart))
+                .where('date', '<=', firebase.firestore.Timestamp.fromDate(monthEnd)),
+            'month overview transactions'
+        );
 
         let totalSpent = 0;
         let totalIncome = 0;
@@ -1868,12 +1913,14 @@
                     accountCurrencyById[doc.id] = getAccountCurrency(account);
                 });
 
-                const transactionsSnapshot = await db.collection('users')
-                    .doc(currentUser.uid)
-                    .collection('transactions')
-                    .orderBy('date', 'desc')
-                    .limit(7)
-                    .get();
+                const transactionsSnapshot = await getFirestoreSnapshotFromServer(
+                    db.collection('users')
+                        .doc(currentUser.uid)
+                        .collection('transactions')
+                        .orderBy('date', 'desc')
+                        .limit(7),
+                    'recent transactions'
+                );
 
                 const container = document.getElementById('recentTransactionsContent');
                 
