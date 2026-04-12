@@ -1287,12 +1287,32 @@
             return `${formatMoney(amount, code)} ${code}`;
         }
 
-        function renderFxWarning(missingPairs, usedPairs) {
+        function recordFxExclusion(excludedAmounts, fromCurrency, toCurrency, rawAmount) {
+            if (!excludedAmounts) return;
+            const source = (fromCurrency || DEFAULT_CURRENCY).toUpperCase();
+            const target = (toCurrency || DEFAULT_CURRENCY).toUpperCase();
+            if (source === target) return;
+            const amount = Number(rawAmount);
+            if (!isFinite(amount)) return;
+            const key = `${source}->${target}`;
+            const current = excludedAmounts.get(key) || {
+                source,
+                target,
+                total: 0,
+                count: 0
+            };
+            current.total += amount;
+            current.count += 1;
+            excludedAmounts.set(key, current);
+        }
+
+        function renderFxWarning(missingPairs, usedPairs, excludedAmounts) {
             const warningEl = document.getElementById('fxRateWarning');
             if (!warningEl) return;
             const pairs = Array.from(missingPairs || []);
             const used = Array.from(usedPairs || []);
-            if (!pairs.length && !used.length) {
+            const excluded = Array.from((excludedAmounts || new Map()).values());
+            if (!pairs.length && !used.length && !excluded.length) {
                 warningEl.style.display = 'none';
                 warningEl.textContent = '';
                 return;
@@ -1301,6 +1321,13 @@
             const notes = [];
             if (pairs.length) {
                 notes.push(`Missing FX rates for: ${pairs.join(', ')}. Totals exclude those amounts.`);
+            }
+            if (excluded.length) {
+                const excludedDetails = excluded
+                    .sort((a, b) => `${a.source}->${a.target}`.localeCompare(`${b.source}->${b.target}`))
+                    .map(item => `${item.source}->${item.target}: ${formatRecordCurrency(item.total, item.source)} (${item.count} item${item.count === 1 ? '' : 's'})`)
+                    .join('; ');
+                notes.push(`Excluded amounts: ${excludedDetails}.`);
             }
             if (used.length) {
                 notes.push(`Converted using FX: ${used.join(', ')}.`);
@@ -1360,7 +1387,7 @@
             return rates;
         }
 
-        function convertToBaseCurrency(amount, fromCurrency, missingPairs, usedPairs) {
+        function convertToBaseCurrency(amount, fromCurrency, missingPairs, usedPairs, excludedAmounts) {
             const sourceCurrency = (fromCurrency || window.userCurrency || DEFAULT_CURRENCY).toUpperCase();
             const targetCurrency = (window.userCurrency || DEFAULT_CURRENCY).toUpperCase();
             const converted = convertMoney(amount, sourceCurrency, targetCurrency, window.userFxRates || {});
@@ -1368,6 +1395,7 @@
                 if (missingPairs && sourceCurrency !== targetCurrency) {
                     missingPairs.add(`${sourceCurrency}->${targetCurrency}`);
                 }
+                recordFxExclusion(excludedAmounts, sourceCurrency, targetCurrency, amount);
                 return null;
             }
             if (usedPairs && sourceCurrency !== targetCurrency) {
@@ -1494,12 +1522,13 @@
                 let onBudgetTotal = 0;  // All on-budget money
                 const missingPairs = new Set();
                 const usedPairs = new Set();
+                const excludedAmounts = new Map();
                 
                 accountsSnapshot.docs.forEach(doc => {
                     const account = doc.data();
                     const balance = parseFloat(account.balance) || 0;
                     const accountCurrency = getAccountCurrency(account);
-                    const convertedBalance = convertToBaseCurrency(balance, accountCurrency, missingPairs, usedPairs);
+                    const convertedBalance = convertToBaseCurrency(balance, accountCurrency, missingPairs, usedPairs, excludedAmounts);
                     if (convertedBalance === null) return;
                     
                     if (account.offBudget) {
@@ -1525,7 +1554,7 @@
                     // Sum all budgeted amounts (excluding metadata fields)
                     totalBudgeted = Object.entries(budgets).reduce((sum, [key, val]) => {
                         if (key !== 'createdAt' && key !== 'updatedAt' && key !== '__currency') {
-                            const converted = convertToBaseCurrency(parseFloat(val) || 0, budgetCurrency, missingPairs, usedPairs);
+                            const converted = convertToBaseCurrency(parseFloat(val) || 0, budgetCurrency, missingPairs, usedPairs, excludedAmounts);
                             return sum + (converted === null ? 0 : converted);
                         }
                         return sum;
@@ -1542,7 +1571,7 @@
                 document.getElementById('netWorthAmount').textContent = formatCurrency(netWorth);
                 document.getElementById('savingsAmount').textContent = formatCurrency(offBudgetTotal) + ' Savings';
                 document.getElementById('toBudgetAmount').textContent = formatCurrency(toBudget) + ' Available';
-                renderFxWarning(missingPairs, usedPairs);
+                renderFxWarning(missingPairs, usedPairs, excludedAmounts);
 
                 console.log('✅ Net worth calculated:', {
                     netWorth,
@@ -1675,6 +1704,10 @@
             accountCurrencyById[doc.id] = getAccountCurrency(account);
         });
 
+        const missingPairs = new Set();
+        const usedPairs = new Set();
+        const excludedAmounts = new Map();
+
         // ================================
         // Budgets ophalen
         // ================================
@@ -1692,7 +1725,7 @@
             // Sum all budgeted amounts (excluding metadata fields)
             totalBudgeted = Object.entries(budgets).reduce((sum, [key, val]) => {
                 if (key !== 'createdAt' && key !== 'updatedAt' && key !== '__currency') {
-                    const converted = convertToBaseCurrency(parseFloat(val) || 0, budgetCurrency, missingPairs, usedPairs);
+                    const converted = convertToBaseCurrency(parseFloat(val) || 0, budgetCurrency, missingPairs, usedPairs, excludedAmounts);
                     return sum + (converted === null ? 0 : converted);
                 }
                 return sum;
@@ -1712,14 +1745,12 @@
 
         let totalSpent = 0;
         let totalIncome = 0;
-        const missingPairs = new Set();
-        const usedPairs = new Set();
 
         transactionsSnapshot.docs.forEach(doc => {
             const transaction = doc.data();
             const amount = Math.abs(parseFloat(transaction.amount) || 0);
             const txCurrency = accountCurrencyById[transaction.accountId] || window.userLegacyCurrency || window.userCurrency || DEFAULT_CURRENCY;
-            const convertedAmount = convertToBaseCurrency(amount, txCurrency, missingPairs, usedPairs);
+            const convertedAmount = convertToBaseCurrency(amount, txCurrency, missingPairs, usedPairs, excludedAmounts);
             if (convertedAmount === null) return;
 
             // Uitgaven
@@ -1756,7 +1787,7 @@
         if (rateEl) {
             rateEl.textContent = `${savingsRate.toFixed(1)}%`;
         }
-        renderFxWarning(missingPairs, usedPairs);
+        renderFxWarning(missingPairs, usedPairs, excludedAmounts);
 
         // ================================
         // Budget progress bar

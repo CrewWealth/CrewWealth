@@ -115,6 +115,40 @@ function resolveFxRate(fromCurrency, toCurrency, fxRates) {
         return 1 / inverse;
     }
 
+    // Fallback: try to find an indirect conversion path through known FX pairs.
+    // Example: EUR->GBP via EUR->USD and USD->GBP.
+    const adjacency = new Map();
+    Object.entries(rates).forEach(([pairKey, rawRate]) => {
+        const rate = Number(rawRate);
+        if (!isFinite(rate) || rate <= 0) return;
+        const parts = String(pairKey).split('_');
+        if (parts.length !== 2) return;
+        const [base, quote] = parts.map(code => String(code || '').toUpperCase());
+        if (!base || !quote) return;
+        if (!adjacency.has(base)) adjacency.set(base, []);
+        if (!adjacency.has(quote)) adjacency.set(quote, []);
+        adjacency.get(base).push({ to: quote, rate });
+        adjacency.get(quote).push({ to: base, rate: 1 / rate });
+    });
+
+    if (!adjacency.has(from) || !adjacency.has(to)) return null;
+
+    const queue = [{ currency: from, rate: 1 }];
+    const visited = new Set([from]);
+
+    while (queue.length > 0) {
+        const current = queue.shift();
+        if (!current || !adjacency.has(current.currency)) continue;
+        const neighbors = adjacency.get(current.currency) || [];
+        for (const neighbor of neighbors) {
+            if (!neighbor || visited.has(neighbor.to)) continue;
+            const nextRate = current.rate * neighbor.rate;
+            if (neighbor.to === to) return nextRate;
+            visited.add(neighbor.to);
+            queue.push({ currency: neighbor.to, rate: nextRate });
+        }
+    }
+
     return null;
 }
 

@@ -44,6 +44,43 @@ def _resolve_fx_rate(from_currency, to_currency, fx_rates):
     if isinstance(inverse, (int, float)) and inverse > 0:
         return 1.0 / float(inverse)
 
+    # Fallback: resolve through intermediate currencies when a complete direct
+    # pair is missing (e.g. EUR->GBP via EUR->USD and USD->GBP).
+    adjacency = {}
+    for pair_key, raw_rate in (fx_rates or {}).items():
+        try:
+            rate = float(raw_rate)
+        except (TypeError, ValueError):
+            continue
+        if not math.isfinite(rate) or rate <= 0:
+            continue
+        parts = str(pair_key).split('_')
+        if len(parts) != 2:
+            continue
+        base = (parts[0] or '').upper()
+        quote = (parts[1] or '').upper()
+        if not base or not quote:
+            continue
+        adjacency.setdefault(base, []).append((quote, rate))
+        adjacency.setdefault(quote, []).append((base, 1.0 / rate))
+
+    if source not in adjacency or target not in adjacency:
+        return None
+
+    queue = [(source, 1.0)]
+    visited = {source}
+
+    while queue:
+        currency, cumulative_rate = queue.pop(0)
+        for next_currency, edge_rate in adjacency.get(currency, []):
+            if next_currency in visited:
+                continue
+            next_rate = cumulative_rate * edge_rate
+            if next_currency == target:
+                return next_rate
+            visited.add(next_currency)
+            queue.append((next_currency, next_rate))
+
     return None
 
 

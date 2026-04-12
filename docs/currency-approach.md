@@ -84,26 +84,52 @@ users/{uid}/fxRates/{rateId}
 
 A rate of `USD → EUR = 0.92` means $1 = €0.92.
 
-Rates are directional: the backend always looks up `(account.currency → user.baseCurrency)`.
-If only the reverse direction is stored, the backend will **not** silently invert
-it; the user must enter the correct direction.
+Rates are directional, but conversion resolution supports:
+
+1. Direct pair (`EUR -> GBP`)
+2. Inverse pair (`GBP -> EUR` used as `1 / rate`)
+3. Indirect path over known rates (for example `EUR -> USD -> GBP`)
+
+If no valid path exists, that amount is excluded from totals and surfaced in the
+warning UI with the exact excluded amount and currency.
 
 ---
 
 ## Missing-Rate Warning Policy
 
-When a conversion is needed but no manual FX rate is available:
+When a conversion is needed but no valid FX path is available:
 
 - **Dashboard**: display a non-blocking inline warning
-  *"⚠ USD accounts excluded from total — add a FX rate in Settings"*  
-  next to the affected total.  The total is shown without those accounts rather
-  than using a wrong or zero-filled value.
+  including:
+  - missing FX pairs (for example `EUR->GBP`)
+  - excluded amounts per pair and source currency (for example
+    `EUR->GBP: €1200.00 EUR`)
+  - optional list of rates that were successfully used
+  
+  The total is shown without excluded amounts rather than using a wrong or
+  silent zero-filled value.
 
 - **Projection**: the affected accounts are excluded and a warning key
-  `missing_fx_currencies` is included in the JSON response so the frontend can
+  `missing_fx_pairs` is included in the JSON response so the frontend can
   render the same notice.
 
 - **Never**: silently return `0` or an incorrect sum when a rate is missing.
+
+---
+
+## Manual Test Steps (FX Missing/Partial Conversion)
+
+1. Create two accounts:
+   - `EUR` account balance `1200`
+   - `USD` account balance `100`
+2. Set user base currency to `GBP`.
+3. Add only one rate path for USD:
+   - either direct `USD->GBP`, or indirect (`USD->EUR` and `EUR->GBP`).
+4. Verify:
+   - totals include USD amount converted to GBP,
+   - EUR amount is excluded if no EUR->GBP path exists,
+   - warning shows both missing pair(s) and excluded amount(s),
+   - recent transaction rows keep original amount + original currency.
 
 ---
 
