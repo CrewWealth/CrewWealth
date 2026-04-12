@@ -9,9 +9,11 @@ currency_bp = Blueprint('currency', __name__, url_prefix='/api')
 def get_exchange_rates():
     """Fetch current exchange rates and return JSON"""
     base_currency = request.args.get('base', 'EUR').upper()  # Standaard naar 'EUR' voor de basis
+    if base_currency not in SUPPORTED_CURRENCIES:
+        base_currency = 'EUR'
     try:
         # Wisselkoersen ophalen
-        response = requests.get(f'https://api.exchangerate-api.com/v4/latest/{base_currency}', timeout=5)
+        response = requests.get(f'https://open.er-api.com/v6/latest/{base_currency}', timeout=5)
         response.raise_for_status()  # Controle op HTTP-statuscode
         data = response.json()
         
@@ -31,6 +33,8 @@ def get_exchange_rates():
         return jsonify({
             'success': True,
             'timestamp': datetime.now().isoformat(),
+            'source': 'open.er-api.com',
+            'fetchedAt': data.get('time_last_update_utc') or data.get('time_last_update_unix'),
             'base': base_currency,
             'rates': target_currencies
         })

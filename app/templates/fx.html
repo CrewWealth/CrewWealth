@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FX Center - CrewWealth</title>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="/static/js/currency.js"></script>
+    <style>
+        :root {
+            --color-primary: #208089;
+            --color-primary-hover: #1a6670;
+            --color-background: #fcfcf9;
+            --color-surface: #ffffff;
+            --color-text: #134252;
+            --color-text-secondary: #626c71;
+            --color-border: #e8e8e0;
+            --color-success: #22c55e;
+            --color-danger: #ef4444;
+            --color-info: #2563eb;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--color-background);
+            color: var(--color-text);
+            padding: 24px;
+        }
+        .container { max-width: 980px; margin: 0 auto; }
+        .nav-links { display: flex; gap: 12px; margin-bottom: 16px; }
+        .nav-link {
+            color: var(--color-primary);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        h1 { font-size: 30px; margin-bottom: 8px; }
+        .page-subtitle { color: var(--color-text-secondary); margin-bottom: 20px; font-size: 14px; }
+        .card {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+        .card h2 { font-size: 18px; margin-bottom: 12px; }
+        .onboarding {
+            border-left: 4px solid var(--color-info);
+            background: #eff6ff;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 14px;
+            display: none;
+        }
+        .status { font-size: 13px; color: var(--color-text-secondary); margin-bottom: 8px; }
+        .status.success { color: #166534; }
+        .status.error { color: #991b1b; }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 10px;
+            align-items: end;
+        }
+        label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 13px; }
+        select, input, button {
+            width: 100%;
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-size: 14px;
+            background: #fff;
+        }
+        button {
+            cursor: pointer;
+            background: var(--color-primary);
+            color: #fff;
+            border: 0;
+            font-weight: 600;
+        }
+        button:hover { background: var(--color-primary-hover); }
+        button.secondary {
+            background: #f8fafc;
+            color: var(--color-text);
+            border: 1px solid var(--color-border);
+        }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--color-border); }
+        th { color: var(--color-text-secondary); font-weight: 600; font-size: 12px; text-transform: uppercase; }
+        .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+        .tag {
+            display: inline-block;
+            border-radius: 999px;
+            font-size: 11px;
+            padding: 3px 8px;
+            background: #f1f5f9;
+            color: var(--color-text-secondary);
+        }
+        .tag.fixed { background: #ecfeff; color: #0f766e; }
+        .tag.auto { background: #eff6ff; color: #1d4ed8; }
+        .history-list { max-height: 260px; overflow-y: auto; }
+        .history-item { padding: 8px 0; border-bottom: 1px solid var(--color-border); font-size: 13px; }
+        .muted { color: var(--color-text-secondary); }
+        .inline { display: flex; gap: 8px; flex-wrap: wrap; }
+        .inline button { width: auto; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="nav-links">
+            <a class="nav-link" href="/">← Dashboard</a>
+            <a class="nav-link" href="/settings">⚙️ Settings</a>
+        </div>
+        <h1>💱 FX Center</h1>
+        <div class="page-subtitle">Advanced exchange-rate controls live here to keep main screens clean.</div>
+
+        <div id="fxOnboarding" class="onboarding">
+            <strong>Tip:</strong> keep pairs on <em>Auto</em> for daily updates, and use <em>Fixed</em> only when you want to lock a rate.
+            <div style="margin-top:8px;">
+                <button class="secondary" style="width:auto;" onclick="dismissOnboarding()">Got it</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>FX Sync</h2>
+            <div id="fxStatusMessage" class="status">Ready.</div>
+            <div class="inline" style="margin-bottom:8px;">
+                <button class="secondary" onclick="refreshAllAutoRates()">Refresh auto rates now</button>
+                <button class="secondary" onclick="tryDailyAutoSync()">Run daily check</button>
+            </div>
+            <div id="fxLastSyncMeta" class="muted" style="font-size:13px;"></div>
+        </div>
+
+        <div class="card">
+            <h2>Pair configuration</h2>
+            <div class="grid">
+                <div>
+                    <label for="pairBase">From</label>
+                    <select id="pairBase"></select>
+                </div>
+                <div>
+                    <label for="pairQuote">To</label>
+                    <select id="pairQuote"></select>
+                </div>
+                <div>
+                    <label for="pairMode">Mode</label>
+                    <select id="pairMode">
+                        <option value="auto">Auto rate</option>
+                        <option value="fixed">Fixed rate</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="pairRate">Fixed rate</label>
+                    <input id="pairRate" type="number" min="0.000001" step="0.000001" placeholder="e.g. 1.084500">
+                </div>
+            </div>
+            <div class="inline" style="margin-top:12px;">
+                <button onclick="savePairConfig()">Save pair</button>
+                <button class="secondary" onclick="refreshSinglePair()">Fetch rate for this pair</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Current FX pairs</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Pair</th>
+                        <th>Rate</th>
+                        <th>Mode</th>
+                        <th>Source</th>
+                        <th>Updated</th>
+                    </tr>
+                </thead>
+                <tbody id="pairsTableBody">
+                    <tr><td colspan="5" class="muted">No FX pairs saved yet.</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="card">
+            <h2>FX rate history / audit trail</h2>
+            <div class="muted" style="font-size:13px; margin-bottom:8px;">Includes both manual and automatic updates.</div>
+            <div class="history-list" id="historyList">
+                <div class="history-item muted">No history yet.</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyBccv9C4CpjZFeE2HGBKKfUiV9jUw8CZLo",
+            authDomain: "crewwealth-cbe02.firebaseapp.com",
+            projectId: "crewwealth-cbe02",
+            storageBucket: "crewwealth-cbe02.firebasestorage.app",
+            messagingSenderId: "852834158589",
+            appId: "1:852834158589:web:8201ed1d9327841773bb94"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        const DAILY_REFRESH_THRESHOLD_MS = 24 * 60 * 60 * 1000;
+        const MAX_HISTORY_ENTRIES = 120;
+        let currentUser = null;
+        let pairDocsByKey = {};
+
+        function toDate(raw) {
+            try {
+                if (!raw) return null;
+                if (typeof raw.toDate === 'function') return raw.toDate();
+                const maybeDate = new Date(raw);
+                return isNaN(maybeDate.getTime()) ? null : maybeDate;
+            } catch (_) {
+                return null;
+            }
+        }
+
+        function formatAsOf(raw) {
+            const dt = toDate(raw);
+            return dt ? dt.toLocaleString() : '—';
+        }
+
+        function pairKey(base, quote) {
+            return `${(base || '').toUpperCase()}_${(quote || '').toUpperCase()}`;
+        }
+
+        function escapeAttr(value) {
+            return String(value || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;');
+        }
+
+        function setStatus(message, kind = '') {
+            const el = document.getElementById('fxStatusMessage');
+            if (!el) return;
+            el.className = `status ${kind}`.trim();
+            el.textContent = message;
+        }
+
+        function dismissOnboarding() {
+            localStorage.setItem('cw_fx_onboarding_seen_v2', '1');
+            const box = document.getElementById('fxOnboarding');
+            if (box) box.style.display = 'none';
+        }
+        window.dismissOnboarding = dismissOnboarding;
+
+        function initializePairSelectors() {
+            const options = SUPPORTED_CURRENCIES.map(code => `<option value="${code}">${code}</option>`).join('');
+            document.getElementById('pairBase').innerHTML = options;
+            document.getElementById('pairQuote').innerHTML = options;
+            document.getElementById('pairQuote').value = 'USD';
+            document.getElementById('pairMode').addEventListener('change', updateRateFieldVisibility);
+            updateRateFieldVisibility();
+        }
+
+        function updateRateFieldVisibility() {
+            const mode = document.getElementById('pairMode').value;
+            const rateInput = document.getElementById('pairRate');
+            rateInput.disabled = mode !== 'fixed';
+            if (mode !== 'fixed') rateInput.value = '';
+        }
+
+        async function upsertRateAndHistory({ base, quote, rate, source, mode, apiSource }) {
+            const key = pairKey(base, quote);
+            const userRef = db.collection('users').doc(currentUser.uid);
+            const payload = {
+                base,
+                quote,
+                rate,
+                source,
+                mode,
+                apiSource: apiSource || null,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                updatedAtMs: Date.now()
+            };
+
+            await userRef.collection('fxRates').doc(key).set(payload, { merge: true });
+            await userRef.collection('fxRateHistory').add({
+                pairKey: key,
+                base,
+                quote,
+                rate,
+                source,
+                mode,
+                apiSource: apiSource || null,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                updatedAtMs: Date.now()
+            });
+        }
+
+        async function savePairConfig() {
+            if (!currentUser) return;
+            const base = String(document.getElementById('pairBase').value || '').toUpperCase();
+            const quote = String(document.getElementById('pairQuote').value || '').toUpperCase();
+            const mode = document.getElementById('pairMode').value;
+            const rawRate = Number(document.getElementById('pairRate').value);
+
+            if (!isValidCurrency(base) || !isValidCurrency(quote) || base === quote) {
+                setStatus('Select two different supported currencies.', 'error');
+                return;
+            }
+            if (mode === 'fixed' && (!isFinite(rawRate) || rawRate <= 0)) {
+                setStatus('Fixed mode requires a positive rate.', 'error');
+                return;
+            }
+
+            try {
+                if (mode === 'auto') {
+                    await refreshSinglePair();
+                    return;
+                }
+                await upsertRateAndHistory({
+                    base,
+                    quote,
+                    rate: rawRate,
+                    source: 'manual',
+                    mode: 'fixed',
+                    apiSource: null
+                });
+                setStatus(`Saved fixed rate for ${base}→${quote}.`, 'success');
+                await updateFxStatusDoc({ lastError: null });
+                await Promise.all([loadPairsTable(), loadHistory()]);
+            } catch (error) {
+                console.error('Error saving pair config:', error);
+                setStatus('Could not save pair config.', 'error');
+            }
+        }
+        window.savePairConfig = savePairConfig;
+
+        async function fetchApiRates(base) {
+            const response = await fetch(`/api/exchange-rates?base=${encodeURIComponent(base)}`);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const payload = await response.json();
+            if (!payload?.success || !payload?.rates) throw new Error('Invalid FX API payload');
+            return payload;
+        }
+
+        async function refreshSinglePair() {
+            if (!currentUser) return;
+            const base = String(document.getElementById('pairBase').value || '').toUpperCase();
+            const quote = String(document.getElementById('pairQuote').value || '').toUpperCase();
+            if (!isValidCurrency(base) || !isValidCurrency(quote) || base === quote) {
+                setStatus('Select two different supported currencies.', 'error');
+                return;
+            }
+            try {
+                const payload = await fetchApiRates(base);
+                const rate = Number(payload.rates?.[quote]);
+                if (!isFinite(rate) || rate <= 0) {
+                    throw new Error('Rate unavailable');
+                }
+                await upsertRateAndHistory({
+                    base,
+                    quote,
+                    rate,
+                    source: 'auto',
+                    mode: 'auto',
+                    apiSource: payload.source || 'exchange-rate-api'
+                });
+                await updateFxStatusDoc({
+                    lastError: null,
+                    lastSource: payload.source || 'exchange-rate-api'
+                });
+                setStatus(`Fetched ${base}→${quote} from API.`, 'success');
+                await Promise.all([loadPairsTable(), loadHistory(), loadFxStatusMeta()]);
+            } catch (error) {
+                console.warn('Single pair refresh failed; keeping last valid rate.', error);
+                await updateFxStatusDoc({ lastError: `API failed for ${base}` });
+                setStatus(`API failed for ${base}→${quote}. Kept last valid saved rate.`, 'error');
+                await loadFxStatusMeta();
+            }
+        }
+        window.refreshSinglePair = refreshSinglePair;
+
+        async function refreshAllAutoRates() {
+            if (!currentUser) return;
+            setStatus('Refreshing auto rates...', '');
+            const userRef = db.collection('users').doc(currentUser.uid);
+            try {
+                const existingSnapshot = await userRef.collection('fxRates').get();
+                pairDocsByKey = {};
+                existingSnapshot.docs.forEach(doc => {
+                    pairDocsByKey[doc.id] = doc.data() || {};
+                });
+
+                for (const base of SUPPORTED_CURRENCIES) {
+                    try {
+                        const payload = await fetchApiRates(base);
+                        for (const quote of SUPPORTED_CURRENCIES) {
+                            if (quote === base) continue;
+                            const key = pairKey(base, quote);
+                            const existing = pairDocsByKey[key] || {};
+                            if ((existing.mode || 'auto') === 'fixed') continue;
+                            const rate = Number(payload.rates?.[quote]);
+                            if (!isFinite(rate) || rate <= 0) continue;
+                            await upsertRateAndHistory({
+                                base,
+                                quote,
+                                rate,
+                                source: 'auto',
+                                mode: 'auto',
+                                apiSource: payload.source || 'exchange-rate-api'
+                            });
+                        }
+                    } catch (error) {
+                        console.warn(`Refresh failed for base ${base}; using previous saved rates.`, error);
+                    }
+                }
+
+                await updateFxStatusDoc({
+                    lastError: null,
+                    lastSource: 'exchange-rate-api'
+                });
+                setStatus('Auto rates refreshed. Fixed pairs were kept unchanged.', 'success');
+            } catch (error) {
+                console.error('Bulk refresh failed:', error);
+                await updateFxStatusDoc({ lastError: 'Bulk FX refresh failed' });
+                setStatus('FX API failed. Using last valid saved rates.', 'error');
+            }
+            await Promise.all([loadPairsTable(), loadHistory(), loadFxStatusMeta()]);
+        }
+        window.refreshAllAutoRates = refreshAllAutoRates;
+
+        async function updateFxStatusDoc({ lastError = null, lastSource = null }) {
+            if (!currentUser) return;
+            const payload = {
+                lastAttemptAt: firebase.firestore.FieldValue.serverTimestamp(),
+                lastAttemptAtMs: Date.now(),
+                lastSource: lastSource,
+                lastError: lastError
+            };
+            if (!lastError) {
+                payload.lastSuccessfulSyncAt = firebase.firestore.FieldValue.serverTimestamp();
+                payload.lastSuccessfulSyncAtMs = Date.now();
+            }
+            await db.collection('users')
+                .doc(currentUser.uid)
+                .collection('fxStatus')
+                .doc('current')
+                .set(payload, { merge: true });
+        }
+
+        async function loadFxStatusMeta() {
+            if (!currentUser) return;
+            try {
+                const snap = await db.collection('users')
+                    .doc(currentUser.uid)
+                    .collection('fxStatus')
+                    .doc('current')
+                    .get();
+                if (!snap.exists) {
+                    document.getElementById('fxLastSyncMeta').textContent = 'No sync info yet.';
+                    return;
+                }
+                const data = snap.data() || {};
+                const asOf = formatAsOf(data.lastSuccessfulSyncAt || data.lastSuccessfulSyncAtMs);
+                const src = data.lastSource || '—';
+                const err = data.lastError ? ` • Last issue: ${data.lastError}` : '';
+                document.getElementById('fxLastSyncMeta').textContent = `Rate as of ${asOf} • Source: ${src}${err}`;
+            } catch (error) {
+                console.error('Could not load FX status meta:', error);
+            }
+        }
+
+        async function tryDailyAutoSync() {
+            if (!currentUser) return;
+            try {
+                const snap = await db.collection('users')
+                    .doc(currentUser.uid)
+                    .collection('fxStatus')
+                    .doc('current')
+                    .get();
+                const data = snap.exists ? (snap.data() || {}) : {};
+                const lastMs = Number(data.lastSuccessfulSyncAtMs || 0);
+                const stale = !isFinite(lastMs) || !lastMs || (Date.now() - lastMs > DAILY_REFRESH_THRESHOLD_MS);
+                if (stale) {
+                    await refreshAllAutoRates();
+                    return;
+                }
+                setStatus('Daily check: rates are still fresh (<24h).', 'success');
+            } catch (error) {
+                console.error('Daily auto sync check failed:', error);
+            }
+            await loadFxStatusMeta();
+        }
+        window.tryDailyAutoSync = tryDailyAutoSync;
+
+        async function loadPairsTable() {
+            if (!currentUser) return;
+            const body = document.getElementById('pairsTableBody');
+            try {
+                const snapshot = await db.collection('users')
+                    .doc(currentUser.uid)
+                    .collection('fxRates')
+                    .get();
+                const rows = snapshot.docs
+                    .map(doc => ({ id: doc.id, ...(doc.data() || {}) }))
+                    .filter(item => isFinite(Number(item.rate)) && Number(item.rate) > 0)
+                    .sort((a, b) => String(a.id).localeCompare(String(b.id)));
+
+                if (!rows.length) {
+                    body.innerHTML = '<tr><td colspan="5" class="muted">No FX pairs saved yet.</td></tr>';
+                    return;
+                }
+
+                body.innerHTML = rows.map(row => {
+                    const base = isValidCurrency(row.base) ? row.base : '';
+                    const quote = isValidCurrency(row.quote) ? row.quote : '';
+                    if (!base || !quote) return '';
+                    const mode = (row.mode === 'fixed') ? 'fixed' : 'auto';
+                    const source = String(row.source || 'unknown');
+                    const updated = formatAsOf(row.updatedAt || row.updatedAtMs);
+                    return `<tr class="pair-row" data-base="${escapeAttr(base)}" data-quote="${escapeAttr(quote)}" data-mode="${mode}" data-rate="${Number(row.rate)}">
+                        <td class="mono">${base}→${quote}</td>
+                        <td>${Number(row.rate).toFixed(6)}</td>
+                        <td><span class="tag ${mode === 'fixed' ? 'fixed' : 'auto'}">${mode}</span></td>
+                        <td>${escapeAttr(source)}</td>
+                        <td>${updated}</td>
+                    </tr>`;
+                }).join('');
+                body.querySelectorAll('.pair-row').forEach(rowEl => {
+                    rowEl.addEventListener('click', () => {
+                        prefillPair(
+                            rowEl.dataset.base || '',
+                            rowEl.dataset.quote || '',
+                            rowEl.dataset.mode || 'auto',
+                            Number(rowEl.dataset.rate || 0)
+                        );
+                    });
+                });
+            } catch (error) {
+                console.error('Could not load pair table:', error);
+                body.innerHTML = '<tr><td colspan="5" class="muted">Could not load FX pairs.</td></tr>';
+            }
+        }
+
+        function prefillPair(base, quote, mode, rate) {
+            document.getElementById('pairBase').value = base;
+            document.getElementById('pairQuote').value = quote;
+            document.getElementById('pairMode').value = mode || 'auto';
+            updateRateFieldVisibility();
+            if ((mode || 'auto') === 'fixed') {
+                document.getElementById('pairRate').value = Number(rate || 0).toFixed(6);
+            }
+            loadHistory(pairKey(base, quote));
+        }
+        window.prefillPair = prefillPair;
+
+        async function loadHistory(forPairKey = null) {
+            if (!currentUser) return;
+            const list = document.getElementById('historyList');
+            try {
+                const snapshot = await db.collection('users')
+                    .doc(currentUser.uid)
+                    .collection('fxRateHistory')
+                    .limit(MAX_HISTORY_ENTRIES)
+                    .get();
+                const entries = snapshot.docs
+                    .map(doc => ({ id: doc.id, ...(doc.data() || {}) }))
+                    .filter(item => !forPairKey || item.pairKey === forPairKey)
+                    .sort((a, b) => Number(b.updatedAtMs || 0) - Number(a.updatedAtMs || 0));
+
+                if (!entries.length) {
+                    list.innerHTML = '<div class="history-item muted">No history yet.</div>';
+                    return;
+                }
+
+                list.innerHTML = entries.map(item => {
+                    const updated = formatAsOf(item.updatedAt || item.updatedAtMs);
+                    const rate = Number(item.rate);
+                    return `<div class="history-item">
+                        <span class="mono">${item.base}→${item.quote}</span>
+                        <strong>${isFinite(rate) ? rate.toFixed(6) : '—'}</strong>
+                        <span class="tag ${item.mode === 'fixed' ? 'fixed' : 'auto'}">${item.mode || 'auto'}</span>
+                        <span class="muted">via ${(item.source || 'unknown')} • ${updated}</span>
+                    </div>`;
+                }).join('');
+            } catch (error) {
+                console.error('Could not load FX history:', error);
+                list.innerHTML = '<div class="history-item muted">Could not load history.</div>';
+            }
+        }
+
+        auth.onAuthStateChanged(async (user) => {
+            if (!user) {
+                window.location.href = '/login?next=/fx';
+                return;
+            }
+            currentUser = user;
+            initializePairSelectors();
+            if (!localStorage.getItem('cw_fx_onboarding_seen_v2')) {
+                document.getElementById('fxOnboarding').style.display = 'block';
+            }
+            await Promise.all([loadPairsTable(), loadHistory(), loadFxStatusMeta()]);
+            await tryDailyAutoSync();
+        });
+    </script>
+</body>
+</html>

@@ -169,3 +169,55 @@ formatting (correct thousands separators, decimal marks, and currency symbols).
 - Currency conversion on individual transaction rows
 
 These will be addressed in subsequent days of the multi-currency rollout.
+
+---
+
+## Day 2 — Advanced FX (Delivered)
+
+### What changed
+
+1. **Dedicated FX Center page (`/fx`)**
+   - New advanced tab/page for FX operations so dashboard/main screens stay minimal.
+   - Supports pair-level configuration (`auto` vs `fixed`), manual overrides, and manual on-demand refresh.
+
+2. **Automatic/daily FX sync flow**
+   - FX Center performs daily freshness check (24h) and can refresh all auto pairs on demand.
+   - FX rates are stored per pair in `users/{uid}/fxRates/{BASE_QUOTE}` with:
+     - `base`, `quote`, `rate`
+     - `mode` (`auto` / `fixed`)
+     - `source` (`auto` / `manual`)
+     - `updatedAt`, `updatedAtMs`
+
+3. **History/audit trail**
+   - Every manual or auto update is appended to `users/{uid}/fxRateHistory`.
+   - History is visible in FX Center.
+
+4. **Subtle “Rate as of …” labels**
+   - Dashboard and Reports now show a compact **Rate as of ...** label.
+   - No noisy FX warning banners on primary screens.
+
+5. **Fallback policy (clean UX)**
+   - On API failure, app keeps last valid saved rates.
+   - Short failure/sync status is shown on FX Center only.
+
+6. **Reports/export extended with FX context**
+   - Reports page now has **Export report + FX info** button.
+   - Export includes report totals, selected currency, rate-as-of label, and effective FX map.
+
+7. **FX API endpoint metadata**
+   - `/api/exchange-rates` now returns source metadata and normalized base fallback for unsupported currencies.
+
+### Day 2 quick test checklist
+
+1. Open **FX Center** (`/fx`), confirm onboarding tip appears once.
+2. Click **Refresh auto rates now**, verify status becomes success and pair list fills/updates.
+3. Set a pair to **Fixed** with manual rate, save, then refresh all auto rates:
+   - Fixed pair rate must remain unchanged.
+4. Open Dashboard and Reports:
+   - Verify subtle **Rate as of ...** appears.
+   - Verify no prominent FX warning banners.
+5. In Reports, click **Export report + FX info**:
+   - Confirm JSON contains `fxRateAsOf` and `rates`.
+6. Simulate API failure (network/dev tools) while using FX Center refresh:
+   - Verify short error status on FX Center.
+   - Verify previously saved rates remain available.
