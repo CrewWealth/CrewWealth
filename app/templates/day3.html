@@ -355,12 +355,34 @@
             </div>
             <div class="row" style="margin-top:8px;">
                 <div>
+                    <label for="quickAccount">Account</label>
+                    <select id="quickAccount">
+                        <option value="">Select account...</option>
+                    </select>
+                </div>
+                <div id="quickToAccountWrap" style="display:none;">
+                    <label for="quickToAccount">To Account</label>
+                    <select id="quickToAccount">
+                        <option value="">Select to account...</option>
+                    </select>
+                </div>
+            </div>
+            <div class="row" style="margin-top:8px;">
+                <div>
                     <label for="quickDescription">Description</label>
                     <input id="quickDescription" placeholder="Quick entry description">
                 </div>
                 <div>
                     <label for="quickAmount">Amount</label>
                     <input id="quickAmount" type="number" step="0.01">
+                </div>
+            </div>
+            <div class="row" style="margin-top:8px;">
+                <div id="quickCategoryWrap">
+                    <label for="quickCategory">Category</label>
+                    <select id="quickCategory">
+                        <option value="">Uncategorized</option>
+                    </select>
                 </div>
             </div>
             <div class="actions">
@@ -418,10 +440,14 @@
     const MAX_IMPORT_SYNC_ROWS = 249;
     const IMPORT_SALARY_PATTERN = /(salary|payslip|payroll|wage|loon)/i;
     let day3Accounts = [];
+    let day3Categories = [];
 
     function setQuickType(type) {
         const el = document.getElementById('quickType');
-        if (el) el.value = type;
+        if (el) {
+            el.value = type;
+            updateQuickTransactionFields();
+        }
     }
     window.setQuickType = setQuickType;
 
@@ -714,6 +740,38 @@
         if (day3Accounts.length === 1) {
             select.value = day3Accounts[0].id;
         }
+
+        const quickAccount = document.getElementById('quickAccount');
+        const quickToAccount = document.getElementById('quickToAccount');
+        const quickOptions = ['<option value="">Select account...</option>'].concat(
+            day3Accounts.map(account => `<option value="${account.id}">${escapeHtml(account.name || account.id)}</option>`)
+        );
+        quickAccount.innerHTML = quickOptions.join('');
+
+        const toOptions = ['<option value="">Select to account...</option>'].concat(
+            day3Accounts.map(account => `<option value="${account.id}">${escapeHtml(account.name || account.id)}</option>`)
+        );
+        quickToAccount.innerHTML = toOptions.join('');
+    }
+
+    async function loadCategoriesForQuick() {
+        if (!currentUser) return;
+        const snapshot = await db.collection('users').doc(currentUser.uid).collection('categories').get();
+        day3Categories = snapshot.docs.map(doc => ({ id: doc.id, ...(doc.data() || {}) }));
+        const quickCategory = document.getElementById('quickCategory');
+        const options = ['<option value="">Uncategorized</option>'].concat(
+            day3Categories.map(category => `<option value="${category.id}">${escapeHtml(category.name || category.id)}</option>`)
+        );
+        quickCategory.innerHTML = options.join('');
+    }
+
+    function updateQuickTransactionFields() {
+        const type = document.getElementById('quickType').value;
+        const isTransfer = type === 'transfer';
+        const quickToAccountWrap = document.getElementById('quickToAccountWrap');
+        const quickCategoryWrap = document.getElementById('quickCategoryWrap');
+        quickToAccountWrap.style.display = isTransfer ? '' : 'none';
+        quickCategoryWrap.style.display = isTransfer ? 'none' : '';
     }
 
     function inferImportedTransactionType(transaction) {
@@ -867,27 +925,108 @@
 
     async function saveQuickTransaction() {
         if (!currentUser) return;
-        const type = document.getElementById('quickType').value;
+        const quickType = document.getElementById('quickType').value;
         const description = String(document.getElementById('quickDescription').value || '').trim();
-        const amount = Number(document.getElementById('quickAmount').value || 0);
+        const rawAmount = Number(document.getElementById('quickAmount').value || 0);
         const currency = document.getElementById('quickCurrency').value;
-        if (!description || !isFinite(amount) || amount === 0) {
+        const accountId = document.getElementById('quickAccount').value;
+        const toAccountId = document.getElementById('quickToAccount').value;
+        const categoryId = document.getElementById('quickCategory').value || null;
+        const typeMap = { expense: 'payment', income: 'deposit', transfer: 'transfer' };
+        const type = typeMap[quickType];
+        const amount = Math.abs(rawAmount);
+        const hadNegativeInput = rawAmount < 0;
+
+        if (!type) {
+            setStatus('quickStatus', 'Unknown quick transaction type selected.', 'error');
+            return;
+        }
+
+        if (!description || !isFinite(rawAmount) || rawAmount === 0) {
             setStatus('quickStatus', 'Enter a description and non-zero amount.', 'error');
             return;
         }
-        const created = await db.collection('users').doc(currentUser.uid).collection('transactions').add({
-            type,
-            description,
-            amount,
-            currency,
-            date: firebase.firestore.FieldValue.serverTimestamp(),
-            createdAtMs: Date.now(),
-            source: 'day3-quick-widget',
-        });
-        pushUndo(async () => created.delete());
-        setStatus('quickStatus', 'Quick transaction saved.', 'success');
-        document.getElementById('quickDescription').value = '';
-        document.getElementById('quickAmount').value = '';
+
+        if (!accountId) {
+            setStatus('quickStatus', 'Select an account.', 'error');
+            return;
+        }
+        if (type === 'transfer') {
+            if (!toAccountId) {
+                setStatus('quickStatus', 'Select a destination account for transfer.', 'error');
+                return;
+            }
+            if (toAccountId === accountId) {
+                setStatus('quickStatus', 'Source and destination account cannot be the same.', 'error');
+                return;
+            }
+        }
+
+        const fromAccount = day3Accounts.find(acc => acc.id === accountId);
+        const toAccount = type === 'transfer' ? day3Accounts.find(acc => acc.id === toAccountId) : null;
+        if (!fromAccount || (type === 'transfer' && !toAccount)) {
+            setStatus('quickStatus', 'Selected account no longer exists. Reload and try again.', 'error');
+            return;
+        }
+
+        try {
+            const userRef = db.collection('users').doc(currentUser.uid);
+            const txRef = userRef.collection('transactions').doc();
+            const fromAccountRef = userRef.collection('accounts').doc(accountId);
+            const toAccountRef = type === 'transfer' ? userRef.collection('accounts').doc(toAccountId) : null;
+            const timestampNow = firebase.firestore.Timestamp.now();
+
+            const batch = db.batch();
+            batch.set(txRef, {
+                type,
+                description,
+                amount,
+                currency,
+                accountId,
+                toAccountId: type === 'transfer' ? toAccountId : null,
+                categoryId: (type === 'payment' || type === 'deposit') ? categoryId : null,
+                date: timestampNow,
+                createdAt: timestampNow,
+                createdAtMs: Date.now(),
+                source: 'day3-quick-widget',
+            });
+
+            if (type === 'payment') {
+                batch.update(fromAccountRef, { balance: firebase.firestore.FieldValue.increment(-amount) });
+            } else if (type === 'transfer') {
+                batch.update(fromAccountRef, { balance: firebase.firestore.FieldValue.increment(-amount) });
+                batch.update(toAccountRef, { balance: firebase.firestore.FieldValue.increment(amount) });
+            } else {
+                batch.update(fromAccountRef, { balance: firebase.firestore.FieldValue.increment(amount) });
+            }
+
+            await batch.commit();
+            pushUndo(async () => {
+                const undoBatch = db.batch();
+                undoBatch.delete(txRef);
+                if (type === 'payment') {
+                    undoBatch.update(fromAccountRef, { balance: firebase.firestore.FieldValue.increment(amount) });
+                } else if (type === 'transfer') {
+                    undoBatch.update(fromAccountRef, { balance: firebase.firestore.FieldValue.increment(amount) });
+                    undoBatch.update(toAccountRef, { balance: firebase.firestore.FieldValue.increment(-amount) });
+                } else {
+                    undoBatch.update(fromAccountRef, { balance: firebase.firestore.FieldValue.increment(-amount) });
+                }
+                await undoBatch.commit();
+            });
+
+            await loadAccountsForImport();
+            const successMessage = hadNegativeInput
+                ? 'Quick transaction saved (amount converted to positive value).'
+                : 'Quick transaction saved.';
+            setStatus('quickStatus', successMessage, 'success');
+            document.getElementById('quickDescription').value = '';
+            document.getElementById('quickAmount').value = '';
+            document.getElementById('quickCategory').value = '';
+        } catch (error) {
+            console.error('Failed to save quick transaction:', error);
+            setStatus('quickStatus', 'Failed to save quick transaction. Please try again.', 'error');
+        }
     }
     window.saveQuickTransaction = saveQuickTransaction;
 
@@ -946,9 +1085,11 @@
         }
         currentUser = user;
         initCurrencySelectors();
+        document.getElementById('quickType').addEventListener('change', updateQuickTransactionFields);
+        updateQuickTransactionFields();
         const shouldShowTutorial = !localStorage.getItem('cw_day3_tutorial_seen');
         document.getElementById('tutorialBox').style.display = shouldShowTutorial ? 'block' : 'none';
-        await Promise.all([loadMembers(), loadPresets(), loadAccountsForImport()]);
+        await Promise.all([loadMembers(), loadPresets(), loadAccountsForImport(), loadCategoriesForQuick()]);
     });
 </script>
 </body>
