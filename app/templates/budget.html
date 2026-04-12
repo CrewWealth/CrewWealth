@@ -1984,7 +1984,6 @@
             if (window.localStorage.getItem(markerKey)) return;
             const removedFromLocal = purgeLegacyTransactionStorage(window.localStorage, userId);
             const removedFromSession = purgeLegacyTransactionStorage(window.sessionStorage, userId);
-            transactions = [];
             window.localStorage.setItem(markerKey, new Date().toISOString());
             console.log(`🧹 Ghost transaction cleanup completed (${removedFromLocal + removedFromSession} local keys removed)`);
         }
