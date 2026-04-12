@@ -312,7 +312,7 @@ class TestProjectionOffBudgetAccounts(unittest.TestCase):
         self.assertEqual(data['starting_balance'], 1056.0)
         self.assertEqual(data.get('missing_fx_pairs'), [])
 
-    def test_off_budget_balance_without_account_currency_uses_legacy_currency(self):
+    def test_off_budget_balance_uses_legacy_currency_fallback(self):
         """Accounts without currency still convert using legacy settings.currency."""
         import app.routes.api as api_module
 
@@ -381,7 +381,7 @@ class TestProjectionManualSavingsOverride(unittest.TestCase):
         self.assertEqual(data['monthly_contribution'], 750.0)
         self.assertEqual(data['contribution_source'], 'manual')
 
-    def test_manual_savings_converts_to_base_currency_using_legacy_currency(self):
+    def test_manual_savings_fx_conversion_from_legacy_currency(self):
         """Manual monthly savings should be converted when baseCurrency changes."""
         import app.routes.api as api_module
 

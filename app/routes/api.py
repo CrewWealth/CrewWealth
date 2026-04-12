@@ -232,14 +232,7 @@ def _get_projection_inner(uid):
             if override_val is not None:
                 try:
                     manual_monthly_savings = float(override_val)
-                    raw_monthly_currency = (
-                        settings.get('monthlySavingsCurrency')
-                        or legacy_currency
-                    ).upper()
-                    if raw_monthly_currency in SUPPORTED_CURRENCIES:
-                        manual_monthly_savings_currency = raw_monthly_currency
-                    else:
-                        manual_monthly_savings_currency = base_currency
+                    manual_monthly_savings_currency = legacy_currency
                     contribution_source = 'manual'
                 except (TypeError, ValueError):
                     pass
@@ -274,7 +267,7 @@ def _get_projection_inner(uid):
         logger.warning("Could not read fxRates for uid=%s: %s", uid, exc)
 
     if manual_monthly_savings is not None:
-        source_currency = manual_monthly_savings_currency or base_currency
+        source_currency = manual_monthly_savings_currency
         rate = _resolve_fx_rate(source_currency, base_currency, fx_rates)
         monthly_contribution = manual_monthly_savings * rate
 
@@ -291,7 +284,6 @@ def _get_projection_inner(uid):
             account_currency = (
                 data.get('currency')
                 or legacy_currency
-                or base_currency
             ).upper()
             account_currency_by_id[doc.id] = account_currency
             if data.get('offBudget'):
