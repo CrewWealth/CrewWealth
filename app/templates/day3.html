@@ -304,6 +304,7 @@
                     <select id="importFormat">
                         <option value="csv">CSV</option>
                         <option value="mt940">MT940</option>
+                        <option value="payslip">Payslip CSV</option>
                     </select>
                 </div>
                 <div>
@@ -313,8 +314,18 @@
             </div>
             <div class="actions">
                 <button onclick="parseImportFile()">Parse import</button>
+                <button onclick="applyImportToBudgetsAndAccounts()">Apply to Budgets & Accounts</button>
                 <button class="secondary" onclick="downloadExport('csv')">Export CSV</button>
                 <button class="secondary" onclick="downloadExport('json')">Export JSON</button>
+            </div>
+            <div class="row" style="margin-top:8px;">
+                <div>
+                    <label for="importTargetAccount">Target account for import sync</label>
+                    <select id="importTargetAccount">
+                        <option value="">Select account...</option>
+                    </select>
+                </div>
+                <div class="muted" style="align-self:end;">Apply writes parsed rows as transactions and updates the selected account balance.</div>
             </div>
             <div id="importStatus" class="status"></div>
             <div class="table-wrap">
@@ -402,6 +413,7 @@
     let lastScenarioPayload = null;
     const undoStack = [];
     const MAX_UNDO_ACTIONS = 20;
+    let day3Accounts = [];
 
     function setQuickType(type) {
         const el = document.getElementById('quickType');
@@ -662,7 +674,8 @@
 
     async function parseImportFile() {
         const fileInput = document.getElementById('importFile');
-        const format = document.getElementById('importFormat').value;
+        const selectedFormat = document.getElementById('importFormat').value;
+        const format = selectedFormat === 'payslip' ? 'csv' : selectedFormat;
         const file = fileInput.files && fileInput.files[0];
         if (!file) {
             setStatus('importStatus', 'Select a file first.', 'error');
@@ -681,9 +694,141 @@
         }
         importedTransactions = payload.transactions || [];
         renderImportedRows(importedTransactions);
-        setStatus('importStatus', `Parsed ${payload.count || importedTransactions.length} rows (${format.toUpperCase()}).`, 'success');
+        setStatus('importStatus', `Parsed ${payload.count || importedTransactions.length} rows (${selectedFormat.toUpperCase()}).`, 'success');
     }
     window.parseImportFile = parseImportFile;
+
+    async function loadAccountsForImport() {
+        if (!currentUser) return;
+        const snapshot = await db.collection('users').doc(currentUser.uid).collection('accounts').get();
+        day3Accounts = snapshot.docs.map(doc => ({ id: doc.id, ...(doc.data() || {}) }));
+        const select = document.getElementById('importTargetAccount');
+        const options = ['<option value="">Select account...</option>'].concat(
+            day3Accounts.map(account => `<option value="${account.id}">${escapeHtml(account.name || account.id)}</option>`)
+        );
+        select.innerHTML = options.join('');
+        if (day3Accounts.length === 1) {
+            select.value = day3Accounts[0].id;
+        }
+    }
+
+    function inferImportedTransactionType(transaction) {
+        const amount = Number(transaction?.amount || 0);
+        const description = String(transaction?.description || '').toLowerCase();
+        if (amount > 0 && /(salary|payslip|payroll|wage|loon)/.test(description)) {
+            return 'salary';
+        }
+        return amount < 0 ? 'payment' : 'deposit';
+    }
+
+    async function applyImportToBudgetsAndAccounts() {
+        if (!currentUser) return;
+        const targetAccountId = document.getElementById('importTargetAccount').value;
+        if (!targetAccountId) {
+            setStatus('importStatus', 'Select a target account first.', 'error');
+            return;
+        }
+        if (!importedTransactions.length) {
+            setStatus('importStatus', 'Parse an import file first.', 'error');
+            return;
+        }
+        if (importedTransactions.length > 450) {
+            setStatus('importStatus', 'Please import max 450 rows at once for safe sync.', 'error');
+            return;
+        }
+
+        const accountRef = db.collection('users').doc(currentUser.uid).collection('accounts').doc(targetAccountId);
+        const accountDoc = await accountRef.get();
+        if (!accountDoc.exists) {
+            setStatus('importStatus', 'Selected account no longer exists.', 'error');
+            return;
+        }
+        const accountData = accountDoc.data() || {};
+        const accountCurrency = String(accountData.currency || DEFAULT_CURRENCY).toUpperCase();
+        const categoriesSnapshot = await db.collection('users').doc(currentUser.uid).collection('categories').get();
+        const categoryByName = new Map();
+        categoriesSnapshot.docs.forEach(doc => {
+            const data = doc.data() || {};
+            const key = String(data.name || '').trim().toLowerCase();
+            if (key) categoryByName.set(key, { id: doc.id, ...data });
+        });
+
+        const batch = db.batch();
+        const createdCategoryRefs = [];
+        const createdTransactionRefs = [];
+        let netAccountDelta = 0;
+        let appliedCount = 0;
+
+        for (const raw of importedTransactions) {
+            const amountValue = Number(raw?.amount || 0);
+            if (!isFinite(amountValue) || amountValue === 0) continue;
+            const type = inferImportedTransactionType(raw);
+            const absAmount = Math.abs(amountValue);
+            const description = String(raw?.description || '').trim();
+            const categoryName = String(raw?.category || '').trim();
+            let categoryId = null;
+
+            if (categoryName && (type === 'payment' || type === 'deposit')) {
+                const key = categoryName.toLowerCase();
+                if (!categoryByName.has(key)) {
+                    const newCategoryRef = db.collection('users').doc(currentUser.uid).collection('categories').doc();
+                    const group = type === 'payment' ? 'expenses' : 'savings';
+                    batch.set(newCategoryRef, {
+                        name: categoryName,
+                        group,
+                        createdAt: new Date().toISOString(),
+                        source: 'day3-import'
+                    });
+                    createdCategoryRefs.push(newCategoryRef);
+                    categoryByName.set(key, { id: newCategoryRef.id, name: categoryName, group });
+                }
+                categoryId = categoryByName.get(key)?.id || null;
+            }
+
+            let txDate = new Date(raw?.date || '');
+            if (!isFinite(txDate.getTime())) txDate = new Date();
+
+            const txRef = db.collection('users').doc(currentUser.uid).collection('transactions').doc();
+            batch.set(txRef, {
+                type,
+                amount: absAmount,
+                accountId: targetAccountId,
+                categoryId: categoryId || null,
+                date: firebase.firestore.Timestamp.fromDate(txDate),
+                note: description || `Imported ${type}`,
+                currency: String(raw?.currency || accountCurrency || DEFAULT_CURRENCY).toUpperCase(),
+                source: 'day3-import-sync',
+                createdAt: firebase.firestore.Timestamp.now(),
+                createdAtMs: Date.now(),
+            });
+            createdTransactionRefs.push(txRef);
+
+            if (type === 'payment') netAccountDelta -= absAmount;
+            else netAccountDelta += absAmount;
+            appliedCount += 1;
+        }
+
+        if (!appliedCount) {
+            setStatus('importStatus', 'No valid rows to apply.', 'info');
+            return;
+        }
+
+        const previousBalance = Number(accountData.balance || 0);
+        batch.update(accountRef, { balance: previousBalance + netAccountDelta });
+        await batch.commit();
+
+        pushUndo(async () => {
+            const undoBatch = db.batch();
+            createdTransactionRefs.forEach(ref => undoBatch.delete(ref));
+            createdCategoryRefs.forEach(ref => undoBatch.delete(ref));
+            undoBatch.update(accountRef, { balance: previousBalance });
+            await undoBatch.commit();
+        });
+
+        await loadAccountsForImport();
+        setStatus('importStatus', `Applied ${appliedCount} rows to Budgets & Accounts.`, 'success');
+    }
+    window.applyImportToBudgetsAndAccounts = applyImportToBudgetsAndAccounts;
 
     async function downloadExport(format) {
         const response = await fetch('/api/day3/export', {
@@ -796,7 +941,7 @@
         initCurrencySelectors();
         const shouldShowTutorial = !localStorage.getItem('cw_day3_tutorial_seen');
         document.getElementById('tutorialBox').style.display = shouldShowTutorial ? 'block' : 'none';
-        await Promise.all([loadMembers(), loadPresets()]);
+        await Promise.all([loadMembers(), loadPresets(), loadAccountsForImport()]);
     });
 </script>
 </body>
