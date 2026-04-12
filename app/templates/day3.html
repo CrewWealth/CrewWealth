@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Day 3 Center - CrewWealth</title>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="/static/js/currency.js"></script>
+    <style>
+        :root {
+            --color-primary: #208089;
+            --color-primary-hover: #1a6670;
+            --color-background: #fcfcf9;
+            --color-surface: #ffffff;
+            --color-text: #134252;
+            --color-text-secondary: #626c71;
+            --color-border: #e8e8e0;
+            --color-success: #22c55e;
+            --color-danger: #ef4444;
+            --radius: 12px;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--color-background);
+            color: var(--color-text);
+            padding: 20px;
+            line-height: 1.55;
+        }
+        .container { max-width: 1150px; margin: 0 auto; }
+        .nav-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+        .nav-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+            color: var(--color-primary);
+            border: 1px solid var(--color-border);
+            background: #fff;
+            border-radius: 999px;
+            padding: 8px 14px;
+            font-weight: 600;
+        }
+        .hero {
+            background: linear-gradient(145deg, #ecfeff 0%, #eef2ff 100%);
+            border: 1px solid #bae6fd;
+            border-radius: var(--radius);
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        .hero h1 { font-size: 26px; margin-bottom: 6px; }
+        .hero p { color: var(--color-text-secondary); }
+        .tutorial {
+            margin-top: 12px;
+            border: 1px dashed #60a5fa;
+            background: #eff6ff;
+            border-radius: 10px;
+            padding: 10px 12px;
+        }
+        .tutorial button { margin-top: 8px; width: auto; }
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 8px;
+            margin-top: 12px;
+        }
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+        }
+        .card {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius);
+            padding: 16px;
+        }
+        .card h2 { font-size: 18px; margin-bottom: 10px; }
+        .muted { color: var(--color-text-secondary); font-size: 13px; }
+        .row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+        .row-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+        label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+        input, select, textarea, button {
+            width: 100%;
+            border-radius: 8px;
+            border: 1px solid var(--color-border);
+            padding: 9px 10px;
+            font-size: 14px;
+            font: inherit;
+        }
+        textarea { min-height: 90px; resize: vertical; }
+        button {
+            cursor: pointer;
+            background: var(--color-primary);
+            color: white;
+            border-color: var(--color-primary);
+            font-weight: 600;
+        }
+        button.secondary {
+            background: #fff;
+            color: var(--color-text);
+            border-color: var(--color-border);
+        }
+        button:disabled { opacity: .6; cursor: not-allowed; }
+        .actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+        .actions button { width: auto; }
+        .status {
+            margin-top: 10px;
+            border-radius: 8px;
+            padding: 9px 10px;
+            display: none;
+            font-size: 13px;
+        }
+        .status.success { display: block; background: #ecfdf5; color: #047857; border: 1px solid #86efac; }
+        .status.error { display: block; background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+        .status.info { display: block; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+        .pill {
+            display: inline-block;
+            border-radius: 999px;
+            border: 1px solid var(--color-border);
+            background: #f8fafc;
+            padding: 2px 8px;
+            font-size: 12px;
+            margin-right: 6px;
+            margin-bottom: 6px;
+        }
+        .list { margin-top: 10px; max-height: 240px; overflow-y: auto; }
+        .list-item {
+            border-bottom: 1px solid var(--color-border);
+            padding: 8px 0;
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            align-items: center;
+        }
+        .list-item button {
+            width: auto;
+            padding: 6px 8px;
+            font-size: 12px;
+        }
+        .scenario-kpi {
+            margin-top: 10px;
+            background: #f8fafc;
+            border: 1px solid var(--color-border);
+            border-radius: 10px;
+            padding: 10px;
+            font-size: 14px;
+        }
+        .scenario-kpi.active {
+            border-color: #60a5fa;
+            background: #eff6ff;
+        }
+        .table-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 13px; }
+        th, td { padding: 7px 6px; border-bottom: 1px solid var(--color-border); text-align: left; }
+        th { color: var(--color-text-secondary); text-transform: uppercase; font-size: 11px; }
+        @media (max-width: 960px) {
+            .card-grid { grid-template-columns: 1fr; }
+            .row, .row-3 { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="nav-row">
+        <a class="nav-link" href="/">← Dashboard</a>
+        <a class="nav-link" href="/fx">💱 FX Center</a>
+        <a class="nav-link" href="/settings">⚙️ Settings</a>
+    </div>
+
+    <div class="hero">
+        <h1>🚀 Day 3 Center</h1>
+        <p>Subtle advanced workspace for sharing, what-if forecasting, smart transaction intelligence, import/export and personal presets.</p>
+        <div id="tutorialBox" class="tutorial" style="display:none;">
+            <strong>Quick start:</strong> invite a member, run a scenario preview, then test import + smart categorization.
+            <button class="secondary" onclick="dismissTutorial()">Got it</button>
+        </div>
+        <div class="quick-actions">
+            <button class="secondary" onclick="setQuickType('expense')">➖ Quick Expense</button>
+            <button class="secondary" onclick="setQuickType('income')">➕ Quick Income</button>
+            <button class="secondary" onclick="setQuickType('transfer')">🔁 Quick Transfer</button>
+            <button class="secondary" id="undoBtn" onclick="undoLastAction()" disabled>↩️ Undo last action</button>
+        </div>
+    </div>
+
+    <div class="card-grid">
+        <section class="card">
+            <h2>👥 Multi-user sharing</h2>
+            <p class="muted">Invite partners/members with role and visibility controls.</p>
+            <div class="row-3" style="margin-top:10px;">
+                <div>
+                    <label for="inviteEmail">Email</label>
+                    <input id="inviteEmail" type="email" placeholder="partner@example.com">
+                </div>
+                <div>
+                    <label for="inviteRole">Role</label>
+                    <select id="inviteRole">
+                        <option value="viewer">Viewer</option>
+                        <option value="editor">Editor</option>
+                        <option value="owner">Owner</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="inviteVisibility">Visibility</label>
+                    <select id="inviteVisibility">
+                        <option value="all">All</option>
+                        <option value="budget">Budget only</option>
+                        <option value="goals">Goals only</option>
+                        <option value="reports">Reports only</option>
+                    </select>
+                </div>
+            </div>
+            <div class="actions">
+                <button onclick="addInvite()">Invite member</button>
+            </div>
+            <div id="shareStatus" class="status"></div>
+            <div id="membersList" class="list"></div>
+        </section>
+
+        <section class="card">
+            <h2>📈 Advanced scenario forecasting</h2>
+            <p class="muted">Temporary "what-if" preview, no permanent data overwrite.</p>
+            <div class="row">
+                <div>
+                    <label for="scenarioStarting">Starting balance</label>
+                    <input id="scenarioStarting" type="number" step="0.01" value="0">
+                </div>
+                <div>
+                    <label for="scenarioMonthly">Monthly contribution</label>
+                    <input id="scenarioMonthly" type="number" step="0.01" value="0">
+                </div>
+            </div>
+            <div class="row-3" style="margin-top:8px;">
+                <div>
+                    <label for="scenarioIncomeDelta">Income delta</label>
+                    <input id="scenarioIncomeDelta" type="number" step="0.01" value="0">
+                </div>
+                <div>
+                    <label for="scenarioExpenseDelta">Expense delta</label>
+                    <input id="scenarioExpenseDelta" type="number" step="0.01" value="0">
+                </div>
+                <div>
+                    <label for="scenarioFxShift">FX shift %</label>
+                    <input id="scenarioFxShift" type="number" step="0.01" value="0">
+                </div>
+            </div>
+            <div class="row" style="margin-top:8px;">
+                <div>
+                    <label for="scenarioOneOff">One-off adjustment</label>
+                    <input id="scenarioOneOff" type="number" step="0.01" value="0">
+                </div>
+                <div>
+                    <label for="scenarioMonths">Months</label>
+                    <input id="scenarioMonths" type="number" min="1" max="120" value="12">
+                </div>
+            </div>
+            <div class="actions">
+                <button onclick="runScenario()">Run scenario preview</button>
+                <button class="secondary" onclick="toggleScenario()">Toggle active preview</button>
+            </div>
+            <div id="scenarioStatus" class="status"></div>
+            <div id="scenarioKpi" class="scenario-kpi">No scenario yet.</div>
+        </section>
+
+        <section class="card">
+            <h2>🧠 Smart transaction recognition</h2>
+            <p class="muted">Auto category + tags from transaction text/amount.</p>
+            <div class="row">
+                <div>
+                    <label for="smartDescription">Description</label>
+                    <input id="smartDescription" type="text" placeholder="e.g. Uber Airport">
+                </div>
+                <div>
+                    <label for="smartAmount">Amount</label>
+                    <input id="smartAmount" type="number" step="0.01" value="0">
+                </div>
+            </div>
+            <div class="actions">
+                <button onclick="suggestCategory()">Suggest category</button>
+                <button class="secondary" onclick="saveSmartTagPreset()">Save smart-tag preset</button>
+            </div>
+            <div id="smartStatus" class="status"></div>
+            <div id="smartResult" style="margin-top:10px;"></div>
+        </section>
+
+        <section class="card">
+            <h2>📥 Integrations: import/export</h2>
+            <p class="muted">Import CSV/MT940 and export quickly for accountant sharing.</p>
+            <div class="row">
+                <div>
+                    <label for="importFormat">Format</label>
+                    <select id="importFormat">
+                        <option value="csv">CSV</option>
+                        <option value="mt940">MT940</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="importFile">Bank file</label>
+                    <input id="importFile" type="file" accept=".csv,.mt940,.sta,.txt">
+                </div>
+            </div>
+            <div class="actions">
+                <button onclick="parseImportFile()">Parse import</button>
+                <button class="secondary" onclick="downloadExport('csv')">Export CSV</button>
+                <button class="secondary" onclick="downloadExport('json')">Export JSON</button>
+            </div>
+            <div id="importStatus" class="status"></div>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Date</th><th>Description</th><th>Amount</th><th>Currency</th><th>Category</th></tr></thead>
+                    <tbody id="importPreviewRows"><tr><td colspan="5" class="muted">No imported rows yet.</td></tr></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="card">
+            <h2>📱 Mobile quick input widget</h2>
+            <p class="muted">Fast entry for transactions (mobile-friendly).</p>
+            <div class="row">
+                <div>
+                    <label for="quickType">Type</label>
+                    <select id="quickType">
+                        <option value="expense">Expense</option>
+                        <option value="income">Income</option>
+                        <option value="transfer">Transfer</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="quickCurrency">Currency</label>
+                    <select id="quickCurrency"></select>
+                </div>
+            </div>
+            <div class="row" style="margin-top:8px;">
+                <div>
+                    <label for="quickDescription">Description</label>
+                    <input id="quickDescription" placeholder="Quick entry description">
+                </div>
+                <div>
+                    <label for="quickAmount">Amount</label>
+                    <input id="quickAmount" type="number" step="0.01">
+                </div>
+            </div>
+            <div class="actions">
+                <button onclick="saveQuickTransaction()">Save quick transaction</button>
+            </div>
+            <div id="quickStatus" class="status"></div>
+        </section>
+
+        <section class="card">
+            <h2>✨ UX polish & personal presets</h2>
+            <p class="muted">Favorites for currency/reporting, saved per user.</p>
+            <div class="row">
+                <div>
+                    <label for="presetCurrency">Favorite currency</label>
+                    <select id="presetCurrency"></select>
+                </div>
+                <div>
+                    <label for="presetReport">Report preset</label>
+                    <select id="presetReport">
+                        <option value="monthly">Monthly</option>
+                        <option value="quarterly">Quarterly</option>
+                        <option value="voyage">Voyage</option>
+                    </select>
+                </div>
+            </div>
+            <div class="actions">
+                <button onclick="savePresets()">Save presets</button>
+                <button class="secondary" onclick="loadPresets()">Reload</button>
+            </div>
+            <div id="presetStatus" class="status"></div>
+        </section>
+    </div>
+</div>
+
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyBccv9C4CpjZFeE2HGBKKfUiV9jUw8CZLo",
+        authDomain: "crewwealth-cbe02.firebaseapp.com",
+        projectId: "crewwealth-cbe02",
+        storageBucket: "crewwealth-cbe02.firebasestorage.app",
+        messagingSenderId: "852834158589",
+        appId: "1:852834158589:web:8201ed1d9327841773bb94"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    let currentUser = null;
+    let importedTransactions = [];
+    let lastScenarioPayload = null;
+    const undoStack = [];
+    const MAX_UNDO_ACTIONS = 20;
+
+    function setQuickType(type) {
+        const el = document.getElementById('quickType');
+        if (el) el.value = type;
+    }
+    window.setQuickType = setQuickType;
+
+    function setStatus(id, message, kind = 'info') {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.className = `status ${kind}`;
+        el.textContent = message;
+    }
+
+    function pushUndo(action) {
+        if (typeof action !== 'function') return;
+        undoStack.push(action);
+        if (undoStack.length > MAX_UNDO_ACTIONS) undoStack.shift();
+        document.getElementById('undoBtn').disabled = undoStack.length === 0;
+    }
+
+    async function undoLastAction() {
+        const action = undoStack.pop();
+        document.getElementById('undoBtn').disabled = undoStack.length === 0;
+        if (!action) return;
+        try {
+            await action();
+            setStatus('presetStatus', 'Last action undone.', 'success');
+        } catch (error) {
+            console.error('Undo failed:', error);
+            setStatus('presetStatus', 'Undo failed.', 'error');
+        }
+    }
+    window.undoLastAction = undoLastAction;
+
+    function dismissTutorial() {
+        localStorage.setItem('cw_day3_tutorial_seen', '1');
+        document.getElementById('tutorialBox').style.display = 'none';
+    }
+    window.dismissTutorial = dismissTutorial;
+
+    function renderImportedRows(rows) {
+        const tbody = document.getElementById('importPreviewRows');
+        if (!rows.length) {
+            tbody.innerHTML = '<tr><td colspan="5" class="muted">No imported rows yet.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = rows.slice(0, 50).map(tx => `
+            <tr>
+                <td>${escapeHtml(tx.date || '')}</td>
+                <td>${escapeHtml(tx.description || '')}</td>
+                <td>${Number(tx.amount || 0).toFixed(2)}</td>
+                <td>${escapeHtml((tx.currency || DEFAULT_CURRENCY).toUpperCase())}</td>
+                <td>${escapeHtml(tx.category || '-')}</td>
+            </tr>
+        `).join('');
+    }
+
+    function escapeHtml(value) {
+        return String(value || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    async function addInvite() {
+        if (!currentUser) return;
+        const email = String(document.getElementById('inviteEmail').value || '').trim().toLowerCase();
+        const role = document.getElementById('inviteRole').value;
+        const visibility = document.getElementById('inviteVisibility').value;
+        const validateRes = await fetch('/api/day3/sharing/validate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ invites: [{ email, role, visibility, canEdit: role !== 'viewer' }] })
+        });
+        const validatePayload = await validateRes.json();
+        const invite = (validatePayload.invites || [])[0];
+        if (!invite) {
+            setStatus('shareStatus', 'Enter a valid email address.', 'error');
+            return;
+        }
+
+        const ref = db.collection('users').doc(currentUser.uid).collection('sharedMembers').doc(invite.email);
+        const previous = await ref.get();
+        await ref.set({
+            ...invite,
+            invitedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            invitedAtMs: Date.now(),
+            status: 'pending',
+        }, { merge: true });
+
+        pushUndo(async () => {
+            if (previous.exists) {
+                await ref.set(previous.data(), { merge: true });
+            } else {
+                await ref.delete();
+            }
+            await loadMembers();
+        });
+        setStatus('shareStatus', `Invite prepared for ${invite.email}.`, 'success');
+        document.getElementById('inviteEmail').value = '';
+        await loadMembers();
+    }
+    window.addInvite = addInvite;
+
+    async function removeInvite(email) {
+        if (!currentUser || !email) return;
+        const ref = db.collection('users').doc(currentUser.uid).collection('sharedMembers').doc(email);
+        const previous = await ref.get();
+        await ref.delete();
+        pushUndo(async () => {
+            if (previous.exists) {
+                await ref.set(previous.data(), { merge: true });
+            }
+            await loadMembers();
+        });
+        await loadMembers();
+        setStatus('shareStatus', `Removed ${email}.`, 'info');
+    }
+    window.removeInvite = removeInvite;
+
+    async function loadMembers() {
+        if (!currentUser) return;
+        const list = document.getElementById('membersList');
+        const snapshot = await db.collection('users').doc(currentUser.uid).collection('sharedMembers').get();
+        if (snapshot.empty) {
+            list.innerHTML = '<div class="muted">No invited members yet.</div>';
+            return;
+        }
+        const members = snapshot.docs
+            .map(doc => ({ id: doc.id, ...(doc.data() || {}) }))
+            .sort((a, b) => a.id.localeCompare(b.id));
+        list.innerHTML = members.map(member => `
+            <div class="list-item">
+                <div>
+                    <strong>${escapeHtml(member.email || member.id)}</strong>
+                    <div class="muted">${escapeHtml(member.role || 'viewer')} • ${escapeHtml(member.visibility || 'all')} • ${escapeHtml(member.status || 'pending')}</div>
+                </div>
+                <button class="secondary" data-email="${encodeURIComponent(member.id)}" onclick="removeInvite(decodeURIComponent(this.dataset.email))">Remove</button>
+            </div>
+        `).join('');
+    }
+
+    async function runScenario() {
+        const body = {
+            starting_balance: Number(document.getElementById('scenarioStarting').value || 0),
+            monthly_contribution: Number(document.getElementById('scenarioMonthly').value || 0),
+            months: Number(document.getElementById('scenarioMonths').value || 12),
+            scenario: {
+                income_delta: Number(document.getElementById('scenarioIncomeDelta').value || 0),
+                expense_delta: Number(document.getElementById('scenarioExpenseDelta').value || 0),
+                fx_shift_percent: Number(document.getElementById('scenarioFxShift').value || 0),
+                one_off_adjustment: Number(document.getElementById('scenarioOneOff').value || 0),
+            }
+        };
+        const response = await fetch('/api/day3/scenario/forecast', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        const payload = await response.json();
+        if (!response.ok) {
+            setStatus('scenarioStatus', payload.error || 'Could not run scenario.', 'error');
+            return;
+        }
+        lastScenarioPayload = payload;
+        window.day3ScenarioActive = false;
+        renderScenarioKpi();
+        setStatus('scenarioStatus', 'Scenario preview generated (temporary).', 'success');
+    }
+    window.runScenario = runScenario;
+
+    function toggleScenario() {
+        if (!lastScenarioPayload) {
+            setStatus('scenarioStatus', 'Run a scenario first.', 'info');
+            return;
+        }
+        window.day3ScenarioActive = !window.day3ScenarioActive;
+        renderScenarioKpi();
+        const msg = window.day3ScenarioActive ? 'Scenario preview active (temporary only).' : 'Scenario preview deactivated.';
+        setStatus('scenarioStatus', msg, 'info');
+    }
+    window.toggleScenario = toggleScenario;
+
+    function renderScenarioKpi() {
+        const box = document.getElementById('scenarioKpi');
+        if (!lastScenarioPayload) {
+            box.textContent = 'No scenario yet.';
+            box.className = 'scenario-kpi';
+            return;
+        }
+        const baseline = lastScenarioPayload.baseline || {};
+        const scenario = lastScenarioPayload.scenario || {};
+        const baselineEnd = (baseline.balances || [0]).slice(-1)[0] || 0;
+        const scenarioEnd = (scenario.balances || [0]).slice(-1)[0] || 0;
+        const delta = scenarioEnd - baselineEnd;
+        box.className = `scenario-kpi ${window.day3ScenarioActive ? 'active' : ''}`.trim();
+        box.innerHTML = `
+            <div><strong>Baseline end:</strong> ${formatMoney(baselineEnd, DEFAULT_CURRENCY)}</div>
+            <div><strong>Scenario end:</strong> ${formatMoney(scenarioEnd, DEFAULT_CURRENCY)}</div>
+            <div><strong>Delta:</strong> ${formatMoney(delta, DEFAULT_CURRENCY)}</div>
+            <div class="muted" style="margin-top:6px;">Mode: ${window.day3ScenarioActive ? 'Active preview' : 'Preview ready (inactive)'}</div>
+        `;
+    }
+
+    async function suggestCategory() {
+        const description = String(document.getElementById('smartDescription').value || '').trim();
+        const amount = Number(document.getElementById('smartAmount').value || 0);
+        const response = await fetch('/api/day3/transactions/categorize', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ description, amount }),
+        });
+        const payload = await response.json();
+        if (!response.ok) {
+            setStatus('smartStatus', payload.error || 'Suggestion failed.', 'error');
+            return;
+        }
+        window.lastSmartSuggestion = payload;
+        const tags = (payload.smart_tags || []).map(tag => `<span class="pill">${escapeHtml(tag)}</span>`).join('');
+        document.getElementById('smartResult').innerHTML = `
+            <div><strong>Category:</strong> ${escapeHtml(payload.category || 'Uncategorized')}</div>
+            <div><strong>Confidence:</strong> ${Math.round((Number(payload.confidence || 0) * 100))}%</div>
+            <div style="margin-top:6px;"><strong>Smart tags:</strong><div style="margin-top:4px;">${tags || '<span class="muted">No tags</span>'}</div></div>
+        `;
+        setStatus('smartStatus', 'Smart suggestion generated.', 'success');
+    }
+    window.suggestCategory = suggestCategory;
+
+    async function saveSmartTagPreset() {
+        if (!currentUser) return;
+        const suggestion = window.lastSmartSuggestion;
+        if (!suggestion) {
+            setStatus('smartStatus', 'Generate a suggestion first.', 'info');
+            return;
+        }
+        const description = String(suggestion.description || '').trim();
+        const key = description.toLowerCase() || `rule_${Date.now()}`;
+        const ref = db.collection('users').doc(currentUser.uid).collection('smartTagRules').doc(key);
+        const previous = await ref.get();
+        await ref.set({
+            descriptionPattern: description,
+            category: suggestion.category || 'Uncategorized',
+            smart_tags: suggestion.smart_tags || [],
+            confidence: Number(suggestion.confidence || 0),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedAtMs: Date.now(),
+        }, { merge: true });
+        pushUndo(async () => {
+            if (previous.exists) await ref.set(previous.data(), { merge: true });
+            else await ref.delete();
+        });
+        setStatus('smartStatus', 'Smart-tag preset saved for this pattern.', 'success');
+    }
+    window.saveSmartTagPreset = saveSmartTagPreset;
+
+    async function parseImportFile() {
+        const fileInput = document.getElementById('importFile');
+        const format = document.getElementById('importFormat').value;
+        const file = fileInput.files && fileInput.files[0];
+        if (!file) {
+            setStatus('importStatus', 'Select a file first.', 'error');
+            return;
+        }
+        const content = await file.text();
+        const response = await fetch('/api/day3/import/parse', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ format, content }),
+        });
+        const payload = await response.json();
+        if (!response.ok) {
+            setStatus('importStatus', payload.error || 'Import parsing failed.', 'error');
+            return;
+        }
+        importedTransactions = payload.transactions || [];
+        renderImportedRows(importedTransactions);
+        setStatus('importStatus', `Parsed ${payload.count || importedTransactions.length} rows (${format.toUpperCase()}).`, 'success');
+    }
+    window.parseImportFile = parseImportFile;
+
+    async function downloadExport(format) {
+        const response = await fetch('/api/day3/export', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ format, transactions: importedTransactions }),
+        });
+        const payload = await response.json();
+        if (!response.ok) {
+            setStatus('importStatus', payload.error || 'Export failed.', 'error');
+            return;
+        }
+        let content = payload.content || '';
+        if (format === 'json') {
+            content = JSON.stringify(payload.rows || [], null, 2);
+        }
+        const blob = new Blob([content], { type: payload.mimeType || 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = payload.filename || `crewwealth-export.${format}`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        setStatus('importStatus', `Exported ${payload.count || 0} rows as ${format.toUpperCase()}.`, 'info');
+    }
+    window.downloadExport = downloadExport;
+
+    async function saveQuickTransaction() {
+        if (!currentUser) return;
+        const type = document.getElementById('quickType').value;
+        const description = String(document.getElementById('quickDescription').value || '').trim();
+        const amount = Number(document.getElementById('quickAmount').value || 0);
+        const currency = document.getElementById('quickCurrency').value;
+        if (!description || !isFinite(amount) || amount === 0) {
+            setStatus('quickStatus', 'Enter a description and non-zero amount.', 'error');
+            return;
+        }
+        const created = await db.collection('users').doc(currentUser.uid).collection('transactions').add({
+            type,
+            description,
+            amount,
+            currency,
+            date: firebase.firestore.FieldValue.serverTimestamp(),
+            createdAtMs: Date.now(),
+            source: 'day3-quick-widget',
+        });
+        pushUndo(async () => created.delete());
+        setStatus('quickStatus', 'Quick transaction saved.', 'success');
+        document.getElementById('quickDescription').value = '';
+        document.getElementById('quickAmount').value = '';
+    }
+    window.saveQuickTransaction = saveQuickTransaction;
+
+    async function savePresets() {
+        if (!currentUser) return;
+        const favoriteCurrency = document.getElementById('presetCurrency').value;
+        const reportPreset = document.getElementById('presetReport').value;
+        const validateResponse = await fetch('/api/day3/presets/validate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ favoriteCurrency, reportPreset }),
+        });
+        const normalized = await validateResponse.json();
+        const ref = db.collection('users').doc(currentUser.uid).collection('userPresets').doc('default');
+        const previous = await ref.get();
+        await ref.set({
+            favoriteCurrency: normalized.favoriteCurrency,
+            reportPreset: normalized.reportPreset,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedAtMs: Date.now(),
+        }, { merge: true });
+        pushUndo(async () => {
+            if (previous.exists) await ref.set(previous.data(), { merge: true });
+            else await ref.delete();
+        });
+        setStatus('presetStatus', 'Personal presets saved.', 'success');
+    }
+    window.savePresets = savePresets;
+
+    async function loadPresets() {
+        if (!currentUser) return;
+        const presetRef = await db.collection('users').doc(currentUser.uid).collection('userPresets').doc('default').get();
+        if (!presetRef.exists) return;
+        const data = presetRef.data() || {};
+        if (isValidCurrency(data.favoriteCurrency)) {
+            document.getElementById('presetCurrency').value = data.favoriteCurrency;
+        }
+        if (['monthly', 'quarterly', 'voyage'].includes(data.reportPreset)) {
+            document.getElementById('presetReport').value = data.reportPreset;
+        }
+    }
+    window.loadPresets = loadPresets;
+
+    function initCurrencySelectors() {
+        const options = SUPPORTED_CURRENCIES.map(code => `<option value="${code}">${code}</option>`).join('');
+        document.getElementById('quickCurrency').innerHTML = options;
+        document.getElementById('presetCurrency').innerHTML = options;
+        document.getElementById('quickCurrency').value = DEFAULT_CURRENCY;
+        document.getElementById('presetCurrency').value = DEFAULT_CURRENCY;
+    }
+
+    auth.onAuthStateChanged(async (user) => {
+        if (!user) {
+            window.location.href = '/login?next=/day3';
+            return;
+        }
+        currentUser = user;
+        initCurrencySelectors();
+        const shouldShowTutorial = !localStorage.getItem('cw_day3_tutorial_seen');
+        document.getElementById('tutorialBox').style.display = shouldShowTutorial ? 'block' : 'none';
+        await Promise.all([loadMembers(), loadPresets()]);
+    });
+</script>
+</body>
+</html>
