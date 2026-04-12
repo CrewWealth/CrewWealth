@@ -2536,8 +2536,8 @@
                     return sum + (converted === null ? 0 : converted);
                 }, 0);
 
-            // Calculate to budget
-            const toBudget = availableFunds - totalBudgeted + totalSpent;
+            // Calculate to budget (planned budget only; spent is tracked separately)
+            const toBudget = availableFunds - totalBudgeted;
 
             // Calculate overspent
             const overspent = categories.reduce((sum, cat) => {

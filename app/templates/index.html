@@ -838,7 +838,7 @@
                     <div class="net-worth-breakdown">
                         <span id="savingsAmount"><span class="currency-symbol">€</span>0 Savings</span>
                         <span class="divider">•</span>
-                        <span id="toBudgetAmount"><span class="currency-symbol">€</span>0 Available</span>
+                        <span id="onBudgetAmount"><span class="currency-symbol">€</span>0 Available funds</span>
                     </div>
                     <div id="fxRateAsOfLabel" class="stat-subtitle" style="display:none;"></div>
                 </div>
@@ -1597,19 +1597,20 @@
                 // To Budget = On Budget Total - Total Budgeted
                 const toBudget = onBudgetTotal - totalBudgeted;
 
-                // Net Worth = Off Budget (Savings) + To Budget (Available)
-                const netWorth = offBudgetTotal + toBudget;
+                // Net Worth = total of all account balances (on + off budget)
+                const netWorth = offBudgetTotal + onBudgetTotal;
 
                 // Update UI
                 document.getElementById('netWorthAmount').textContent = formatCurrency(netWorth);
                 document.getElementById('savingsAmount').textContent = formatCurrency(offBudgetTotal) + ' Savings';
-                document.getElementById('toBudgetAmount').textContent = formatCurrency(toBudget) + ' Available';
+                document.getElementById('onBudgetAmount').textContent = formatCurrency(onBudgetTotal) + ' Available funds';
                 renderFxRateAsOfLabel();
 
                 console.log('✅ Net worth calculated:', {
                     netWorth,
                     savings: offBudgetTotal,
-                    available: toBudget,
+                    onBudgetTotal,
+                    toBudget,
                     totalBudgeted
                 });
 
