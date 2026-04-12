@@ -227,6 +227,10 @@
             return `${(base || '').toUpperCase()}_${(quote || '').toUpperCase()}`;
         }
 
+        function escapeAttr(value) {
+            return String(value || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;');
+        }
+
         function setStatus(message, kind = '') {
             const el = document.getElementById('fxStatusMessage');
             if (!el) return;
@@ -501,17 +505,30 @@
                 }
 
                 body.innerHTML = rows.map(row => {
-                    const mode = row.mode || 'auto';
-                    const source = row.source || 'unknown';
+                    const base = isValidCurrency(row.base) ? row.base : '';
+                    const quote = isValidCurrency(row.quote) ? row.quote : '';
+                    if (!base || !quote) return '';
+                    const mode = (row.mode === 'fixed') ? 'fixed' : 'auto';
+                    const source = String(row.source || 'unknown');
                     const updated = formatAsOf(row.updatedAt || row.updatedAtMs);
-                    return `<tr data-pair="${row.id}" onclick="prefillPair('${row.base}', '${row.quote}', '${mode}', '${Number(row.rate)}')">
-                        <td class="mono">${row.base}→${row.quote}</td>
+                    return `<tr class="pair-row" data-base="${escapeAttr(base)}" data-quote="${escapeAttr(quote)}" data-mode="${mode}" data-rate="${Number(row.rate)}">
+                        <td class="mono">${base}→${quote}</td>
                         <td>${Number(row.rate).toFixed(6)}</td>
                         <td><span class="tag ${mode === 'fixed' ? 'fixed' : 'auto'}">${mode}</span></td>
-                        <td>${source}</td>
+                        <td>${escapeAttr(source)}</td>
                         <td>${updated}</td>
                     </tr>`;
                 }).join('');
+                body.querySelectorAll('.pair-row').forEach(rowEl => {
+                    rowEl.addEventListener('click', () => {
+                        prefillPair(
+                            rowEl.dataset.base || '',
+                            rowEl.dataset.quote || '',
+                            rowEl.dataset.mode || 'auto',
+                            Number(rowEl.dataset.rate || 0)
+                        );
+                    });
+                });
             } catch (error) {
                 console.error('Could not load pair table:', error);
                 body.innerHTML = '<tr><td colspan="5" class="muted">Could not load FX pairs.</td></tr>';

@@ -1308,7 +1308,7 @@
             excludedAmounts.set(key, current);
         }
 
-        function renderFxWarning() {
+        function renderFxRateAsOfLabel() {
             const warningEl = document.getElementById('fxRateAsOfLabel');
             if (!warningEl) return;
             if (!window.fxRateAsOfLabel) {
@@ -1390,7 +1390,7 @@
             } else {
                 window.fxRateAsOfLabel = '';
             }
-            renderFxWarning();
+            renderFxRateAsOfLabel();
             return rates;
         }
 
@@ -1411,7 +1411,7 @@
                 const asOfTs = Number(raw);
                 if (isFinite(asOfTs) && asOfTs > 0) {
                     window.fxRateAsOfLabel = `Rate as of ${new Date(asOfTs).toLocaleString()}`;
-                    renderFxWarning();
+                    renderFxRateAsOfLabel();
                 }
             } catch (error) {
                 console.warn('Could not load FX status metadata:', error);
@@ -1603,7 +1603,7 @@
                 document.getElementById('netWorthAmount').textContent = formatCurrency(netWorth);
                 document.getElementById('savingsAmount').textContent = formatCurrency(offBudgetTotal) + ' Savings';
                 document.getElementById('toBudgetAmount').textContent = formatCurrency(toBudget) + ' Available';
-                renderFxWarning(missingPairs, usedPairs, excludedAmounts);
+                renderFxRateAsOfLabel();
 
                 console.log('✅ Net worth calculated:', {
                     netWorth,
@@ -1819,7 +1819,7 @@
         if (rateEl) {
             rateEl.textContent = `${savingsRate.toFixed(1)}%`;
         }
-        renderFxWarning(missingPairs, usedPairs, excludedAmounts);
+        renderFxRateAsOfLabel();
 
         // ================================
         // Budget progress bar
