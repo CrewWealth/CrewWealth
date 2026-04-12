@@ -1270,7 +1270,7 @@
         window.userLegacyCurrency = 'EUR'; // legacy settings.currency fallback
         window.userFxRates = {};
         window.fxRateAsOfLabel = '';
-        const GHOST_TRANSACTION_CLEANUP_VERSION = 'v1';
+        const GHOST_TRANSACTION_CLEANUP_VERSION = 'v2';
         const LEGACY_TRANSACTION_STORAGE_HINTS = ['transaction', 'recenttx', 'budgettx'];
 
         // ============================================
@@ -1671,8 +1671,12 @@
             try {
                 return await queryRef.get({ source: 'server' });
             } catch (error) {
-                console.warn(`⚠️ Falling back to default Firestore source for ${label}:`, error);
-                return queryRef.get();
+                const fallbackSnapshot = await queryRef.get();
+                if (fallbackSnapshot.metadata && fallbackSnapshot.metadata.fromCache) {
+                    throw error;
+                }
+                console.warn(`⚠️ Server source unavailable for ${label}; using non-cache fallback.`);
+                return fallbackSnapshot;
             }
         }
 

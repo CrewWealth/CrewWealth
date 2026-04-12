@@ -478,6 +478,19 @@
             }
         }
 
+        async function getFirestoreSnapshotFromServer(queryRef, label) {
+            try {
+                return await queryRef.get({ source: 'server' });
+            } catch (error) {
+                const fallbackSnapshot = await queryRef.get();
+                if (fallbackSnapshot.metadata && fallbackSnapshot.metadata.fromCache) {
+                    throw error;
+                }
+                console.warn(`⚠️ Server source unavailable for ${label}; using non-cache fallback.`);
+                return fallbackSnapshot;
+            }
+        }
+
         // Authentication check
         auth.onAuthStateChanged(async (user) => {
             if (!user) {
@@ -609,12 +622,14 @@
                     accountCurrencyById[doc.id] = resolveAccountCurrency(account);
                 });
 
-                const transactionsSnapshot = await db.collection('users')
-                    .doc(currentUser.uid)
-                    .collection('transactions')
-                    .where('date', '>=', firebase.firestore.Timestamp.fromDate(monthStart))
-                    .where('date', '<=', firebase.firestore.Timestamp.fromDate(monthEnd))
-                    .get();
+                const transactionsSnapshot = await getFirestoreSnapshotFromServer(
+                    db.collection('users')
+                        .doc(currentUser.uid)
+                        .collection('transactions')
+                        .where('date', '>=', firebase.firestore.Timestamp.fromDate(monthStart))
+                        .where('date', '<=', firebase.firestore.Timestamp.fromDate(monthEnd)),
+                    'reports monthly transactions'
+                );
 
                 let totalIncome = 0;
                 let totalSpending = 0;
@@ -801,12 +816,14 @@
                     .get();
                 categories = categoriesSnapshot.docs.map(doc => ({id: doc.id, ...doc.data()}));
 
-                const transactionsSnapshot = await db.collection('users')
-                    .doc(currentUser.uid)
-                    .collection('transactions')
-                    .orderBy('date', 'desc')
-                    .limit(20)
-                    .get();
+                const transactionsSnapshot = await getFirestoreSnapshotFromServer(
+                    db.collection('users')
+                        .doc(currentUser.uid)
+                        .collection('transactions')
+                        .orderBy('date', 'desc')
+                        .limit(20),
+                    'reports recent transactions'
+                );
 
                 const transactionsList = document.getElementById('transactionsList');
 
