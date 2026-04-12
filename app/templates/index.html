@@ -1271,6 +1271,7 @@
         window.userFxRates = {};
         window.fxRateAsOfLabel = '';
         const GHOST_TRANSACTION_CLEANUP_VERSION = 'v1';
+        const LEGACY_TRANSACTION_STORAGE_HINTS = ['transaction', 'recenttx', 'budgettx'];
 
         // ============================================
         // CURRENCY FUNCTIONS
@@ -1637,7 +1638,7 @@
         function isLegacyTransactionStorageKey(key, userId) {
             const normalizedKey = String(key || '').toLowerCase();
             if (!normalizedKey) return false;
-            const hasTransactionHint = normalizedKey.includes('transaction') || normalizedKey.includes('recenttx') || normalizedKey.includes('budgettx');
+            const hasTransactionHint = LEGACY_TRANSACTION_STORAGE_HINTS.some(hint => normalizedKey.includes(hint));
             if (!hasTransactionHint) return false;
             if (normalizedKey.includes('crewwealth') || normalizedKey.includes('cw_')) return true;
             if (normalizedKey.startsWith('transactions') || normalizedKey.startsWith('recenttransactions')) return true;

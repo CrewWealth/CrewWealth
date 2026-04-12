@@ -1800,6 +1800,7 @@
         let realtimeUnsubscribers = [];
         let realtimeRefreshTimer = null;
         const GHOST_TRANSACTION_CLEANUP_VERSION = 'v1';
+        const LEGACY_TRANSACTION_STORAGE_HINTS = ['transaction', 'recenttx', 'budgettx'];
         // Short debounce to collapse bursty Firestore updates from imports/batch writes.
         // A REALTIME_REFRESH_DEBOUNCE_MS delay keeps UI responsive while avoiding duplicate renders on batched writes.
         const REALTIME_REFRESH_DEBOUNCE_MS = 250;
@@ -1958,7 +1959,7 @@
         function isLegacyTransactionStorageKey(key, userId) {
             const normalizedKey = String(key || '').toLowerCase();
             if (!normalizedKey) return false;
-            const hasTransactionHint = normalizedKey.includes('transaction') || normalizedKey.includes('recenttx') || normalizedKey.includes('budgettx');
+            const hasTransactionHint = LEGACY_TRANSACTION_STORAGE_HINTS.some(hint => normalizedKey.includes(hint));
             if (!hasTransactionHint) return false;
             if (normalizedKey.includes('crewwealth') || normalizedKey.includes('cw_')) return true;
             if (normalizedKey.startsWith('transactions') || normalizedKey.startsWith('recenttransactions')) return true;
@@ -2133,7 +2134,6 @@
                 budgets = budgetDoc.exists ? { [monthKey]: budgetDoc.data() } : { [monthKey]: {} };
 
                 // Load transactions
-                transactions = [];
                 const transactionsSnapshot = await getFirestoreSnapshotFromServer(
                     db.collection('users').doc(userId).collection('transactions'),
                     'budget transactions'
@@ -2153,6 +2153,7 @@
                 await loadRecurringTransactions();
 
             } catch (error) {
+                transactions = [];
                 console.error('❌ Error loading data:', error);
                 throw error;
             }
