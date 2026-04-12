@@ -173,7 +173,6 @@ def _get_projection_inner(uid):
                 or not quote
                 or not math.isfinite(rate)
                 or rate <= 0
-                or raw_rate is None
             ):
                 continue
             fx_rates[_fx_pair_key(base, quote)] = rate
