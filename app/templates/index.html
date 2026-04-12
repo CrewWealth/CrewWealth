@@ -1265,6 +1265,7 @@
         // ============================================
         let currentUser = null;
         window.userCurrency = 'EUR'; // global variable for currency
+        window.userLegacyCurrency = 'EUR'; // legacy settings.currency fallback
         window.userFxRates = {};
 
         // ============================================
@@ -1286,17 +1287,54 @@
             return `${formatMoney(amount, code)} ${code}`;
         }
 
-        function renderFxWarning(missingPairs) {
+        function renderFxWarning(missingPairs, usedPairs) {
             const warningEl = document.getElementById('fxRateWarning');
             if (!warningEl) return;
             const pairs = Array.from(missingPairs || []);
-            if (!pairs.length) {
+            const used = Array.from(usedPairs || []);
+            if (!pairs.length && !used.length) {
                 warningEl.style.display = 'none';
                 warningEl.textContent = '';
                 return;
             }
             warningEl.style.display = 'block';
-            warningEl.textContent = `Missing FX rates for: ${pairs.join(', ')}. Totals exclude those amounts.`;
+            const notes = [];
+            if (pairs.length) {
+                notes.push(`Missing FX rates for: ${pairs.join(', ')}. Totals exclude those amounts.`);
+            }
+            if (used.length) {
+                notes.push(`Converted using FX: ${used.join(', ')}.`);
+            }
+            warningEl.textContent = notes.join(' ');
+        }
+
+        function getAccountCurrency(account) {
+            const code = (
+                account?.currency
+                || window.userLegacyCurrency
+                || window.userCurrency
+                || DEFAULT_CURRENCY
+            );
+            return String(code).toUpperCase();
+        }
+
+        function describeFxRate(fromCurrency, toCurrency) {
+            const from = (fromCurrency || DEFAULT_CURRENCY).toUpperCase();
+            const to = (toCurrency || DEFAULT_CURRENCY).toUpperCase();
+            if (from === to) return `${from}->${to} @ 1`;
+            const rate = resolveFxRate(from, to, window.userFxRates || {});
+            if (rate === null) return `${from}->${to} (missing)`;
+            return `${from}->${to} @ ${rate.toFixed(6)}`;
+        }
+
+        function getBudgetDocCurrency(budgetDocData) {
+            const code = (
+                budgetDocData?.__currency
+                || window.userLegacyCurrency
+                || window.userCurrency
+                || DEFAULT_CURRENCY
+            );
+            return String(code).toUpperCase();
         }
 
         async function loadUserFxRates() {
@@ -1322,7 +1360,7 @@
             return rates;
         }
 
-        function convertToBaseCurrency(amount, fromCurrency, missingPairs) {
+        function convertToBaseCurrency(amount, fromCurrency, missingPairs, usedPairs) {
             const sourceCurrency = (fromCurrency || window.userCurrency || DEFAULT_CURRENCY).toUpperCase();
             const targetCurrency = (window.userCurrency || DEFAULT_CURRENCY).toUpperCase();
             const converted = convertMoney(amount, sourceCurrency, targetCurrency, window.userFxRates || {});
@@ -1331,6 +1369,9 @@
                     missingPairs.add(`${sourceCurrency}->${targetCurrency}`);
                 }
                 return null;
+            }
+            if (usedPairs && sourceCurrency !== targetCurrency) {
+                usedPairs.add(describeFxRate(sourceCurrency, targetCurrency));
             }
             return converted;
         }
@@ -1350,6 +1391,7 @@
                     const data = doc.data();
                     // baseCurrency takes precedence over legacy settings.currency
                     window.userCurrency = data.baseCurrency || data.settings?.currency || DEFAULT_CURRENCY;
+                    window.userLegacyCurrency = data.settings?.currency || window.userCurrency || DEFAULT_CURRENCY;
                     updateCurrencyLabels();
                 }
             } catch (error) {
@@ -1451,12 +1493,13 @@
                 let offBudgetTotal = 0; // Savings
                 let onBudgetTotal = 0;  // All on-budget money
                 const missingPairs = new Set();
+                const usedPairs = new Set();
                 
                 accountsSnapshot.docs.forEach(doc => {
                     const account = doc.data();
                     const balance = parseFloat(account.balance) || 0;
-                    const accountCurrency = (account.currency || window.userCurrency || DEFAULT_CURRENCY).toUpperCase();
-                    const convertedBalance = convertToBaseCurrency(balance, accountCurrency, missingPairs);
+                    const accountCurrency = getAccountCurrency(account);
+                    const convertedBalance = convertToBaseCurrency(balance, accountCurrency, missingPairs, usedPairs);
                     if (convertedBalance === null) return;
                     
                     if (account.offBudget) {
@@ -1477,11 +1520,13 @@
 
                 let totalBudgeted = 0;
                 if (budgetDoc.exists) {
-                    const budgets = budgetDoc.data();
+                    const budgets = budgetDoc.data() || {};
+                    const budgetCurrency = getBudgetDocCurrency(budgets);
                     // Sum all budgeted amounts (excluding metadata fields)
                     totalBudgeted = Object.entries(budgets).reduce((sum, [key, val]) => {
-                        if (key !== 'createdAt' && key !== 'updatedAt') {
-                            return sum + (parseFloat(val) || 0);
+                        if (key !== 'createdAt' && key !== 'updatedAt' && key !== '__currency') {
+                            const converted = convertToBaseCurrency(parseFloat(val) || 0, budgetCurrency, missingPairs, usedPairs);
+                            return sum + (converted === null ? 0 : converted);
                         }
                         return sum;
                     }, 0);
@@ -1497,7 +1542,7 @@
                 document.getElementById('netWorthAmount').textContent = formatCurrency(netWorth);
                 document.getElementById('savingsAmount').textContent = formatCurrency(offBudgetTotal) + ' Savings';
                 document.getElementById('toBudgetAmount').textContent = formatCurrency(toBudget) + ' Available';
-                renderFxWarning(missingPairs);
+                renderFxWarning(missingPairs, usedPairs);
 
                 console.log('✅ Net worth calculated:', {
                     netWorth,
@@ -1627,7 +1672,7 @@
         const accountCurrencyById = {};
         accountsSnapshot.docs.forEach(doc => {
             const account = doc.data() || {};
-            accountCurrencyById[doc.id] = (account.currency || window.userCurrency || DEFAULT_CURRENCY).toUpperCase();
+            accountCurrencyById[doc.id] = getAccountCurrency(account);
         });
 
         // ================================
@@ -1642,11 +1687,13 @@
 
         let totalBudgeted = 0;
         if (budgetDoc.exists) {
-            const budgets = budgetDoc.data();
+            const budgets = budgetDoc.data() || {};
+            const budgetCurrency = getBudgetDocCurrency(budgets);
             // Sum all budgeted amounts (excluding metadata fields)
             totalBudgeted = Object.entries(budgets).reduce((sum, [key, val]) => {
-                if (key !== 'createdAt' && key !== 'updatedAt') {
-                    return sum + (parseFloat(val) || 0);
+                if (key !== 'createdAt' && key !== 'updatedAt' && key !== '__currency') {
+                    const converted = convertToBaseCurrency(parseFloat(val) || 0, budgetCurrency, missingPairs, usedPairs);
+                    return sum + (converted === null ? 0 : converted);
                 }
                 return sum;
             }, 0);
@@ -1666,12 +1713,13 @@
         let totalSpent = 0;
         let totalIncome = 0;
         const missingPairs = new Set();
+        const usedPairs = new Set();
 
         transactionsSnapshot.docs.forEach(doc => {
             const transaction = doc.data();
             const amount = Math.abs(parseFloat(transaction.amount) || 0);
-            const txCurrency = accountCurrencyById[transaction.accountId] || window.userCurrency || DEFAULT_CURRENCY;
-            const convertedAmount = convertToBaseCurrency(amount, txCurrency, missingPairs);
+            const txCurrency = accountCurrencyById[transaction.accountId] || window.userLegacyCurrency || window.userCurrency || DEFAULT_CURRENCY;
+            const convertedAmount = convertToBaseCurrency(amount, txCurrency, missingPairs, usedPairs);
             if (convertedAmount === null) return;
 
             // Uitgaven
@@ -1708,7 +1756,7 @@
         if (rateEl) {
             rateEl.textContent = `${savingsRate.toFixed(1)}%`;
         }
-        renderFxWarning(missingPairs);
+        renderFxWarning(missingPairs, usedPairs);
 
         // ================================
         // Budget progress bar
@@ -1744,7 +1792,7 @@
                 const accountCurrencyById = {};
                 accountsSnapshot.docs.forEach(doc => {
                     const account = doc.data() || {};
-                    accountCurrencyById[doc.id] = (account.currency || window.userCurrency || DEFAULT_CURRENCY).toUpperCase();
+                    accountCurrencyById[doc.id] = getAccountCurrency(account);
                 });
 
                 const transactionsSnapshot = await db.collection('users')

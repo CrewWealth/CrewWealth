@@ -8,6 +8,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="/static/js/currency.js"></script>
     <style>
         :root {
             --color-primary: #208089;
@@ -546,39 +547,16 @@
         // CURRENCY FUNCTIONS
         // ============================================
         function formatCurrency(amount) {
-            const currencyConfig = {
-                'USD': { symbol: '$', decimals: 2 },
-                'EUR': { symbol: '€', decimals: 2 },
-                'GBP': { symbol: '£', decimals: 2 },
-                'PHP': { symbol: '₱', decimals: 2 },
-                'INR': { symbol: '₹', decimals: 2 },
-                'IDR': { symbol: 'Rp', decimals: 0 },
-                'SGD': { symbol: 'S$', decimals: 2 },
-                'NOK': { symbol: 'kr', decimals: 2 },
-                'AUD': { symbol: 'A$', decimals: 2 },
-                'CAD': { symbol: 'C$', decimals: 2 },
-                'JPY': { symbol: '¥', decimals: 0 }
-            };
-            
-            const config = currencyConfig[userCurrency] || currencyConfig['EUR'];
-            const formatted = (amount || 0).toFixed(config.decimals)
-                .replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-            
-            return config.symbol + formatted;
+            return formatMoney(amount, userCurrency || DEFAULT_CURRENCY);
         }
 
-        function getCurrencySymbol() {
-            const symbols = {
-                'EUR': '€', 'USD': '$', 'GBP': '£', 'PHP': '₱',
-                'INR': '₹', 'AUD': 'A$', 'CAD': 'C$', 'SGD': 'S$',
-                'NOK': 'kr', 'JPY': '¥'
-            };
-            return symbols[userCurrency] || '€';
+        function getCurrentCurrencySymbol() {
+            return getCurrencySymbol(userCurrency || DEFAULT_CURRENCY);
         }
 
         function updateCurrencyLabels() {
             document.querySelectorAll('.currency-symbol').forEach(el => {
-                el.textContent = getCurrencySymbol();
+                el.textContent = getCurrentCurrencySymbol();
             });
         }
 
@@ -588,7 +566,8 @@
             try {
                 const doc = await db.collection('users').doc(currentUser.uid).get();
                 if (doc.exists) {
-                    userCurrency = doc.data().settings?.currency || 'EUR';
+                    const data = doc.data() || {};
+                    userCurrency = data.baseCurrency || data.settings?.currency || DEFAULT_CURRENCY;
                     updateCurrencyLabels();
                 }
             } catch (error) {

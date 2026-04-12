@@ -8,6 +8,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="/static/js/currency.js"></script>
     <style>
         :root {
             --color-primary: #208089;
@@ -1037,6 +1038,13 @@
             font-size: 13px;
             cursor: pointer;
         }
+
+        .fx-rate-warning {
+            margin-top: var(--spacing-sm);
+            font-size: 12px;
+            color: var(--color-warning);
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -1050,6 +1058,7 @@
                     <span>All accounts</span>
                     <span id="allAccountsTotal">€0.00</span>
                 </div>
+                <div id="budgetFxRateWarning" class="fx-rate-warning"></div>
             </div>
 
             <div class="account-section">
@@ -1608,45 +1617,136 @@
         let currentDate = new Date();
         let selectedAccountId = null; // null = "All Accounts" view, else specific account ID
         let userCurrency = 'EUR'; // global variable for currency
+        let userLegacyCurrency = 'EUR'; // fallback for legacy accounts without currency
+        let userFxRates = {};
 
         // ============================================
         // CURRENCY FUNCTIONS
         // ============================================
         function formatCurrency(amount) {
-            const currencyConfig = {
-                'USD': { symbol: '$', decimals: 2 },
-                'EUR': { symbol: '€', decimals: 2 },
-                'GBP': { symbol: '£', decimals: 2 },
-                'PHP': { symbol: '₱', decimals: 2 },
-                'INR': { symbol: '₹', decimals: 2 },
-                'IDR': { symbol: 'Rp', decimals: 0 },
-                'SGD': { symbol: 'S$', decimals: 2 },
-                'NOK': { symbol: 'kr', decimals: 2 },
-                'AUD': { symbol: 'A$', decimals: 2 },
-                'CAD': { symbol: 'C$', decimals: 2 },
-                'JPY': { symbol: '¥', decimals: 0 }
-            };
-            
-            const config = currencyConfig[userCurrency] || currencyConfig['EUR'];
-            const formatted = (amount || 0).toFixed(config.decimals)
-                .replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-            
-            return config.symbol + formatted;
+            return formatMoney(amount, userCurrency || DEFAULT_CURRENCY);
         }
 
-        function getCurrencySymbol() {
-            const symbols = {
-                'EUR': '€', 'USD': '$', 'GBP': '£', 'PHP': '₱',
-                'INR': '₹', 'AUD': 'A$', 'CAD': 'C$', 'SGD': 'S$',
-                'NOK': 'kr', 'JPY': '¥'
-            };
-            return symbols[userCurrency] || '€';
+        function getCurrentCurrencySymbol() {
+            return getCurrencySymbol(userCurrency || DEFAULT_CURRENCY);
         }
 
         function updateCurrencyLabels() {
             document.querySelectorAll('.currency-symbol').forEach(el => {
-                el.textContent = getCurrencySymbol();
+                el.textContent = getCurrentCurrencySymbol();
             });
+        }
+
+        function resolveAccountCurrency(account) {
+            const code = (
+                account?.currency
+                || userLegacyCurrency
+                || userCurrency
+                || DEFAULT_CURRENCY
+            );
+            return String(code).toUpperCase();
+        }
+
+        function describeFxRate(fromCurrency, toCurrency) {
+            const from = (fromCurrency || DEFAULT_CURRENCY).toUpperCase();
+            const to = (toCurrency || DEFAULT_CURRENCY).toUpperCase();
+            if (from === to) return `${from}->${to} @ 1`;
+            const rate = resolveFxRate(from, to, userFxRates || {});
+            if (rate === null) return `${from}->${to} (missing)`;
+            return `${from}->${to} @ ${rate.toFixed(6)}`;
+        }
+
+        function renderBudgetFxWarning(missingPairs, usedPairs) {
+            const warningEl = document.getElementById('budgetFxRateWarning');
+            if (!warningEl) return;
+            const missing = Array.from(missingPairs || []);
+            const used = Array.from(usedPairs || []);
+            if (!missing.length && !used.length) {
+                warningEl.style.display = 'none';
+                warningEl.textContent = '';
+                return;
+            }
+            const notes = [];
+            if (missing.length) {
+                notes.push(`Missing FX rates: ${missing.join(', ')} (excluded from totals).`);
+            }
+            if (used.length) {
+                notes.push(`Converted using FX: ${used.join(', ')}.`);
+            }
+            warningEl.style.display = 'block';
+            warningEl.textContent = notes.join(' ');
+        }
+
+        async function loadUserFxRates() {
+            if (!currentUser) return {};
+            const rates = {};
+            try {
+                const fxSnapshot = await db.collection('users')
+                    .doc(currentUser.uid)
+                    .collection('fxRates')
+                    .get();
+                fxSnapshot.docs.forEach(doc => {
+                    const data = doc.data() || {};
+                    const base = (data.base || '').toUpperCase();
+                    const quote = (data.quote || '').toUpperCase();
+                    const rate = Number(data.rate);
+                    if (!base || !quote || !isFinite(rate) || rate <= 0) return;
+                    rates[buildFxPairKey(base, quote)] = rate;
+                });
+            } catch (error) {
+                console.warn('⚠️ Could not load FX rates:', error);
+            }
+            userFxRates = rates;
+            return rates;
+        }
+
+        function convertToUserCurrency(amount, fromCurrency, missingPairs, usedPairs) {
+            const source = (fromCurrency || userCurrency || DEFAULT_CURRENCY).toUpperCase();
+            const target = (userCurrency || DEFAULT_CURRENCY).toUpperCase();
+            const converted = convertMoney(amount, source, target, userFxRates || {});
+            if (converted === null) {
+                if (source !== target && missingPairs) {
+                    missingPairs.add(`${source}->${target}`);
+                }
+                return null;
+            }
+            if (source !== target && usedPairs) {
+                usedPairs.add(describeFxRate(source, target));
+            }
+            return converted;
+        }
+
+        function formatAccountBalanceDisplay(balance, accountCurrency, missingPairs, usedPairs) {
+            const source = (accountCurrency || userCurrency || DEFAULT_CURRENCY).toUpperCase();
+            const target = (userCurrency || DEFAULT_CURRENCY).toUpperCase();
+            const converted = convertToUserCurrency(balance, source, missingPairs, usedPairs);
+            if (converted === null) {
+                return {
+                    text: `${formatMoney(balance, source)} ${source} (FX ${source}->${target} missing)`,
+                    converted: null
+                };
+            }
+            if (source === target) {
+                return { text: formatMoney(converted, target), converted };
+            }
+            return {
+                text: `${formatMoney(converted, target)} (${formatMoney(balance, source)} ${source}; ${describeFxRate(source, target)})`,
+                converted
+            };
+        }
+
+        function getBudgetCurrency(monthKey) {
+            const monthBudget = budgets[monthKey] || {};
+            const code = monthBudget.__currency || userLegacyCurrency || userCurrency || DEFAULT_CURRENCY;
+            return String(code).toUpperCase();
+        }
+
+        function getBudgetValueInUserCurrency(monthKey, categoryId, missingPairs, usedPairs) {
+            const monthBudget = budgets[monthKey] || {};
+            const rawValue = parseFloat(monthBudget[categoryId]) || 0;
+            const sourceCurrency = getBudgetCurrency(monthKey);
+            const converted = convertToUserCurrency(rawValue, sourceCurrency, missingPairs, usedPairs);
+            return converted === null ? 0 : converted;
         }
 
         async function loadUserSettings() {
@@ -1655,7 +1755,9 @@
             try {
                 const doc = await db.collection('users').doc(currentUser.uid).get();
                 if (doc.exists) {
-                    userCurrency = doc.data().settings?.currency || 'EUR';
+                    const data = doc.data() || {};
+                    userCurrency = data.baseCurrency || data.settings?.currency || DEFAULT_CURRENCY;
+                    userLegacyCurrency = data.settings?.currency || userCurrency || DEFAULT_CURRENCY;
                     updateCurrencyLabels();
                 }
             } catch (error) {
@@ -1676,6 +1778,7 @@
             console.log('✅ User authenticated:', user.email);
             currentUser = user;
             await loadUserSettings();
+            await loadUserFxRates();
             await initializeDashboard();
         });
 
@@ -1846,22 +1949,26 @@
             mobileOffBudget.innerHTML = '';
             
             let total = 0;
+            const missingPairs = new Set();
+            const usedPairs = new Set();
             
             accounts.forEach(account => {
                 const balance = parseFloat(account.balance) || 0;
-                total += balance;
+                const accountCurrency = resolveAccountCurrency(account);
+                const display = formatAccountBalanceDisplay(balance, accountCurrency, missingPairs, usedPairs);
+                if (display.converted !== null) total += display.converted;
                 
                 const div = document.createElement('div');
                 div.className = 'mobile-account-item' + (selectedAccountId === account.id ? ' active' : '');
                 div.setAttribute('role', 'button');
                 div.setAttribute('tabindex', '0');
-                div.setAttribute('aria-label', `Select ${account.name} account, balance ${formatCurrency(balance)}`);
+                div.setAttribute('aria-label', `Select ${account.name} account, balance ${display.text}`);
                 
                 const nameSpan = document.createElement('span');
                 nameSpan.textContent = account.name;
                 
                 const balanceSpan = document.createElement('span');
-                balanceSpan.textContent = formatCurrency(balance);
+                balanceSpan.textContent = display.text;
                 
                 div.appendChild(nameSpan);
                 div.appendChild(balanceSpan);
@@ -1886,6 +1993,7 @@
             
             document.getElementById('mobileAccountsTotal').textContent = formatCurrency(total);
             document.getElementById('mobileAllAccountsTotal').textContent = formatCurrency(total);
+            renderBudgetFxWarning(missingPairs, usedPairs);
         }
 
         // ============================================
@@ -1901,9 +2009,13 @@
             let allTotal = 0;
             let onBudgetTotal = 0;
             let offBudgetTotal = 0;
+            const missingPairs = new Set();
+            const usedPairs = new Set();
 
             accounts.forEach(account => {
                 const balance = parseFloat(account.balance) || 0;
+                const accountCurrency = resolveAccountCurrency(account);
+                const display = formatAccountBalanceDisplay(balance, accountCurrency, missingPairs, usedPairs);
                 const div = document.createElement('div');
                 div.className = 'account-item';
                 div.dataset.accountId = account.id; // Add data attribute for selection
@@ -1916,7 +2028,7 @@
                 
                 const balanceSpan = document.createElement('span');
                 balanceSpan.className = 'account-balance';
-                balanceSpan.textContent = formatCurrency(balance);
+                balanceSpan.textContent = display.text;
                 
                 const deleteSpan = document.createElement('span');
                 deleteSpan.className = 'account-delete';
@@ -1941,13 +2053,13 @@
 
                 if (account.offBudget) {
                     offBudgetContainer.appendChild(div);
-                    offBudgetTotal += balance;
+                    if (display.converted !== null) offBudgetTotal += display.converted;
                 } else {
                     onBudgetContainer.appendChild(div);
-                    onBudgetTotal += balance;
+                    if (display.converted !== null) onBudgetTotal += display.converted;
                 }
 
-                allTotal += balance;
+                if (display.converted !== null) allTotal += display.converted;
             });
 
             document.getElementById('allAccountsTotal').textContent = formatCurrency(allTotal);
@@ -1973,6 +2085,7 @@
             
             // Update mobile accounts
             renderMobileAccounts();
+            renderBudgetFxWarning(missingPairs, usedPairs);
         }
 
         function renderCategories() {
@@ -1980,7 +2093,11 @@
             container.innerHTML = '';
 
             const monthKey = getMonthKey();
-            const currentBudgets = budgets[monthKey] || {};
+            const missingPairs = new Set();
+            const usedPairs = new Set();
+            const accountCurrencyById = new Map(
+                accounts.map(account => [account.id, resolveAccountCurrency(account)])
+            );
 
             const groups = {
                 expenses: { name: '💸 Daily Expenses', categories: [] },
@@ -2006,8 +2123,8 @@
                 let groupSpent = 0;
 
                 group.categories.forEach(cat => {
-                    const budgeted = currentBudgets[cat.id] || 0;
-                    const spent = calculateSpent(cat.id, monthKey);
+                    const budgeted = getBudgetValueInUserCurrency(monthKey, cat.id, missingPairs, usedPairs);
+                    const spent = calculateSpent(cat.id, monthKey, missingPairs, usedPairs, accountCurrencyById);
                     groupBudgeted += budgeted;
                     groupSpent += spent;
                 });
@@ -2027,8 +2144,8 @@
 
                 // Render categories in group
                 group.categories.forEach(cat => {
-                    const budgeted = currentBudgets[cat.id] || 0;
-                    const spent = calculateSpent(cat.id, monthKey);
+                    const budgeted = getBudgetValueInUserCurrency(monthKey, cat.id, missingPairs, usedPairs);
+                    const spent = calculateSpent(cat.id, monthKey, missingPairs, usedPairs, accountCurrencyById);
                     const available = budgeted - spent;
 
                     const rowDiv = document.createElement('div');
@@ -2058,11 +2175,15 @@
             if (categories.length === 0) {
                 container.innerHTML = '<div class="loading">No categories yet. Add your first category!</div>';
             }
+            renderBudgetFxWarning(missingPairs, usedPairs);
         }
 
-        function calculateSpent(categoryId, monthKey) {
+        function calculateSpent(categoryId, monthKey, missingPairs, usedPairs, accountCurrencyById) {
             // Parse the monthKey to get year and month
             const [year, month] = monthKey.split('-').map(Number);
+            const currencyMap = accountCurrencyById || new Map(
+                accounts.map(account => [account.id, resolveAccountCurrency(account)])
+            );
             
             return transactions
                 .filter(t => {
@@ -2084,30 +2205,46 @@
                     
                     return txDate.getFullYear() === year && txDate.getMonth() === month - 1;
                 })
-                .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
+                .reduce((sum, t) => {
+                    const amount = parseFloat(t.amount) || 0;
+                    const currency = currencyMap.get(t.accountId) || userLegacyCurrency || userCurrency || DEFAULT_CURRENCY;
+                    const converted = convertToUserCurrency(amount, currency, missingPairs, usedPairs);
+                    return sum + (converted === null ? 0 : converted);
+                }, 0);
         }
 
         function updateOverview() {
             const monthKey = getMonthKey();
-            const currentBudgets = budgets[monthKey] || {};
+            const missingPairs = new Set();
+            const usedPairs = new Set();
+            const accountCurrencyById = new Map(
+                accounts.map(account => [account.id, resolveAccountCurrency(account)])
+            );
 
             // Calculate available funds (sum of on-budget accounts)
             const onBudgetAccounts = accounts.filter(a => !a.offBudget);
-            const availableFunds = onBudgetAccounts.reduce((sum, a) => sum + (parseFloat(a.balance) || 0), 0);
+            const availableFunds = onBudgetAccounts.reduce((sum, a) => {
+                const balance = parseFloat(a.balance) || 0;
+                const currency = resolveAccountCurrency(a);
+                const converted = convertToUserCurrency(balance, currency, missingPairs, usedPairs);
+                return sum + (converted === null ? 0 : converted);
+            }, 0);
 
             // Calculate total budgeted
-            const totalBudgeted = Object.values(currentBudgets).reduce((sum, val) => sum + (parseFloat(val) || 0), 0);
+            const totalBudgeted = categories.reduce((sum, cat) => (
+                sum + getBudgetValueInUserCurrency(monthKey, cat.id, missingPairs, usedPairs)
+            ), 0);
 
             // Calculate total spent
-            const totalSpent = categories.reduce((sum, cat) => sum + calculateSpent(cat.id, monthKey), 0);
+            const totalSpent = categories.reduce((sum, cat) => sum + calculateSpent(cat.id, monthKey, missingPairs, usedPairs, accountCurrencyById), 0);
 
             // Calculate to budget
             const toBudget = availableFunds - totalBudgeted + totalSpent;
 
             // Calculate overspent
             const overspent = categories.reduce((sum, cat) => {
-                const budgeted = currentBudgets[cat.id] || 0;
-                const spent = calculateSpent(cat.id, monthKey);
+                const budgeted = getBudgetValueInUserCurrency(monthKey, cat.id, missingPairs, usedPairs);
+                const spent = calculateSpent(cat.id, monthKey, missingPairs, usedPairs, accountCurrencyById);
                 const diff = spent - budgeted;
                 return sum + (diff > 0 ? diff : 0);
             }, 0);
@@ -2118,6 +2255,7 @@
             document.getElementById('budgeted').textContent = formatCurrency(totalBudgeted);
             document.getElementById('totalSpent').textContent = formatCurrency(totalSpent);
             document.getElementById('toBudget').textContent = formatCurrency(toBudget);
+            renderBudgetFxWarning(missingPairs, usedPairs);
         }
 
         // ============================================
@@ -2173,6 +2311,7 @@
                     .collection('accounts').add({
                         name: name,
                         balance: balance,
+                        currency: (userCurrency || DEFAULT_CURRENCY).toUpperCase(),
                         offBudget: offBudget,
                         createdAt: new Date().toISOString()
                     });
@@ -2309,6 +2448,7 @@
                     budgets[monthKey] = {};
                 }
                 budgets[monthKey][categoryId] = newValue;
+                budgets[monthKey].__currency = (userCurrency || DEFAULT_CURRENCY).toUpperCase();
 
                 // Save to Firestore
                 await db.collection('users').doc(currentUser.uid)
@@ -2999,6 +3139,8 @@
         function renderTransactions() {
             const container = document.getElementById('transactionsContainer');
             let header = document.querySelector('.transactions-header');
+            const missingPairs = new Set();
+            const usedPairs = new Set();
             
             // Create header if it doesn't exist
             if (!header) {
@@ -3045,6 +3187,15 @@
             recentTransactions.forEach(tx => {
                 const account = accounts.find(a => a.id === tx.accountId);
                 const category = categories.find(c => c.id === tx.categoryId);
+                const accountCurrency = resolveAccountCurrency(account);
+                const amountValue = Math.abs(parseFloat(tx.amount) || 0);
+                const convertedAmount = convertToUserCurrency(amountValue, accountCurrency, missingPairs, usedPairs);
+                const displayAmount = convertedAmount === null
+                    ? `${formatMoney(amountValue, accountCurrency)} ${accountCurrency}`
+                    : formatCurrency(convertedAmount);
+                const fxMeta = accountCurrency === (userCurrency || DEFAULT_CURRENCY).toUpperCase()
+                    ? accountCurrency
+                    : `${accountCurrency}→${(userCurrency || DEFAULT_CURRENCY).toUpperCase()} (${describeFxRate(accountCurrency, userCurrency || DEFAULT_CURRENCY)})`;
                 
                 let icon, amountClass, description;
                 
@@ -3081,14 +3232,15 @@
                     <div class="transaction-description">${escapeHtml(description)}</div>
                     <div class="transaction-category">${category?.name || '—'}</div>
                     <div class="transaction-amount ${amountClass}">
-                        ${tx.type === 'payment' ? '-' : (tx.type === 'deposit' || tx.type === 'salary') ? '+' : ''}${formatCurrency(tx.amount)}
+                        ${tx.type === 'payment' ? '-' : (tx.type === 'deposit' || tx.type === 'salary') ? '+' : ''}${displayAmount}
                     </div>
                     <div class="transaction-date">${formattedDate}</div>
-                    <div class="transaction-account">${account?.name || 'Unknown'}</div>
+                    <div class="transaction-account">${account?.name || 'Unknown'} • ${fxMeta}</div>
                     <div class="transaction-delete" onclick="event.stopPropagation(); deleteTransaction('${tx.id}', '${tx.type}', ${tx.amount}, '${tx.accountId}', '${tx.toAccountId || ''}')">×</div>
                 `;
                 container.appendChild(div);
             });
+            renderBudgetFxWarning(missingPairs, usedPairs);
         }
 
         // ============================================

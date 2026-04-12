@@ -9,6 +9,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/static/js/currency.js"></script>
 
     <style>
         :root {
@@ -104,6 +105,11 @@
         .report-subtitle {
             font-size: 13px;
             color: var(--color-text-secondary);
+        }
+
+        .fx-rate-info {
+            color: #f59e61;
+            display: none;
         }
 
         .transactions-section {
@@ -212,6 +218,7 @@
                     <h3>💰 Net Worth</h3>
                     <div class="report-value" id="netWorthValue">€0.00</div>
                     <div class="report-subtitle" id="netWorthSubtitle">Savings + Available</div>
+                    <div class="report-subtitle fx-rate-info" id="reportsFxRateInfo"></div>
                 </div>
 
                 <div class="report-card">
@@ -294,45 +301,103 @@
 
         let currentUser = null;
         let userCurrency = 'EUR'; // global variable for currency
+        let userLegacyCurrency = 'EUR';
+        let userFxRates = {};
 
         // ============================================
         // CURRENCY FUNCTIONS
         // ============================================
         function formatCurrency(amount) {
-            const currencyConfig = {
-                'USD': { symbol: '$', decimals: 2 },
-                'EUR': { symbol: '€', decimals: 2 },
-                'GBP': { symbol: '£', decimals: 2 },
-                'PHP': { symbol: '₱', decimals: 2 },
-                'INR': { symbol: '₹', decimals: 2 },
-                'IDR': { symbol: 'Rp', decimals: 0 },
-                'SGD': { symbol: 'S$', decimals: 2 },
-                'NOK': { symbol: 'kr', decimals: 2 },
-                'AUD': { symbol: 'A$', decimals: 2 },
-                'CAD': { symbol: 'C$', decimals: 2 },
-                'JPY': { symbol: '¥', decimals: 0 }
-            };
-            
-            const config = currencyConfig[userCurrency] || currencyConfig['EUR'];
-            const formatted = (amount || 0).toFixed(config.decimals)
-                .replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-            
-            return config.symbol + formatted;
+            return formatMoney(amount, userCurrency || DEFAULT_CURRENCY);
         }
 
-        function getCurrencySymbol() {
-            const symbols = {
-                'EUR': '€', 'USD': '$', 'GBP': '£', 'PHP': '₱',
-                'INR': '₹', 'AUD': 'A$', 'CAD': 'C$', 'SGD': 'S$',
-                'NOK': 'kr', 'JPY': '¥'
-            };
-            return symbols[userCurrency] || '€';
+        function getCurrentCurrencySymbol() {
+            return getCurrencySymbol(userCurrency || DEFAULT_CURRENCY);
         }
 
         function updateCurrencyLabels() {
             document.querySelectorAll('.currency-symbol').forEach(el => {
-                el.textContent = getCurrencySymbol();
+                el.textContent = getCurrentCurrencySymbol();
             });
+        }
+
+        function resolveAccountCurrency(account) {
+            const code = (
+                account?.currency
+                || userLegacyCurrency
+                || userCurrency
+                || DEFAULT_CURRENCY
+            );
+            return String(code).toUpperCase();
+        }
+
+        function describeFxRate(fromCurrency, toCurrency) {
+            const from = (fromCurrency || DEFAULT_CURRENCY).toUpperCase();
+            const to = (toCurrency || DEFAULT_CURRENCY).toUpperCase();
+            if (from === to) return `${from}->${to} @ 1`;
+            const rate = resolveFxRate(from, to, userFxRates || {});
+            if (rate === null) return `${from}->${to} (missing)`;
+            return `${from}->${to} @ ${rate.toFixed(6)}`;
+        }
+
+        function renderReportsFxInfo(missingPairs, usedPairs) {
+            const infoEl = document.getElementById('reportsFxRateInfo');
+            if (!infoEl) return;
+            const missing = Array.from(missingPairs || []);
+            const used = Array.from(usedPairs || []);
+            if (!missing.length && !used.length) {
+                infoEl.style.display = 'none';
+                infoEl.textContent = '';
+                return;
+            }
+            const notes = [];
+            if (missing.length) {
+                notes.push(`Missing FX rates: ${missing.join(', ')} (excluded).`);
+            }
+            if (used.length) {
+                notes.push(`Converted with FX: ${used.join(', ')}.`);
+            }
+            infoEl.style.display = 'block';
+            infoEl.textContent = notes.join(' ');
+        }
+
+        async function loadUserFxRates() {
+            if (!currentUser) return {};
+            const rates = {};
+            try {
+                const fxSnapshot = await db.collection('users')
+                    .doc(currentUser.uid)
+                    .collection('fxRates')
+                    .get();
+                fxSnapshot.docs.forEach(doc => {
+                    const data = doc.data() || {};
+                    const base = (data.base || '').toUpperCase();
+                    const quote = (data.quote || '').toUpperCase();
+                    const rate = Number(data.rate);
+                    if (!base || !quote || !isFinite(rate) || rate <= 0) return;
+                    rates[buildFxPairKey(base, quote)] = rate;
+                });
+            } catch (error) {
+                console.warn('⚠️ Could not load FX rates:', error);
+            }
+            userFxRates = rates;
+            return rates;
+        }
+
+        function convertToUserCurrency(amount, fromCurrency, missingPairs, usedPairs) {
+            const source = (fromCurrency || userCurrency || DEFAULT_CURRENCY).toUpperCase();
+            const target = (userCurrency || DEFAULT_CURRENCY).toUpperCase();
+            const converted = convertMoney(amount, source, target, userFxRates || {});
+            if (converted === null) {
+                if (source !== target && missingPairs) {
+                    missingPairs.add(`${source}->${target}`);
+                }
+                return null;
+            }
+            if (source !== target && usedPairs) {
+                usedPairs.add(describeFxRate(source, target));
+            }
+            return converted;
         }
 
         async function loadUserSettings() {
@@ -341,7 +406,9 @@
             try {
                 const doc = await db.collection('users').doc(currentUser.uid).get();
                 if (doc.exists) {
-                    userCurrency = doc.data().settings?.currency || 'EUR';
+                    const data = doc.data() || {};
+                    userCurrency = data.baseCurrency || data.settings?.currency || DEFAULT_CURRENCY;
+                    userLegacyCurrency = data.settings?.currency || userCurrency || DEFAULT_CURRENCY;
                     updateCurrencyLabels();
                 }
             } catch (error) {
@@ -357,6 +424,7 @@
             }
             currentUser = user;
             await loadUserSettings();
+            await loadUserFxRates();
             await loadReportsData();
         });
 
@@ -392,15 +460,20 @@
 
                 let offBudgetTotal = 0; // Savings
                 let onBudgetTotal = 0;  // All on-budget money
+                const missingPairs = new Set();
+                const usedPairs = new Set();
                 
                 accountsSnapshot.docs.forEach(doc => {
                     const account = doc.data();
                     const balance = parseFloat(account.balance) || 0;
+                    const accountCurrency = resolveAccountCurrency(account);
+                    const convertedBalance = convertToUserCurrency(balance, accountCurrency, missingPairs, usedPairs);
+                    if (convertedBalance === null) return;
                     
                     if (account.offBudget) {
-                        offBudgetTotal += balance;
+                        offBudgetTotal += convertedBalance;
                     } else {
-                        onBudgetTotal += balance;
+                        onBudgetTotal += convertedBalance;
                     }
                 });
 
@@ -414,9 +487,20 @@
 
                 let totalBudgeted = 0;
                 if (budgetDoc.exists) {
-                    const budgets = budgetDoc.data();
-                    totalBudgeted = Object.values(budgets).reduce((sum, val) => 
-                        sum + (parseFloat(val) || 0), 0);
+                    const budgets = budgetDoc.data() || {};
+                    const budgetCurrency = (
+                        budgets.__currency
+                        || userLegacyCurrency
+                        || userCurrency
+                        || DEFAULT_CURRENCY
+                    );
+                    totalBudgeted = Object.entries(budgets).reduce((sum, [key, val]) => {
+                        if (key === '__currency' || key === 'createdAt' || key === 'updatedAt') {
+                            return sum;
+                        }
+                        const converted = convertToUserCurrency(parseFloat(val) || 0, budgetCurrency, missingPairs, usedPairs);
+                        return sum + (converted === null ? 0 : converted);
+                    }, 0);
                 }
 
                 // To Budget = On Budget Total - Total Budgeted
@@ -429,6 +513,7 @@
                 document.getElementById('netWorthValue').textContent = formatCurrency(netWorth);
                 document.getElementById('netWorthSubtitle').textContent = 
                     formatCurrency(offBudgetTotal) + ' Savings + ' + formatCurrency(toBudget) + ' Available';
+                renderReportsFxInfo(missingPairs, usedPairs);
 
                 console.log('✅ Net worth calculated:', {
                     netWorth,
@@ -449,6 +534,16 @@
                 const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
                 const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
 
+                const accountsSnapshot = await db.collection('users')
+                    .doc(currentUser.uid)
+                    .collection('accounts')
+                    .get();
+                const accountCurrencyById = {};
+                accountsSnapshot.docs.forEach(doc => {
+                    const account = doc.data() || {};
+                    accountCurrencyById[doc.id] = resolveAccountCurrency(account);
+                });
+
                 const transactionsSnapshot = await db.collection('users')
                     .doc(currentUser.uid)
                     .collection('transactions')
@@ -458,20 +553,26 @@
 
                 let totalIncome = 0;
                 let totalSpending = 0;
+                const missingPairs = new Set();
+                const usedPairs = new Set();
 
                 transactionsSnapshot.docs.forEach(doc => {
                     const transaction = doc.data();
                     const amount = parseFloat(transaction.amount) || 0;
+                    const txCurrency = accountCurrencyById[transaction.accountId] || userLegacyCurrency || userCurrency || DEFAULT_CURRENCY;
+                    const convertedAmount = convertToUserCurrency(Math.abs(amount), txCurrency, missingPairs, usedPairs);
+                    if (convertedAmount === null) return;
                     
                     if (transaction.type === 'salary' || transaction.type === 'deposit') {
-                        totalIncome += amount;
+                        totalIncome += convertedAmount;
                     } else if (transaction.type === 'payment') {
-                        totalSpending += amount;
+                        totalSpending += convertedAmount;
                     }
                 });
 
                 document.getElementById('totalIncomeValue').textContent = formatCurrency(totalIncome);
                 document.getElementById('totalSpendingValue').textContent = formatCurrency(totalSpending);
+                renderReportsFxInfo(missingPairs, usedPairs);
 
                 // Load projection from backend API (token-authenticated)
                 await loadProjectionFromAPI();
@@ -504,6 +605,20 @@
                 }
 
                 const data = await response.json();
+                const apiBaseCurrency = String(data.base_currency || '').toUpperCase();
+                if (apiBaseCurrency) {
+                    const isAllowedBaseCurrency =
+                        typeof isValidCurrency === 'function'
+                            ? isValidCurrency(apiBaseCurrency)
+                            : ['EUR', 'USD', 'GBP', 'PHP', 'IDR'].includes(apiBaseCurrency);
+                    if (isAllowedBaseCurrency) {
+                        userCurrency = apiBaseCurrency;
+                        updateCurrencyLabels();
+                    }
+                }
+                if (Array.isArray(data.missing_fx_pairs) && data.missing_fx_pairs.length) {
+                    renderReportsFxInfo(new Set(data.missing_fx_pairs), null);
+                }
 
                 // Resolve monthly contribution: backend returns monthly_contribution;
                 // fall back to camelCase variant and legacy monthly_net for robustness.
@@ -634,12 +749,30 @@
                     return;
                 }
 
+                const accountsSnapshot = await db.collection('users')
+                    .doc(currentUser.uid)
+                    .collection('accounts')
+                    .get();
+                const accountCurrencyById = {};
+                accountsSnapshot.docs.forEach(doc => {
+                    const account = doc.data() || {};
+                    accountCurrencyById[doc.id] = resolveAccountCurrency(account);
+                });
+
                 const transactionsHTML = transactionsSnapshot.docs.map(doc => {
                     const transaction = doc.data();
                     const amount = parseFloat(transaction.amount) || 0;
                     const isIncome = transaction.type === 'salary' || transaction.type === 'deposit';
                     const amountClass = isIncome ? 'inflow' : 'outflow';
                     const amountSign = isIncome ? '+' : '-';
+                    const txCurrency = accountCurrencyById[transaction.accountId] || userLegacyCurrency || userCurrency || DEFAULT_CURRENCY;
+                    const convertedAmount = convertMoney(Math.abs(amount), txCurrency, userCurrency || DEFAULT_CURRENCY, userFxRates || {});
+                    const displayAmount = convertedAmount === null
+                        ? `${formatMoney(Math.abs(amount), txCurrency)} ${txCurrency}`
+                        : formatCurrency(convertedAmount);
+                    const fxMeta = txCurrency === (userCurrency || DEFAULT_CURRENCY).toUpperCase()
+                        ? txCurrency
+                        : `${txCurrency}→${(userCurrency || DEFAULT_CURRENCY).toUpperCase()} (${describeFxRate(txCurrency, userCurrency || DEFAULT_CURRENCY)})`;
                     
                     let categoryName = 'Uncategorized';
                     if (transaction.categoryId) {
@@ -651,10 +784,10 @@
                         <div class="transaction-item">
                             <div class="transaction-info">
                                 <div class="transaction-category">${escapeHtml(categoryName)}</div>
-                                <div class="transaction-payee">${escapeHtml(transaction.note || transaction.type)}</div>
+                                <div class="transaction-payee">${escapeHtml(transaction.note || transaction.type)} • ${fxMeta}</div>
                             </div>
                             <div class="transaction-amount ${amountClass}">
-                                ${amountSign}${formatCurrency(amount)}
+                                ${amountSign}${displayAmount}
                             </div>
                         </div>
                     `;
@@ -688,4 +821,3 @@
 
 </body>
 </html>
-
