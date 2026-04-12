@@ -107,6 +107,11 @@
             color: var(--color-text-secondary);
         }
 
+        .fx-rate-info {
+            color: #f59e61;
+            display: none;
+        }
+
         .transactions-section {
             background: var(--color-surface);
             border: 1px solid var(--color-border);
@@ -213,7 +218,7 @@
                     <h3>💰 Net Worth</h3>
                     <div class="report-value" id="netWorthValue">€0.00</div>
                     <div class="report-subtitle" id="netWorthSubtitle">Savings + Available</div>
-                    <div class="report-subtitle" id="reportsFxRateInfo" style="display:none; color:#f59e61;"></div>
+                    <div class="report-subtitle fx-rate-info" id="reportsFxRateInfo"></div>
                 </div>
 
                 <div class="report-card">
@@ -600,9 +605,16 @@
                 }
 
                 const data = await response.json();
-                if (data.base_currency && isValidCurrency(data.base_currency)) {
-                    userCurrency = data.base_currency;
-                    updateCurrencyLabels();
+                const apiBaseCurrency = String(data.base_currency || '').toUpperCase();
+                if (apiBaseCurrency) {
+                    const isAllowedBaseCurrency =
+                        typeof isValidCurrency === 'function'
+                            ? isValidCurrency(apiBaseCurrency)
+                            : ['EUR', 'USD', 'GBP', 'PHP', 'IDR'].includes(apiBaseCurrency);
+                    if (isAllowedBaseCurrency) {
+                        userCurrency = apiBaseCurrency;
+                        updateCurrencyLabels();
+                    }
                 }
                 if (Array.isArray(data.missing_fx_pairs) && data.missing_fx_pairs.length) {
                     renderReportsFxInfo(new Set(data.missing_fx_pairs), null);

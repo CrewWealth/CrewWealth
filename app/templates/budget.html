@@ -1043,6 +1043,7 @@
             margin-top: var(--spacing-sm);
             font-size: 12px;
             color: var(--color-warning);
+            display: none;
         }
     </style>
 </head>
@@ -1057,7 +1058,7 @@
                     <span>All accounts</span>
                     <span id="allAccountsTotal">€0.00</span>
                 </div>
-                <div id="budgetFxRateWarning" class="fx-rate-warning" style="display:none;"></div>
+                <div id="budgetFxRateWarning" class="fx-rate-warning"></div>
             </div>
 
             <div class="account-section">
@@ -1816,10 +1817,6 @@
                     id: doc.id,
                     ...doc.data()
                 }));
-                accounts = accounts.map(account => ({
-                    ...account,
-                    currency: resolveAccountCurrency(account)
-                }));
 
                 // Load categories
                 const categoriesSnapshot = await db.collection('users').doc(userId)
@@ -2098,6 +2095,9 @@
             const monthKey = getMonthKey();
             const missingPairs = new Set();
             const usedPairs = new Set();
+            const accountCurrencyById = new Map(
+                accounts.map(account => [account.id, resolveAccountCurrency(account)])
+            );
 
             const groups = {
                 expenses: { name: '💸 Daily Expenses', categories: [] },
@@ -2124,7 +2124,7 @@
 
                 group.categories.forEach(cat => {
                     const budgeted = getBudgetValueInUserCurrency(monthKey, cat.id, missingPairs, usedPairs);
-                    const spent = calculateSpent(cat.id, monthKey, missingPairs, usedPairs);
+                    const spent = calculateSpent(cat.id, monthKey, missingPairs, usedPairs, accountCurrencyById);
                     groupBudgeted += budgeted;
                     groupSpent += spent;
                 });
@@ -2145,7 +2145,7 @@
                 // Render categories in group
                 group.categories.forEach(cat => {
                     const budgeted = getBudgetValueInUserCurrency(monthKey, cat.id, missingPairs, usedPairs);
-                    const spent = calculateSpent(cat.id, monthKey, missingPairs, usedPairs);
+                    const spent = calculateSpent(cat.id, monthKey, missingPairs, usedPairs, accountCurrencyById);
                     const available = budgeted - spent;
 
                     const rowDiv = document.createElement('div');
@@ -2178,9 +2178,12 @@
             renderBudgetFxWarning(missingPairs, usedPairs);
         }
 
-        function calculateSpent(categoryId, monthKey, missingPairs, usedPairs) {
+        function calculateSpent(categoryId, monthKey, missingPairs, usedPairs, accountCurrencyById) {
             // Parse the monthKey to get year and month
             const [year, month] = monthKey.split('-').map(Number);
+            const currencyMap = accountCurrencyById || new Map(
+                accounts.map(account => [account.id, resolveAccountCurrency(account)])
+            );
             
             return transactions
                 .filter(t => {
@@ -2204,8 +2207,7 @@
                 })
                 .reduce((sum, t) => {
                     const amount = parseFloat(t.amount) || 0;
-                    const account = accounts.find(a => a.id === t.accountId);
-                    const currency = resolveAccountCurrency(account);
+                    const currency = currencyMap.get(t.accountId) || userLegacyCurrency || userCurrency || DEFAULT_CURRENCY;
                     const converted = convertToUserCurrency(amount, currency, missingPairs, usedPairs);
                     return sum + (converted === null ? 0 : converted);
                 }, 0);
@@ -2215,6 +2217,9 @@
             const monthKey = getMonthKey();
             const missingPairs = new Set();
             const usedPairs = new Set();
+            const accountCurrencyById = new Map(
+                accounts.map(account => [account.id, resolveAccountCurrency(account)])
+            );
 
             // Calculate available funds (sum of on-budget accounts)
             const onBudgetAccounts = accounts.filter(a => !a.offBudget);
@@ -2231,7 +2236,7 @@
             ), 0);
 
             // Calculate total spent
-            const totalSpent = categories.reduce((sum, cat) => sum + calculateSpent(cat.id, monthKey, missingPairs, usedPairs), 0);
+            const totalSpent = categories.reduce((sum, cat) => sum + calculateSpent(cat.id, monthKey, missingPairs, usedPairs, accountCurrencyById), 0);
 
             // Calculate to budget
             const toBudget = availableFunds - totalBudgeted + totalSpent;
@@ -2239,7 +2244,7 @@
             // Calculate overspent
             const overspent = categories.reduce((sum, cat) => {
                 const budgeted = getBudgetValueInUserCurrency(monthKey, cat.id, missingPairs, usedPairs);
-                const spent = calculateSpent(cat.id, monthKey, missingPairs, usedPairs);
+                const spent = calculateSpent(cat.id, monthKey, missingPairs, usedPairs, accountCurrencyById);
                 const diff = spent - budgeted;
                 return sum + (diff > 0 ? diff : 0);
             }, 0);
