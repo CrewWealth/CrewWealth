@@ -363,26 +363,22 @@
             const infoEl = document.getElementById('reportsFxRateInfo');
             if (!infoEl) return;
             const missing = Array.from(missingPairs || []);
-            const used = Array.from(usedPairs || []);
             const excluded = Array.from((excludedAmounts || new Map()).values());
-            if (!missing.length && !used.length && !excluded.length) {
+            if (!missing.length && !excluded.length) {
                 infoEl.style.display = 'none';
                 infoEl.textContent = '';
                 return;
             }
             const notes = [];
             if (missing.length) {
-                notes.push(`Missing FX rates: ${missing.join(', ')} (excluded).`);
+                notes.push(`Using fallback FX (${DEFAULT_FX_FALLBACK_RATE}) for: ${missing.join(', ')}.`);
             }
             if (excluded.length) {
                 const excludedDetails = excluded
                     .sort((a, b) => `${a.source}->${a.target}`.localeCompare(`${b.source}->${b.target}`))
                     .map(item => `${item.source}->${item.target}: ${formatMoney(item.total, item.source)} ${item.source} (${item.count} item${item.count === 1 ? '' : 's'})`)
                     .join('; ');
-                notes.push(`Excluded amounts: ${excludedDetails}.`);
-            }
-            if (used.length) {
-                notes.push(`Converted with FX: ${used.join(', ')}.`);
+                notes.push(`Fallback applied for: ${excludedDetails}.`);
             }
             infoEl.style.display = 'block';
             infoEl.textContent = notes.join(' ');
@@ -406,6 +402,16 @@
                 });
             } catch (error) {
                 console.warn('⚠️ Could not load FX rates:', error);
+            }
+            try {
+                const publicRates = await fetchPublicFxRates(userCurrency || DEFAULT_CURRENCY, SUPPORTED_CURRENCIES);
+                Object.entries(publicRates || {}).forEach(([pairKey, rate]) => {
+                    if (!(pairKey in rates)) {
+                        rates[pairKey] = rate;
+                    }
+                });
+            } catch (_) {
+                // Ignore public FX API failures; shared helper fallback remains active.
             }
             userFxRates = rates;
             return rates;

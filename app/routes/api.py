@@ -1,6 +1,7 @@
 import logging
 import math
-from flask import Blueprint, jsonify, request
+import requests
+from flask import Blueprint, jsonify, request, current_app
 from functools import wraps
 from datetime import datetime, timezone
 
@@ -9,6 +10,8 @@ from datetime import datetime, timezone
 # ---------------------------------------------------------------------------
 SUPPORTED_CURRENCIES = ['EUR', 'USD', 'GBP', 'PHP', 'IDR']
 DEFAULT_CURRENCY = 'EUR'
+DEFAULT_FX_FALLBACK_RATE = 1.0
+PUBLIC_FX_API_BASE_URL = 'https://open.er-api.com/v6/latest/'
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +68,7 @@ def _resolve_fx_rate(from_currency, to_currency, fx_rates):
         adjacency.setdefault(quote, []).append((base, 1.0 / rate))
 
     if source not in adjacency or target not in adjacency:
-        return None
+        return DEFAULT_FX_FALLBACK_RATE
 
     queue = [(source, 1.0)]
     visited = {source}
@@ -81,7 +84,44 @@ def _resolve_fx_rate(from_currency, to_currency, fx_rates):
             visited.add(next_currency)
             queue.append((next_currency, next_rate))
 
-    return None
+    return DEFAULT_FX_FALLBACK_RATE
+
+
+def _load_public_fx_rates(base_currency):
+    source = (base_currency or DEFAULT_CURRENCY).upper()
+    rates = {}
+    if source not in SUPPORTED_CURRENCIES:
+        source = DEFAULT_CURRENCY
+
+    if current_app and current_app.testing:
+        return rates
+
+    try:
+        response = requests.get(
+            f"{PUBLIC_FX_API_BASE_URL}{source}",
+            timeout=3,
+        )
+        response.raise_for_status()
+        payload = response.json() or {}
+        api_rates = payload.get('rates') or {}
+    except Exception as exc:
+        logger.warning("Could not load public FX rates for %s: %s", source, exc)
+        return rates
+
+    for target in SUPPORTED_CURRENCIES:
+        if target == source:
+            rates[_fx_pair_key(source, target)] = 1.0
+            continue
+        try:
+            rate = float(api_rates.get(target))
+        except (TypeError, ValueError):
+            continue
+        if not math.isfinite(rate) or rate <= 0:
+            continue
+        rates[_fx_pair_key(source, target)] = rate
+        rates[_fx_pair_key(target, source)] = 1.0 / rate
+
+    return rates
 
 
 def require_firebase_token(f):
@@ -193,7 +233,7 @@ def _get_projection_inner(uid):
     logger.debug("uid=%s base_currency=%s", uid, base_currency)
 
     # ── 0b. Read manual FX rates (users/{uid}/fxRates) ─────────────────────
-    fx_rates = {}
+    fx_rates = _load_public_fx_rates(base_currency)
     try:
         fx_snap = user_ref.collection('fxRates').get()
         for doc in fx_snap:
@@ -212,6 +252,7 @@ def _get_projection_inner(uid):
                 or rate <= 0
             ):
                 continue
+            # Manual rates always take precedence over auto-fetched public rates.
             fx_rates[_fx_pair_key(base, quote)] = rate
     except Exception as exc:
         logger.warning("Could not read fxRates for uid=%s: %s", uid, exc)

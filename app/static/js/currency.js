@@ -19,6 +19,8 @@ const SUPPORTED_CURRENCIES = ['EUR', 'USD', 'GBP', 'PHP', 'IDR'];
 
 // Default base currency for new users.
 const DEFAULT_CURRENCY = 'EUR';
+const DEFAULT_FX_FALLBACK_RATE = 1.0;
+const PUBLIC_FX_API_BASE_URL = 'https://open.er-api.com/v6/latest/';
 
 // ---------------------------------------------------------------------------
 // Per-currency display metadata (fallback for environments without Intl).
@@ -99,6 +101,45 @@ function buildFxPairKey(fromCurrency, toCurrency) {
     return `${from}_${to}`;
 }
 
+function buildPublicFxRateMap(baseCurrency, apiRates, currencies) {
+    const base = (baseCurrency || DEFAULT_CURRENCY).toUpperCase();
+    const allowed = Array.isArray(currencies) && currencies.length
+        ? currencies.map(code => String(code || '').toUpperCase())
+        : SUPPORTED_CURRENCIES;
+    const rates = {};
+    const normalizedRates = apiRates || {};
+
+    allowed.forEach(targetCode => {
+        if (!targetCode) return;
+        if (targetCode === base) {
+            rates[buildFxPairKey(base, targetCode)] = 1;
+            return;
+        }
+        const rawRate = Number(normalizedRates[targetCode]);
+        if (!isFinite(rawRate) || rawRate <= 0) return;
+        rates[buildFxPairKey(base, targetCode)] = rawRate;
+        rates[buildFxPairKey(targetCode, base)] = 1 / rawRate;
+    });
+
+    return rates;
+}
+
+async function fetchPublicFxRates(baseCurrency, currencies) {
+    const base = (baseCurrency || DEFAULT_CURRENCY).toUpperCase();
+    if (typeof fetch !== 'function') return {};
+
+    try {
+        const response = await fetch(`${PUBLIC_FX_API_BASE_URL}${encodeURIComponent(base)}`);
+        if (!response.ok) return {};
+        const payload = await response.json();
+        const apiRates = payload?.rates;
+        if (!apiRates || typeof apiRates !== 'object') return {};
+        return buildPublicFxRateMap(base, apiRates, currencies);
+    } catch (_) {
+        return {};
+    }
+}
+
 function resolveFxRate(fromCurrency, toCurrency, fxRates) {
     const from = (fromCurrency || DEFAULT_CURRENCY).toUpperCase();
     const to = (toCurrency || DEFAULT_CURRENCY).toUpperCase();
@@ -149,13 +190,12 @@ function resolveFxRate(fromCurrency, toCurrency, fxRates) {
         }
     }
 
-    return null;
+    return DEFAULT_FX_FALLBACK_RATE;
 }
 
 function convertMoney(amount, fromCurrency, toCurrency, fxRates) {
     const value = typeof amount === 'number' && isFinite(amount) ? amount : 0;
     const rate = resolveFxRate(fromCurrency, toCurrency, fxRates);
-    if (rate === null) return null;
     return value * rate;
 }
 
@@ -166,11 +206,14 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         SUPPORTED_CURRENCIES,
         DEFAULT_CURRENCY,
+        DEFAULT_FX_FALLBACK_RATE,
         CURRENCY_META,
         formatMoney,
         getCurrencySymbol,
         isValidCurrency,
         buildFxPairKey,
+        buildPublicFxRateMap,
+        fetchPublicFxRates,
         resolveFxRate,
         convertMoney
     };

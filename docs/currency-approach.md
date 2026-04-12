@@ -51,25 +51,24 @@ the account so the user sees exactly what was recorded.
 ## Dashboard & Projection Totals
 
 All multi-currency account balances shown on the dashboard or in projections
-are converted to the user's base currency using the current manual FX rate for
-that currency pair.
+are converted to the user's base currency.
 
 Rules:
 
-1. Look up the manual FX rate for `(account.currency → user.baseCurrency)`.
-2. If a rate exists → multiply and sum.
-3. If **no rate is configured** → do **not** silently include the account in the
-   total; instead surface a visible warning (see below).
+1. Use manual user FX override first (`users/{uid}/fxRates`).
+2. If no manual rate exists, use latest public API FX rates.
+3. If no valid path is still available, apply safe fallback `1.0` so totals are
+   still fully included and never excluded.
 
-Same accounts rule applies to the 36-month projection: only accounts whose
-currency can be converted to base currency contribute to the projected balance.
+Same rule applies to the 36-month projection: all accounts contribute to the
+projected balance (manual rate → API rate → fallback `1.0`).
 
 ---
 
 ## Manual FX Rates
 
-For MVP the only source of exchange rates is **manual rates** entered by the
-user in Settings.  There is no automatic rate feed.
+Manual rates can be entered in **Settings → Manual FX Rates** and always
+override auto-fetched rates from the public FX API.
 
 Data structure (Firestore — `fxRates` sub-collection under each user document):
 
@@ -90,45 +89,37 @@ Rates are directional, but conversion resolution supports:
 2. Inverse pair (`GBP -> EUR` used as `1 / rate`)
 3. Indirect path over known rates (for example `EUR -> USD -> GBP`)
 
-If no valid path exists, that amount is excluded from totals and surfaced in the
-warning UI with the exact excluded amount and currency.
+If no valid path exists, a safe fallback (`1.0`) is applied so the amount is
+still included in totals.
 
 ---
 
-## Missing-Rate Warning Policy
+## Missing-Rate Fallback Policy
 
 When a conversion is needed but no valid FX path is available:
 
-- **Dashboard**: display a non-blocking inline warning
-  including:
-  - missing FX pairs (for example `EUR->GBP`)
-  - excluded amounts per pair and source currency (for example
-    `EUR->GBP: €1200.00 EUR`)
-  - optional list of rates that were successfully used
-  
-  The total is shown without excluded amounts rather than using a wrong or
-  silent zero-filled value.
+- **Dashboard/Budget/Reports**: keep totals complete by applying fallback rate
+  (`1.0`) and avoid yellow "excluded amounts" warnings.
 
-- **Projection**: the affected accounts are excluded and a warning key
-  `missing_fx_pairs` is included in the JSON response so the frontend can
-  render the same notice.
+- **Projection API**: also applies the same fallback logic so API totals match
+  UI totals.
 
-- **Never**: silently return `0` or an incorrect sum when a rate is missing.
+- **Settings UX**: users can add manual rates for any pair, which then take
+  precedence over API/fallback values.
 
 ---
 
-## Manual Test Steps (FX Missing/Partial Conversion)
+## Manual Test Steps (FX fallback)
 
 1. Create two accounts:
    - `EUR` account balance `1200`
    - `USD` account balance `100`
 2. Set user base currency to `GBP`.
-3. Add only one rate path for USD:
-   - either direct `USD->GBP`, or indirect (`USD->EUR` and `EUR->GBP`).
+3. Leave `EUR->GBP` unset.
 4. Verify:
-   - totals include USD amount converted to GBP,
-   - EUR amount is excluded if no EUR->GBP path exists,
-   - warning shows both missing pair(s) and excluded amount(s),
+   - totals still include both account amounts in GBP (no exclusions),
+   - no yellow "missing FX/excluded" warning is shown,
+   - optional manual FX override can be saved in Settings and takes effect,
    - recent transaction rows keep original amount + original currency.
 
 ---
@@ -173,7 +164,6 @@ formatting (correct thousands separators, decimal marks, and currency symbols).
 
 ## Not In Scope (Day 1)
 
-- Automatic exchange-rate feeds (e.g. ECB or exchangerate-api)
 - Tax calculation or reservation logic
 - Historical rate tracking
 - Currency conversion on individual transaction rows

@@ -255,8 +255,8 @@ class TestProjectionOffBudgetAccounts(unittest.TestCase):
         self.assertEqual(data['starting_balance'], 74400.0)
         self.assertEqual(data.get('missing_fx_pairs'), [])
 
-    def test_off_budget_balance_requires_fx_rate_when_currency_differs(self):
-        """Missing FX rates exclude unmatched balances and return missing pair list."""
+    def test_off_budget_balance_uses_safe_fallback_when_rate_missing(self):
+        """Missing FX rates use safe fallback conversion and never exclude balances."""
         import app.routes.api as api_module
 
         uid = 'uid_fx_missing'
@@ -276,8 +276,8 @@ class TestProjectionOffBudgetAccounts(unittest.TestCase):
         data = response.get_json()
 
         self.assertEqual(data['base_currency'], 'PHP')
-        self.assertEqual(data['starting_balance'], 0.0)
-        self.assertIn('EUR->PHP', data.get('missing_fx_pairs', []))
+        self.assertEqual(data['starting_balance'], 1200.0)
+        self.assertEqual(data.get('missing_fx_pairs'), [])
 
     def test_off_budget_balance_converts_via_indirect_fx_path(self):
         """Balances convert through intermediate FX paths when direct pair is missing."""

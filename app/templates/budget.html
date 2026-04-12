@@ -1042,7 +1042,7 @@
         .fx-rate-warning {
             margin-top: var(--spacing-sm);
             font-size: 12px;
-            color: var(--color-warning);
+            color: var(--color-text-secondary);
             display: none;
         }
     </style>
@@ -1660,18 +1660,14 @@
             const warningEl = document.getElementById('budgetFxRateWarning');
             if (!warningEl) return;
             const missing = Array.from(missingPairs || []);
-            const used = Array.from(usedPairs || []);
-            if (!missing.length && !used.length) {
+            if (!missing.length) {
                 warningEl.style.display = 'none';
                 warningEl.textContent = '';
                 return;
             }
             const notes = [];
             if (missing.length) {
-                notes.push(`Missing FX rates: ${missing.join(', ')} (excluded from totals).`);
-            }
-            if (used.length) {
-                notes.push(`Converted using FX: ${used.join(', ')}.`);
+                notes.push(`Using fallback FX (${DEFAULT_FX_FALLBACK_RATE}) for: ${missing.join(', ')}.`);
             }
             warningEl.style.display = 'block';
             warningEl.textContent = notes.join(' ');
@@ -1695,6 +1691,16 @@
                 });
             } catch (error) {
                 console.warn('⚠️ Could not load FX rates:', error);
+            }
+            try {
+                const publicRates = await fetchPublicFxRates(userCurrency || DEFAULT_CURRENCY, SUPPORTED_CURRENCIES);
+                Object.entries(publicRates || {}).forEach(([pairKey, rate]) => {
+                    if (!(pairKey in rates)) {
+                        rates[pairKey] = rate;
+                    }
+                });
+            } catch (_) {
+                // Ignore public FX API failures; shared helper fallback remains active.
             }
             userFxRates = rates;
             return rates;
