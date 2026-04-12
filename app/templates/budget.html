@@ -1799,6 +1799,8 @@
         let userFxRates = {};
         let realtimeUnsubscribers = [];
         let realtimeRefreshTimer = null;
+        const GHOST_TRANSACTION_CLEANUP_VERSION = 'v1';
+        const LEGACY_TRANSACTION_STORAGE_HINTS = ['transaction', 'recenttx', 'budgettx'];
         // Short debounce to collapse bursty Firestore updates from imports/batch writes.
         // A REALTIME_REFRESH_DEBOUNCE_MS delay keeps UI responsive while avoiding duplicate renders on batched writes.
         const REALTIME_REFRESH_DEBOUNCE_MS = 250;
@@ -1954,6 +1956,47 @@
             }
         }
 
+        function isLegacyTransactionStorageKey(key, userId) {
+            const normalizedKey = String(key || '').toLowerCase();
+            if (!normalizedKey) return false;
+            const hasTransactionHint = LEGACY_TRANSACTION_STORAGE_HINTS.some(hint => normalizedKey.includes(hint));
+            if (!hasTransactionHint) return false;
+            if (normalizedKey.includes('crewwealth') || normalizedKey.includes('cw_')) return true;
+            if (normalizedKey.startsWith('transactions') || normalizedKey.startsWith('recenttransactions')) return true;
+            return !!userId && normalizedKey.includes(String(userId).toLowerCase());
+        }
+
+        function purgeLegacyTransactionStorage(storage, userId) {
+            if (!storage) return 0;
+            let removed = 0;
+            for (let i = storage.length - 1; i >= 0; i--) {
+                const key = storage.key(i);
+                if (!isLegacyTransactionStorageKey(key, userId)) continue;
+                storage.removeItem(key);
+                removed += 1;
+            }
+            return removed;
+        }
+
+        function runGhostTransactionCleanupMigration(userId) {
+            if (!userId || !window.localStorage) return;
+            const markerKey = `cw_ghost_transaction_cleanup_${GHOST_TRANSACTION_CLEANUP_VERSION}_${userId}`;
+            if (window.localStorage.getItem(markerKey)) return;
+            const removedFromLocal = purgeLegacyTransactionStorage(window.localStorage, userId);
+            const removedFromSession = purgeLegacyTransactionStorage(window.sessionStorage, userId);
+            window.localStorage.setItem(markerKey, new Date().toISOString());
+            console.log(`🧹 Ghost transaction cleanup completed (${removedFromLocal + removedFromSession} local keys removed)`);
+        }
+
+        async function getFirestoreSnapshotFromServer(queryRef, label) {
+            try {
+                return await queryRef.get({ source: 'server' });
+            } catch (error) {
+                console.warn(`⚠️ Falling back to default Firestore source for ${label}:`, error);
+                return queryRef.get();
+            }
+        }
+
         // ============================================
         // AUTHENTICATION
         // ============================================
@@ -1966,6 +2009,7 @@
             
             console.log('✅ User authenticated:', user.email);
             currentUser = user;
+            runGhostTransactionCleanupMigration(user.uid);
             await loadUserSettings();
             await loadUserFxRates();
             await initializeDashboard();
@@ -2090,8 +2134,10 @@
                 budgets = budgetDoc.exists ? { [monthKey]: budgetDoc.data() } : { [monthKey]: {} };
 
                 // Load transactions
-                const transactionsSnapshot = await db.collection('users').doc(userId)
-                    .collection('transactions').get();
+                const transactionsSnapshot = await getFirestoreSnapshotFromServer(
+                    db.collection('users').doc(userId).collection('transactions'),
+                    'budget transactions'
+                );
                 transactions = transactionsSnapshot.docs.map(doc => ({
                     id: doc.id,
                     ...doc.data()
@@ -2107,6 +2153,7 @@
                 await loadRecurringTransactions();
 
             } catch (error) {
+                transactions = [];
                 console.error('❌ Error loading data:', error);
                 throw error;
             }
@@ -3231,6 +3278,7 @@
                 const txDoc = await txRef.get();
                 if (!txDoc.exists) {
                     console.warn('⚠️ Transaction already deleted:', transactionId);
+                    transactions = transactions.filter(tx => tx.id !== transactionId);
                     await loadAllData();
                     renderAccounts();
                     renderCategories();
