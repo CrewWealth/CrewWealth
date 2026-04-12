@@ -1311,6 +1311,7 @@
                     const data = doc.data() || {};
                     const base = (data.base || '').toUpperCase();
                     const quote = (data.quote || '').toUpperCase();
+                    if (data.rate === null || data.rate === undefined) return;
                     const rate = Number(data.rate);
                     if (!base || !quote || !isFinite(rate) || rate <= 0) return;
                     rates[buildFxPairKey(base, quote)] = rate;
@@ -1328,7 +1329,7 @@
             const converted = convertMoney(amount, sourceCurrency, targetCurrency, window.userFxRates || {});
             if (converted === null) {
                 if (missingPairs && sourceCurrency !== targetCurrency) {
-                    missingPairs.add(`${sourceCurrency}→${targetCurrency}`);
+                    missingPairs.add(`${sourceCurrency}->${targetCurrency}`);
                 }
                 return null;
             }

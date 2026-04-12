@@ -163,11 +163,18 @@ def _get_projection_inner(uid):
             data = doc.to_dict() or {}
             base = (data.get('base') or '').upper()
             quote = (data.get('quote') or '').upper()
+            raw_rate = data.get('rate')
             try:
-                rate = float(data.get('rate'))
+                rate = float(raw_rate)
             except (TypeError, ValueError):
                 continue
-            if not base or not quote or rate <= 0:
+            if (
+                not base
+                or not quote
+                or not math.isfinite(rate)
+                or rate <= 0
+                or raw_rate is None
+            ):
                 continue
             fx_rates[_fx_pair_key(base, quote)] = rate
     except Exception as exc:
