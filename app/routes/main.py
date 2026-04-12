@@ -118,6 +118,11 @@ def settings():
     """Settings page"""
     return render_template('settings.html')
 
+@main_bp.route('/guide')
+def guide():
+    """Compact user guide page"""
+    return render_template('guide.html')
+
 @main_bp.route('/fx')
 def fx_center():
     """Advanced FX settings page"""

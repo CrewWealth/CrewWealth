@@ -19,6 +19,7 @@ These routes render HTML templates for the web application.
 | GET | `/goals` | Financial Goals page |
 | GET | `/reports` | Reports page |
 | GET | `/settings` | Settings page |
+| GET | `/guide` | Compact user guide page |
 | GET | `/migrate-goals` | Goals Migration page |
 | GET | `/login` | Login page |
 | GET | `/register` | Registration page |
