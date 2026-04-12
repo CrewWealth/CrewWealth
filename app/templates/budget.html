@@ -2127,6 +2127,10 @@
             return div.innerHTML;
         }
 
+        function escapeJsSingleQuotedString(value) {
+            return String(value ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        }
+
         function normalizeTransactionType(type) {
             const normalized = String(type || '').toLowerCase();
             if (normalized === 'expense') return 'payment';
@@ -2148,6 +2152,10 @@
             return normalizeDocumentId(transaction?.toAccountId);
         }
 
+        function transactionAccountExists(accountId) {
+            return !!accountId && accounts.some(account => account.id === accountId);
+        }
+
         function applyTransactionBalanceDelta(batch, userRef, type, amount, accountId, toAccountId, direction = 1) {
             const normalizedType = normalizeTransactionType(type);
             const normalizedAmount = Math.abs(parseFloat(amount) || 0);
@@ -2157,23 +2165,22 @@
             const accountsRef = userRef.collection('accounts');
             const normalizedAccountId = normalizeDocumentId(accountId);
             const normalizedToAccountId = normalizeDocumentId(toAccountId);
-            const accountExists = (docId) => !!docId && accounts.some(account => account.id === docId);
 
-            if (normalizedType === 'payment' && accountExists(normalizedAccountId)) {
+            if (normalizedType === 'payment' && transactionAccountExists(normalizedAccountId)) {
                 batch.update(accountsRef.doc(normalizedAccountId), {
                     balance: firebase.firestore.FieldValue.increment(-signedAmount)
                 });
-            } else if ((normalizedType === 'deposit' || normalizedType === 'salary') && accountExists(normalizedAccountId)) {
+            } else if ((normalizedType === 'deposit' || normalizedType === 'salary') && transactionAccountExists(normalizedAccountId)) {
                 batch.update(accountsRef.doc(normalizedAccountId), {
                     balance: firebase.firestore.FieldValue.increment(signedAmount)
                 });
             } else if (normalizedType === 'transfer') {
-                if (accountExists(normalizedAccountId)) {
+                if (transactionAccountExists(normalizedAccountId)) {
                     batch.update(accountsRef.doc(normalizedAccountId), {
                         balance: firebase.firestore.FieldValue.increment(-signedAmount)
                     });
                 }
-                if (accountExists(normalizedToAccountId)) {
+                if (transactionAccountExists(normalizedToAccountId)) {
                     batch.update(accountsRef.doc(normalizedToAccountId), {
                         balance: firebase.firestore.FieldValue.increment(signedAmount)
                     });
@@ -3370,6 +3377,20 @@
                     alert('Please enter a valid amount');
                     return;
                 }
+                if (!newAccountId || !transactionAccountExists(newAccountId)) {
+                    alert('Please select a valid account');
+                    return;
+                }
+                if (type === 'transfer') {
+                    if (!newToAccountId || !transactionAccountExists(newToAccountId)) {
+                        alert('Please select a valid destination account');
+                        return;
+                    }
+                    if (newAccountId === newToAccountId) {
+                        alert('Source and destination accounts must be different');
+                        return;
+                    }
+                }
 
                 const userRef = db.collection('users').doc(currentUser.uid);
                 const txRef = userRef.collection('transactions').doc(transactionId);
@@ -3394,7 +3415,7 @@
                     resolveTransactionToAccountId(persistedTransaction),
                     -1
                 );
-                batch.set(txRef, {
+                const transactionPayload = {
                     type,
                     amount: newAmount,
                     accountId: newAccountId,
@@ -3402,7 +3423,12 @@
                     categoryId: newCategoryId,
                     date: firebase.firestore.Timestamp.fromDate(new Date(newDate)),
                     note: newNote
-                }, { merge: true });
+                };
+                if (persistedTxDoc.exists) {
+                    batch.update(txRef, transactionPayload);
+                } else {
+                    batch.set(txRef, transactionPayload);
+                }
                 applyTransactionBalanceDelta(batch, userRef, type, newAmount, newAccountId, newToAccountId, 1);
                 await batch.commit();
 
@@ -3531,7 +3557,7 @@
                     </div>
                     <div class="transaction-date">${formattedDate}</div>
                     <div class="transaction-account">${account?.name || 'Unknown'} • ${fxMeta}</div>
-                    <div class="transaction-delete" onclick="event.stopPropagation(); deleteTransaction('${tx.id}')">×</div>
+                    <div class="transaction-delete" onclick="event.stopPropagation(); deleteTransaction('${escapeJsSingleQuotedString(tx.id)}')">×</div>
                 `;
                 container.appendChild(div);
             });
