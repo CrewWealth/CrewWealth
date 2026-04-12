@@ -45,7 +45,8 @@ def _make_user_doc(settings=None):
 
 
 def _call_projection_inner(api_module, uid, mock_db, accounts, transactions,
-                           user_settings=None, use_field_filter=False, fx_rates=None):
+                           user_settings=None, use_field_filter=False, fx_rates=None,
+                           user_base_currency=None):
     """
     Helper: configure mocks and call _get_projection_inner.
 
@@ -60,6 +61,10 @@ def _call_projection_inner(api_module, uid, mock_db, accounts, transactions,
     # user document
     if user_settings is not None:
         user_doc = _make_user_doc(user_settings)
+        if user_base_currency is not None:
+            user_data = user_doc.to_dict()
+            user_data['baseCurrency'] = user_base_currency
+            user_doc.to_dict.return_value = user_data
     else:
         user_doc = MagicMock()
         user_doc.exists = False
@@ -307,6 +312,31 @@ class TestProjectionOffBudgetAccounts(unittest.TestCase):
         self.assertEqual(data['starting_balance'], 1056.0)
         self.assertEqual(data.get('missing_fx_pairs'), [])
 
+    def test_off_budget_balance_uses_legacy_currency_fallback(self):
+        """Accounts without currency still convert using legacy settings.currency."""
+        import app.routes.api as api_module
+
+        uid = 'uid_fx_legacy_account_currency'
+        accounts = [{'_id': 'acc_legacy', 'balance': 1200.0, 'offBudget': True}]
+        fx_rates = [{'_id': 'r1', 'base': 'EUR', 'quote': 'PHP', 'rate': 62.0}]
+        mock_db = MagicMock()
+        self._setup_firestore(api_module, mock_db)
+
+        response = _call_projection_inner(
+            api_module,
+            uid,
+            mock_db,
+            accounts=accounts,
+            transactions=[],
+            user_settings={'currency': 'EUR'},
+            user_base_currency='PHP',
+            fx_rates=fx_rates,
+        )
+        data = response.get_json()
+
+        self.assertEqual(data['base_currency'], 'PHP')
+        self.assertEqual(data['starting_balance'], 74400.0)
+
 
 class TestProjectionManualSavingsOverride(unittest.TestCase):
     """Verify that settings.monthlySavings overrides the auto-calculated value."""
@@ -349,6 +379,28 @@ class TestProjectionManualSavingsOverride(unittest.TestCase):
         data = response.get_json()
 
         self.assertEqual(data['monthly_contribution'], 750.0)
+        self.assertEqual(data['contribution_source'], 'manual')
+
+    def test_manual_savings_fx_conversion_from_legacy_currency(self):
+        """Manual monthly savings should be converted when baseCurrency changes."""
+        import app.routes.api as api_module
+
+        uid = 'uid_manual_fx_convert'
+        mock_db = MagicMock()
+        self._setup_firestore(api_module, mock_db)
+
+        response = _call_projection_inner(
+            api_module, uid, mock_db,
+            accounts=[],
+            transactions=[],
+            user_settings={'currency': 'EUR', 'monthlySavings': 200.0},
+            user_base_currency='PHP',
+            fx_rates=[{'_id': 'r1', 'base': 'EUR', 'quote': 'PHP', 'rate': 62.0}],
+        )
+        data = response.get_json()
+
+        self.assertEqual(data['base_currency'], 'PHP')
+        self.assertEqual(data['monthly_contribution'], 12400.0)
         self.assertEqual(data['contribution_source'], 'manual')
 
     def test_no_manual_savings_uses_calculated_source(self):

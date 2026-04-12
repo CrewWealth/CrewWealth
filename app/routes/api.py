@@ -204,6 +204,9 @@ def _get_projection_inner(uid):
 
     # ── 0. Read user document (base currency + settings) ──────────────────
     base_currency = DEFAULT_CURRENCY
+    legacy_currency = DEFAULT_CURRENCY
+    manual_monthly_savings = None
+    manual_monthly_savings_currency = None
     monthly_contribution = 0.0
     contribution_source = 'calculated'
 
@@ -220,10 +223,16 @@ def _get_projection_inner(uid):
             if raw_bc in SUPPORTED_CURRENCIES:
                 base_currency = raw_bc
             settings = user_data.get('settings') or {}
+            raw_legacy_currency = (settings.get('currency') or base_currency).upper()
+            if raw_legacy_currency in SUPPORTED_CURRENCIES:
+                legacy_currency = raw_legacy_currency
+            else:
+                legacy_currency = base_currency
             override_val = settings.get('monthlySavings')
             if override_val is not None:
                 try:
-                    monthly_contribution = float(override_val)
+                    manual_monthly_savings = float(override_val)
+                    manual_monthly_savings_currency = legacy_currency
                     contribution_source = 'manual'
                 except (TypeError, ValueError):
                     pass
@@ -257,6 +266,11 @@ def _get_projection_inner(uid):
     except Exception as exc:
         logger.warning("Could not read fxRates for uid=%s: %s", uid, exc)
 
+    if manual_monthly_savings is not None:
+        source_currency = manual_monthly_savings_currency
+        rate = _resolve_fx_rate(source_currency, base_currency, fx_rates)
+        monthly_contribution = manual_monthly_savings * rate
+
     # ── 1. Starting balance (sum of off-budget accounts only) ──────────────
     off_budget_account_ids: set = set()
     account_currency_by_id: dict = {}
@@ -267,7 +281,10 @@ def _get_projection_inner(uid):
         accounts_snap = user_ref.collection('accounts').get()
         for doc in accounts_snap:
             data = doc.to_dict() or {}
-            account_currency = (data.get('currency') or base_currency).upper()
+            account_currency = (
+                data.get('currency')
+                or legacy_currency
+            ).upper()
             account_currency_by_id[doc.id] = account_currency
             if data.get('offBudget'):
                 raw_balance = float(data.get('balance', 0) or 0)
