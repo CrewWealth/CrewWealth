@@ -3,7 +3,7 @@ from twilio.twiml.messaging_response import MessagingResponse
 import firebase_admin
 from firebase_admin import firestore
 
-# Create Blueprint (EÉN KEER)
+# Create Blueprint
 main_bp = Blueprint('main', __name__)
 
 
@@ -48,7 +48,7 @@ def whatsapp_webhook():
     
     if incoming.startswith('link '):
         email = incoming[5:].strip()
-        users_ref = firestore.client().collection('users')  # users (meervoud)
+        users_ref = firestore.client().collection('users')
         user_query = users_ref.where('email', '==', email).limit(1).get()
         
         if user_query:
@@ -90,7 +90,7 @@ def whatsapp_webhook():
 
 
 # ============================================
-# MAIN ROUTES (rest blijft hetzelfde)
+# MAIN ROUTES
 # ============================================
 
 @main_bp.route('/')
@@ -117,11 +117,6 @@ def reports():
 def settings():
     """Settings page"""
     return render_template('settings.html')
-
-@main_bp.route('/guide')
-def guide():
-    """Compact user guide page"""
-    return render_template('guide.html')
 
 @main_bp.route('/fx')
 def fx_center():

@@ -48,46 +48,46 @@ Backend (Flask)
   └── all other routes        ← serve HTML templates
 ```
 
-## Korte gebruikershandleiding — Budgets & Accounts (nieuw)
+## Quick user guide — Budgets & Accounts
 
-- Bovenaan zie je nu direct de 3 belangrijkste signalen: **To budget**, **Available funds** en **Overspent warning**.
-- Onder **Quick actions** staat de primaire actie (**New Payment**) en snelle budgetstart (**Add Budget**).
-- Minder gebruikte acties staan onder **More actions** (Salary, Deposit, Transfer, Add Account).
-- Via **Open Smart Tools** ga je direct naar import/scenario tools (Dag 3 pagina).
-- In Smart Tools kun je na parse nu **Apply to Budgets & Accounts** gebruiken (met target account), waarna Budgets & Accounts automatisch verversen; gebruik **Refresh now** als handmatige fallback.
+- The top priority strip shows the three most important signals: **To budget**, **Available funds**, and **Overspent warning**.
+- **Quick actions** keeps the main entry points close by (**New Payment** and **Add Budget**).
+- Secondary actions are grouped under **More actions** (Salary, Deposit, Transfer, Add Account).
+- **Open Smart Tools** takes you directly to import and scenario tooling (Day 3 page).
+- In Smart Tools, use **Apply to Budgets & Accounts** after parsing and select a target account. Budget data refreshes automatically, and **Refresh now** remains available as a manual fallback.
 
-## Live polish toevoegingen
+## Live polish additions
 
-- **PDF export**: via `Reports` kun je nu **Export complete PDF** gebruiken voor maand-/dashboardsamenvatting, accountoverzicht, projectie en volledige transactiehistorie.
-- **Snelle exportknoppen**: op Dashboard en Budget vind je een directe **Export PDF** snelkoppeling.
-- **Eerste-login rondleiding**: nieuwe gebruikers krijgen éénmalig een interactieve tour; via **ℹ️ Rondleiding** op Dashboard kan deze altijd handmatig opnieuw gestart worden.
-- **Handleidingpagina**: compacte gebruikershandleiding beschikbaar op `/guide`.
+- **PDF export**: in `Reports`, use **Export complete PDF** for a printable package that includes dashboard summary, account overview, projection, and full transaction history.
+- **Fast export shortcuts**: Dashboard and Budget include direct **Export PDF** actions.
+- **First-login onboarding**: new users receive a one-time in-app tour automatically.
+- **Single guide entry point**: the guide is now available only through the **ℹ️ App Guide** icon next to the CrewWealth logo on the Dashboard.
 
-## Testinstructie
+## Test instructions
 
-1. Open `/budget` en controleer of KPI’s bovenaan direct zichtbaar zijn.
+1. Open `/budget` and confirm the KPI strip is visible at the top.
 2. Test **Quick actions**:
-   - `New Payment` opent payment-modal.
-   - `Add Budget` opent category/budget-flow.
-3. Open **More actions** en verifieer Salary/Deposit/Transfer/Add Account.
-4. Ga naar `/day3`, parse een bankbestand of loonstrook, kies een target account en klik **Apply to Budgets & Accounts**.
-5. Keer terug naar `/budget`.
-   - Controleer dat account- en budgetoverzichten automatisch updaten.
-   - Controleer dat `Sync ready/Auto-sync active` status wijzigt na updates.
-6. Verifieer dat bestaande berekeningen ongewijzigd zijn:
-   - `To Budget`, `Overspent`, `Budgeted`, `Total spent` blijven consistent met transacties.
+   - `New Payment` opens the payment modal.
+   - `Add Budget` opens the category/budget flow.
+3. Open **More actions** and verify Salary/Deposit/Transfer/Add Account.
+4. Go to `/day3`, parse a bank file or payslip, choose a target account, and click **Apply to Budgets & Accounts**.
+5. Return to `/budget`.
+   - Confirm account and budget overviews update automatically.
+   - Confirm `Sync ready/Auto-sync active` status changes after updates.
+6. Verify that existing calculations remain unchanged:
+   - `To Budget`, `Overspent`, `Budgeted`, and `Total spent` remain consistent with transactions.
 
-## Firestore structuur (transacties)
+## Firestore structure (transactions)
 
-Transacties worden opgeslagen als eigen subcollectie onder de gebruiker:
+Transactions are stored as a user subcollection:
 
 ```
 users/{userId}/transactions/{transactionId}
 ```
 
-Net als `accounts` en `fxRateHistory` staat `transactions` dus direct onder `users/{userId}` en is deze collectie in de Firebase Console direct CRUD-baar (aanmaken, bekijken, bewerken, verwijderen).
+Like `accounts` and `fxRateHistory`, `transactions` is stored directly under `users/{userId}` and is fully manageable in Firebase Console (create, read, update, delete).
 
-### Voorbeeld save/load logica
+### Example save/load logic
 
 ```javascript
 const userRef = db.collection('users').doc(currentUser.uid);
@@ -109,10 +109,10 @@ const txSnapshot = await userRef
   .get({ source: 'server' });
 ```
 
-### Korte gebruikershandleiding: waar staan transacties nu?
+### Quick guide: where transactions live now
 
-1. Log in op Firebase Console en open **Firestore Database**.
-2. Ga naar `users` → `<jouw userId>` → **transactions**.
-3. Elke transactie staat hier als los document (`transactionId`) met velden zoals `type`, `amount`, `accountId`, `date`.
-4. In CrewWealth worden dashboard, widgets en overzichten alleen gevuld vanuit deze subcollectie.
-5. Oude lokale “ghost” transacties worden opgeschoond en niet meer getoond als ze niet in Firestore staan.
+1. Log in to Firebase Console and open **Firestore Database**.
+2. Go to `users` → `<your userId>` → **transactions**.
+3. Each transaction is stored as a separate document (`transactionId`) with fields such as `type`, `amount`, `accountId`, and `date`.
+4. In CrewWealth, dashboard widgets and overviews are populated only from this subcollection.
+5. Legacy local “ghost” transactions are cleaned up and no longer shown when they are not present in Firestore.
