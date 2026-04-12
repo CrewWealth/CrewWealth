@@ -8,6 +8,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="/static/js/currency.js"></script>
+    <script src="/static/js/app-guide.js"></script>
     <style>
         :root {
             --color-primary: #208089;
@@ -107,7 +108,7 @@
         .inline button { width: auto; }
     </style>
 </head>
-<body>
+<body data-guide-page="fx">
     <div class="container">
         <div class="nav-links">
             <a class="nav-link" href="/">← Dashboard</a>
@@ -124,7 +125,7 @@
             </div>
         </div>
 
-        <div class="card">
+        <div class="card" id="fxSyncCard">
             <h2>FX Sync</h2>
             <div id="fxStatusMessage" class="status">Ready.</div>
             <div class="inline" style="margin-bottom:8px;">
@@ -134,7 +135,7 @@
             <div id="fxLastSyncMeta" class="muted" style="font-size:13px;"></div>
         </div>
 
-        <div class="card">
+        <div class="card" id="pairConfigCard">
             <h2>Pair configuration</h2>
             <div class="grid">
                 <div>
@@ -163,7 +164,7 @@
             </div>
         </div>
 
-        <div class="card">
+        <div class="card" id="fxPairsCard">
             <h2>Current FX pairs</h2>
             <table>
                 <thead>
@@ -181,7 +182,7 @@
             </table>
         </div>
 
-        <div class="card">
+        <div class="card" id="fxHistoryCard">
             <h2>FX rate history / audit trail</h2>
             <div class="muted" style="font-size:13px; margin-bottom:8px;">Includes both manual and automatic updates.</div>
             <div class="history-list" id="historyList">

@@ -26,7 +26,7 @@ These routes render HTML templates for the web application.
 | GET | `/dashboard` | Redirects to `/` |
 | GET | `/income` | Redirects to `/` |
 
-The app guide/onboarding is now shown in-app from the Dashboard info icon (`ℹ️ App Guide`) next to the CrewWealth logo.
+The app guide/onboarding is shown in-app from the Dashboard info icon (`ℹ️ App Guide`) next to the CrewWealth logo and now walks users across all core modules with next/back/pause/finish navigation.
 
 ---
 
