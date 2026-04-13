@@ -147,15 +147,15 @@ footer {
 }
 
 .result-highlight-neutral {
-    background-color: #f5f7f8;
+    background-color: #f0f0f0;
     padding: 10px;
-    border-radius: 8px;
+    border-radius: 5px;
 }
 
 .result-highlight-info {
-    background-color: #eff6ff;
+    background-color: #e7f3ff;
     padding: 10px;
-    border-radius: 8px;
+    border-radius: 5px;
 }
 
 @media (max-width: 768px) {
