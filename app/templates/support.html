@@ -3,14 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap">
     <title>Support & Legal - CrewWealth</title>
     <style>
-        body { font-family: Arial, sans-serif; background: #f8fafc; color: #0f172a; margin: 0; padding: 24px; }
-        .wrap { max-width: 760px; margin: 0 auto; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; }
-        h1 { margin-top: 0; }
+        :root {
+            --color-primary: #208089;
+            --color-background: #fcfcf9;
+            --color-surface: #ffffff;
+            --color-text: #134252;
+            --color-text-secondary: #626c71;
+            --color-border: #e8e8e0;
+            --radius-lg: 12px;
+            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04);
+        }
+        body { font-family: 'Poppins', Arial, sans-serif; background: var(--color-background); color: var(--color-text); margin: 0; padding: 24px; }
+        .wrap { max-width: 760px; margin: 0 auto; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 24px; box-shadow: var(--shadow-sm); }
+        h1 { margin-top: 0; margin-bottom: 12px; }
+        p { color: var(--color-text-secondary); }
         .links { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
-        a { color: #1d4ed8; text-decoration: none; font-weight: 600; }
-        .back { display: inline-block; margin-bottom: 16px; }
+        a { color: var(--color-primary); text-decoration: none; font-weight: 600; }
+        .back { display: inline-block; margin-bottom: 16px; padding: 8px 12px; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-surface); }
     </style>
 </head>
 <body>

@@ -146,6 +146,18 @@ footer {
     margin: 10px 0;
 }
 
+.result-highlight-neutral {
+    background-color: #f0f0f0;
+    padding: 10px;
+    border-radius: 5px;
+}
+
+.result-highlight-info {
+    background-color: #e7f3ff;
+    padding: 10px;
+    border-radius: 5px;
+}
+
 @media (max-width: 768px) {
     .hero h2 {
         font-size: 2rem;
