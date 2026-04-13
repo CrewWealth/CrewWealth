@@ -1,0 +1,152 @@
+:root {
+    --color-primary: #208089;
+    --color-primary-hover: #1a6670;
+    --color-accent: #32b8c6;
+    --color-background: #fcfcf9;
+    --color-surface: #ffffff;
+    --color-text: #134252;
+    --color-text-secondary: #626c71;
+    --color-border: #e8e8e0;
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 32px;
+    --spacing-2xl: 48px;
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.04);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
+}
+
+body[data-guide-page]:not([data-guide-page="dashboard"]) {
+    background: var(--color-background);
+}
+
+body[data-guide-page]:not([data-guide-page="dashboard"]) .container {
+    max-width: 1200px;
+}
+
+body[data-guide-page]:not([data-guide-page="dashboard"]) .nav-row,
+body[data-guide-page]:not([data-guide-page="dashboard"]) .nav-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+}
+
+body[data-guide-page]:not([data-guide-page="dashboard"]) .nav-back,
+body[data-guide-page]:not([data-guide-page="dashboard"]) .nav-link,
+body[data-guide-page]:not([data-guide-page="dashboard"]) .back-btn {
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text);
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+body[data-guide-page]:not([data-guide-page="dashboard"]) .nav-back:hover,
+body[data-guide-page]:not([data-guide-page="dashboard"]) .nav-link:hover,
+body[data-guide-page]:not([data-guide-page="dashboard"]) .back-btn:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+    transform: none;
+}
+
+body[data-guide-page]:not([data-guide-page="dashboard"]) .hero,
+body[data-guide-page]:not([data-guide-page="dashboard"]) .cw-page-hero {
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%);
+    color: #fff;
+    padding: var(--spacing-xl);
+    border-radius: var(--radius-xl);
+    margin-bottom: var(--spacing-xl);
+    box-shadow: var(--shadow-lg);
+    border: none;
+}
+
+body[data-guide-page]:not([data-guide-page="dashboard"]) .hero h1,
+body[data-guide-page]:not([data-guide-page="dashboard"]) .cw-page-hero h1 {
+    color: #fff;
+    margin-bottom: var(--spacing-sm);
+    -webkit-text-fill-color: #fff;
+}
+
+body[data-guide-page]:not([data-guide-page="dashboard"]) .hero p,
+body[data-guide-page]:not([data-guide-page="dashboard"]) .cw-page-hero p,
+body[data-guide-page]:not([data-guide-page="dashboard"]) .header-subtitle,
+body[data-guide-page]:not([data-guide-page="dashboard"]) .page-subtitle {
+    color: rgba(255, 255, 255, 0.92);
+}
+
+body[data-guide-page]:not([data-guide-page="dashboard"]) .hero-actions,
+body[data-guide-page]:not([data-guide-page="dashboard"]) .quick-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+    margin-top: var(--spacing-md);
+}
+
+body[data-guide-page]:not([data-guide-page="dashboard"]) .hero-action-btn {
+    background: rgba(255, 255, 255, 0.16);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: #fff;
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+body[data-guide-page]:not([data-guide-page="dashboard"]) .hero-action-btn:hover {
+    background: rgba(255, 255, 255, 0.24);
+}
+
+body[data-guide-page]:not([data-guide-page="dashboard"]) .card,
+body[data-guide-page]:not([data-guide-page="dashboard"]) .report-card,
+body[data-guide-page]:not([data-guide-page="dashboard"]) .settings-section,
+body[data-guide-page]:not([data-guide-page="dashboard"]) .form-section,
+body[data-guide-page]:not([data-guide-page="dashboard"]) .stats-sidebar,
+body[data-guide-page]:not([data-guide-page="dashboard"]) .transactions-section,
+body[data-guide-page]:not([data-guide-page="dashboard"]) .placeholder-card,
+body[data-guide-page]:not([data-guide-page="dashboard"]) .kpi-box {
+    background: var(--color-surface);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+}
+
+body[data-guide-page]:not([data-guide-page="dashboard"]) .action-btn,
+body[data-guide-page]:not([data-guide-page="dashboard"]) .btn-primary,
+body[data-guide-page]:not([data-guide-page="dashboard"]) button:not(.secondary):not(.tour-btn):not(.month-btn):not(.add-account-btn):not(.account-delete) {
+    background: var(--color-primary);
+    border: 1px solid var(--color-primary);
+    color: #fff;
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+}
+
+body[data-guide-page]:not([data-guide-page="dashboard"]) .action-btn.secondary,
+body[data-guide-page]:not([data-guide-page="dashboard"]) button.secondary {
+    background: var(--color-surface);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+}
+
+body[data-guide-page]:not([data-guide-page="dashboard"]) input,
+body[data-guide-page]:not([data-guide-page="dashboard"]) select,
+body[data-guide-page]:not([data-guide-page="dashboard"]) textarea {
+    border-radius: var(--radius-md);
+    border-color: var(--color-border);
+}

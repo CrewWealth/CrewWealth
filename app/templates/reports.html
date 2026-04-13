@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap">
+    <link rel="stylesheet" href="/static/css/dashboard-polish.css">
     <title>Reports - CrewWealth</title>
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -245,9 +246,15 @@
             <a href="/" class="nav-back">← Back to Dashboard</a>
             <a href="/budget" class="nav-back">💳 Budget</a>
             <a href="/fx" class="nav-back">💱 FX Center</a>
-            <a href="/support" class="nav-back">🛟 Help & Legal</a>
+            <a href="#" class="nav-back" onclick="openCrewwealthTour(); return false;">ℹ️ App Guide</a>
         </div>
-        <h1>📊 Reports</h1>
+        <div class="cw-page-hero">
+            <h1>📊 Reports</h1>
+            <p class="page-subtitle">Track performance and export polished financial snapshots from one consistent reporting workspace.</p>
+            <div class="hero-actions">
+                <a href="/reports?export=pdf" class="hero-action-btn">📄 Export PDF</a>
+            </div>
+        </div>
         
         <div id="loadingState" class="loading">
             Loading reports data...
