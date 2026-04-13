@@ -11,6 +11,8 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
     <script src="/static/js/currency.js"></script>
     <script src="/static/js/app-guide.js"></script>
 
@@ -65,6 +67,21 @@
             display: flex;
             flex-wrap: wrap;
             gap: 8px;
+        }
+
+        .export-status {
+            min-height: 20px;
+            margin: -4px 0 var(--spacing-lg);
+            font-size: 13px;
+            color: var(--color-text-secondary);
+        }
+
+        .export-status.success {
+            color: var(--color-success);
+        }
+
+        .export-status.error {
+            color: var(--color-danger);
         }
 
         .action-btn {
@@ -290,6 +307,7 @@
                     Export report + FX info
                 </button>
             </div>
+            <div id="exportStatus" class="export-status" role="status" aria-live="polite"></div>
            
             <section class="card">
     <div class="card-header">
@@ -561,6 +579,10 @@
             await loadReportsData();
             const params = new URLSearchParams(window.location.search);
             if (params.get('export') === 'pdf') {
+                params.delete('export');
+                const query = params.toString();
+                const cleanPath = `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash || ''}`;
+                window.history.replaceState({}, document.title, cleanPath);
                 setTimeout(() => exportReportsToPdf(), 250);
             }
         });
@@ -1001,6 +1023,53 @@
             return escapeHtml(value == null ? '' : String(value));
         }
 
+        function setExportStatus(message, type = 'info') {
+            const statusEl = document.getElementById('exportStatus');
+            if (!statusEl) return;
+            statusEl.textContent = message || '';
+            statusEl.classList.remove('success', 'error');
+            if (type === 'success' || type === 'error') {
+                statusEl.classList.add(type);
+            }
+        }
+
+        function renderPdfTable(doc, options) {
+            if (typeof doc.autoTable === 'function') {
+                doc.autoTable(options);
+                return;
+            }
+            if (window.jspdfAutoTable?.default) {
+                window.jspdfAutoTable.default(doc, options);
+                return;
+            }
+            throw new Error('PDF table renderer unavailable.');
+        }
+
+        // Export strategy:
+        // - Build PDF data in-memory with jsPDF to avoid popup windows and blocked print tabs.
+        // - Download via Blob/ObjectURL (or msSaveOrOpenBlob fallback) for broad browser coverage.
+        // - Surface status in-page so users get actionable guidance without intrusive alert popups.
+        function downloadBlobFile(blob, fileName) {
+            if (window.navigator && typeof window.navigator.msSaveOrOpenBlob === 'function') {
+                window.navigator.msSaveOrOpenBlob(blob, fileName);
+                return;
+            }
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const supportsDownloadAttr = 'download' in HTMLAnchorElement.prototype;
+            if (supportsDownloadAttr) {
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+            } else {
+                // Safari/iOS fallback: open the generated PDF in current tab so users can share/save it.
+                window.location.assign(url);
+            }
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }
+
         async function exportReportsToPdf() {
             if (!currentUser) return;
             const exportButton = document.getElementById('exportCompletePdfButton');
@@ -1008,6 +1077,7 @@
                 exportButton.disabled = true;
                 exportButton.textContent = '⏳ Building PDF...';
             }
+            setExportStatus('Preparing your PDF export…');
 
             try {
                 const { accounts, categoriesById, transactionsSnapshot } = await loadExportCollections();
@@ -1017,142 +1087,143 @@
                 });
 
                 const baseCurrency = (userCurrency || DEFAULT_CURRENCY).toUpperCase();
-                const accountRows = accounts.map(account => {
-                    const accountCurrency = resolveAccountCurrency(account);
-                    const rawBalance = parseFloat(account.balance) || 0;
-                    const converted = convertMoney(rawBalance, accountCurrency, baseCurrency, userFxRates || {});
-                    const convertedLabel = converted === null
-                        ? `${formatMoney(rawBalance, accountCurrency)} ${accountCurrency}`
-                        : `${formatMoney(converted, baseCurrency)} ${baseCurrency}`;
-                    return `
-                        <tr>
-                            <td>${escapeHtmlForPdf(account.name || 'Account')}</td>
-                            <td>${account.offBudget ? 'Off budget' : 'On budget'}</td>
-                            <td>${escapeHtmlForPdf(convertedLabel)}</td>
-                        </tr>
-                    `;
-                }).join('');
-
-                const transactionRows = transactionsSnapshot.docs.map(doc => {
-                    const tx = doc.data() || {};
-                    const amount = Math.abs(parseFloat(tx.amount) || 0);
-                    const type = String(tx.type || 'payment').toLowerCase();
-                    const isIncome = type === 'salary' || type === 'deposit';
-                    const account = accountById[tx.accountId] || null;
-                    const accountCurrency = account ? resolveAccountCurrency(account) : (userLegacyCurrency || baseCurrency);
-                    const converted = convertMoney(amount, accountCurrency, baseCurrency, userFxRates || {});
-                    const amountLabel = converted === null
-                        ? `${formatMoney(amount, accountCurrency)} ${accountCurrency}`
-                        : `${formatMoney(converted, baseCurrency)} ${baseCurrency}`;
-                    const txDate = tx.date && typeof tx.date.toDate === 'function'
-                        ? tx.date.toDate()
-                        : new Date();
-                    const category = tx.categoryId
-                        ? (categoriesById[tx.categoryId]?.name || tx.category || 'Uncategorized')
-                        : (tx.category || 'Uncategorized');
-                    return `
-                        <tr>
-                            <td>${escapeHtmlForPdf(txDate.toLocaleDateString())}</td>
-                            <td>${isIncome ? 'Income' : 'Expense/Transfer'}</td>
-                            <td>${escapeHtmlForPdf(tx.note || tx.description || tx.type || 'Transaction')}</td>
-                            <td>${escapeHtmlForPdf(category)}</td>
-                            <td>${escapeHtmlForPdf(account?.name || 'Unknown account')}</td>
-                            <td>${isIncome ? '+' : '-'}${escapeHtmlForPdf(amountLabel)}</td>
-                        </tr>
-                    `;
-                }).join('');
-
                 const monthNet = cachedMonthlyIncome - cachedMonthlySpending;
                 const projection12m = cachedProjection?.balance_12m;
                 const projection24m = cachedProjection?.balance_24m;
                 const projection36m = cachedProjection?.balance_36m;
 
-                const printWindow = window.open('', '_blank', 'noopener,noreferrer');
-                if (!printWindow) {
-                    alert('Popup blocked. Please allow popups for PDF export.');
-                    return;
+                const { jsPDF } = window.jspdf || {};
+                if (typeof jsPDF !== 'function') {
+                    throw new Error('PDF engine failed to load.');
                 }
 
-                const html = `
-                    <!DOCTYPE html>
-                    <html lang="en">
-                    <head>
-                        <meta charset="UTF-8" />
-                        <title>CrewWealth PDF Export</title>
-                        <style>
-                            body { font-family: 'Poppins', Arial, sans-serif; margin: 24px; color: #134252; }
-                            h1, h2 { margin: 0 0 8px; }
-                            .meta { margin-bottom: 20px; color: #626c71; font-size: 12px; }
-                            .section { margin-bottom: 20px; }
-                            .summary-grid { display: grid; grid-template-columns: repeat(2, minmax(160px, 1fr)); gap: 10px; }
-                            .summary-card { border: 1px solid #e8e8e0; border-radius: 8px; padding: 10px; }
-                            table { width: 100%; border-collapse: collapse; font-size: 12px; }
-                            th, td { border: 1px solid #e8e8e0; padding: 6px; text-align: left; vertical-align: top; }
-                            th { background: #f5f7f8; }
-                            @page { size: A4 portrait; margin: 16mm; }
-                        </style>
-                    </head>
-                    <body>
-                        <h1>CrewWealth financial export</h1>
-                        <div class="meta">Generated: ${escapeHtmlForPdf(new Date().toLocaleString())} • Currency: ${escapeHtmlForPdf(baseCurrency)} • FX info: ${escapeHtmlForPdf(fxAsOfText || 'n/a')}</div>
+                const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+                const pageWidth = doc.internal.pageSize.getWidth();
+                const marginX = 40;
+                let y = 48;
 
-                        <div class="section">
-                            <h2>Monthly/dashboard summary</h2>
-                            <div class="summary-grid">
-                                <div class="summary-card"><strong>Net worth</strong><br>${escapeHtmlForPdf(formatCurrency(cachedNetWorth))}</div>
-                                <div class="summary-card"><strong>Income (month)</strong><br>${escapeHtmlForPdf(formatCurrency(cachedMonthlyIncome))}</div>
-                                <div class="summary-card"><strong>Spending (month)</strong><br>${escapeHtmlForPdf(formatCurrency(cachedMonthlySpending))}</div>
-                                <div class="summary-card"><strong>Net (month)</strong><br>${escapeHtmlForPdf(formatCurrency(monthNet))}</div>
-                                <div class="summary-card"><strong>On budget</strong><br>${escapeHtmlForPdf(formatCurrency(cachedOnBudgetTotal))}</div>
-                                <div class="summary-card"><strong>Savings (off budget)</strong><br>${escapeHtmlForPdf(formatCurrency(cachedOffBudgetTotal))}</div>
-                            </div>
-                        </div>
+                const summaryRows = [
+                    ['Net worth', formatCurrency(cachedNetWorth)],
+                    ['Income (month)', formatCurrency(cachedMonthlyIncome)],
+                    ['Spending (month)', formatCurrency(cachedMonthlySpending)],
+                    ['Net (month)', formatCurrency(monthNet)],
+                    ['On budget', formatCurrency(cachedOnBudgetTotal)],
+                    ['Savings (off budget)', formatCurrency(cachedOffBudgetTotal)],
+                    ['Projection 12 months', projection12m == null ? '—' : formatCurrency(projection12m)],
+                    ['Projection 24 months', projection24m == null ? '—' : formatCurrency(projection24m)],
+                    ['Projection 36 months', projection36m == null ? '—' : formatCurrency(projection36m)]
+                ];
+                const accountBody = accounts.length
+                    ? accounts.map(account => {
+                        const accountCurrency = resolveAccountCurrency(account);
+                        const rawBalance = parseFloat(account.balance) || 0;
+                        const converted = convertMoney(rawBalance, accountCurrency, baseCurrency, userFxRates || {});
+                        const convertedLabel = converted === null
+                            ? `${formatMoney(rawBalance, accountCurrency)} ${accountCurrency}`
+                            : `${formatMoney(converted, baseCurrency)} ${baseCurrency}`;
+                        return [
+                            String(account.name || 'Account'),
+                            account.offBudget ? 'Off budget' : 'On budget',
+                            convertedLabel
+                        ];
+                    })
+                    : [['No accounts found', '', '']];
+                const txBody = transactionsSnapshot.docs.length
+                    ? transactionsSnapshot.docs.map(docSnapshot => {
+                        const tx = docSnapshot.data() || {};
+                        const amount = Math.abs(parseFloat(tx.amount) || 0);
+                        const type = String(tx.type || 'payment').toLowerCase();
+                        const isIncome = type === 'salary' || type === 'deposit';
+                        const account = accountById[tx.accountId] || null;
+                        const accountCurrency = account ? resolveAccountCurrency(account) : (userLegacyCurrency || baseCurrency);
+                        const converted = convertMoney(amount, accountCurrency, baseCurrency, userFxRates || {});
+                        const amountLabel = converted === null
+                            ? `${formatMoney(amount, accountCurrency)} ${accountCurrency}`
+                            : `${formatMoney(converted, baseCurrency)} ${baseCurrency}`;
+                        const txDate = tx.date && typeof tx.date.toDate === 'function'
+                            ? tx.date.toDate()
+                            : new Date();
+                        const category = tx.categoryId
+                            ? (categoriesById[tx.categoryId]?.name || tx.category || 'Uncategorized')
+                            : (tx.category || 'Uncategorized');
+                        return [
+                            txDate.toLocaleDateString(),
+                            isIncome ? 'Income' : 'Expense/Transfer',
+                            String(tx.note || tx.description || tx.type || 'Transaction'),
+                            String(category),
+                            String(account?.name || 'Unknown account'),
+                            `${isIncome ? '+' : '-'}${amountLabel}`
+                        ];
+                    })
+                    : [['No transactions found', '', '', '', '', '']];
 
-                        <div class="section">
-                            <h2>Projection snapshot</h2>
-                            <div class="summary-grid">
-                                <div class="summary-card"><strong>12 months</strong><br>${projection12m == null ? '—' : escapeHtmlForPdf(formatCurrency(projection12m))}</div>
-                                <div class="summary-card"><strong>24 months</strong><br>${projection24m == null ? '—' : escapeHtmlForPdf(formatCurrency(projection24m))}</div>
-                                <div class="summary-card"><strong>36 months</strong><br>${projection36m == null ? '—' : escapeHtmlForPdf(formatCurrency(projection36m))}</div>
-                            </div>
-                        </div>
+                doc.setTextColor(19, 66, 82);
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(16);
+                doc.text('CrewWealth financial export', marginX, y);
+                y += 18;
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(10);
+                doc.setTextColor(98, 108, 113);
+                doc.text(`Generated: ${new Date().toLocaleString()}`, marginX, y);
+                y += 14;
+                doc.text(`Currency: ${baseCurrency} • FX info: ${fxAsOfText || 'n/a'}`, marginX, y);
 
-                        <div class="section">
-                            <h2>Account overview</h2>
-                            <table>
-                                <thead><tr><th>Account</th><th>Type</th><th>Balance</th></tr></thead>
-                                <tbody>${accountRows || '<tr><td colspan="3">No accounts found</td></tr>'}</tbody>
-                            </table>
-                        </div>
+                renderPdfTable(doc, {
+                    startY: y + 14,
+                    head: [['Summary metric', 'Value']],
+                    body: summaryRows,
+                    theme: 'grid',
+                    styles: { fontSize: 10, textColor: [19, 66, 82] },
+                    headStyles: { fillColor: [32, 128, 137], textColor: [255, 255, 255] },
+                    margin: { left: marginX, right: marginX }
+                });
 
-                        <div class="section">
-                            <h2>Full transaction history</h2>
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>Date</th>
-                                        <th>Type</th>
-                                        <th>Description</th>
-                                        <th>Category</th>
-                                        <th>Account</th>
-                                        <th>Amount</th>
-                                    </tr>
-                                </thead>
-                                <tbody>${transactionRows || '<tr><td colspan="6">No transactions found</td></tr>'}</tbody>
-                            </table>
-                        </div>
-                    </body>
-                    </html>
-                `;
+                const accountStartY = (doc.lastAutoTable?.finalY || y + 120) + 16;
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(12);
+                doc.setTextColor(19, 66, 82);
+                doc.text('Account overview', marginX, accountStartY);
+                renderPdfTable(doc, {
+                    startY: accountStartY + 8,
+                    head: [['Account', 'Type', 'Balance']],
+                    body: accountBody,
+                    theme: 'grid',
+                    styles: { fontSize: 9, textColor: [19, 66, 82] },
+                    headStyles: { fillColor: [32, 128, 137], textColor: [255, 255, 255] },
+                    margin: { left: marginX, right: marginX }
+                });
 
-                printWindow.document.open();
-                printWindow.document.write(html);
-                printWindow.document.close();
-                printWindow.focus();
-                printWindow.print();
+                const txStartY = (doc.lastAutoTable?.finalY || accountStartY + 120) + 16;
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(12);
+                doc.text('Full transaction history', marginX, txStartY);
+                renderPdfTable(doc, {
+                    startY: txStartY + 8,
+                    head: [['Date', 'Type', 'Description', 'Category', 'Account', 'Amount']],
+                    body: txBody,
+                    theme: 'grid',
+                    styles: { fontSize: 8, textColor: [19, 66, 82], cellPadding: 4 },
+                    headStyles: { fillColor: [32, 128, 137], textColor: [255, 255, 255] },
+                    margin: { left: marginX, right: marginX },
+                    tableWidth: pageWidth - (marginX * 2),
+                    columnStyles: {
+                        0: { cellWidth: 55 },
+                        1: { cellWidth: 70 },
+                        2: { cellWidth: 140 },
+                        3: { cellWidth: 90 },
+                        4: { cellWidth: 90 },
+                        5: { cellWidth: 71 }
+                    }
+                });
+
+                const pdfBlob = doc.output('blob');
+                const dateStamp = new Date().toISOString().slice(0, 10);
+                downloadBlobFile(pdfBlob, `crewwealth-report-${dateStamp}.pdf`);
+                setExportStatus('PDF downloaded. If you do not see it, check your browser downloads folder.', 'success');
             } catch (error) {
                 console.error('Error creating PDF export:', error);
-                alert('Could not generate PDF export. Please try again.');
+                setExportStatus('Could not download PDF. Please retry. If it keeps failing, refresh the page and try again.', 'error');
             } finally {
                 if (exportButton) {
                     exportButton.disabled = false;
