@@ -373,6 +373,8 @@
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.firestore();
+        const PDF_EXPORT_INITIALIZATION_DELAY_MS = 250;
+        const BLOB_URL_REVOKE_DELAY_MS = 1000;
 
         let currentUser = null;
         let userCurrency = 'EUR'; // global variable for currency
@@ -583,7 +585,8 @@
                 const query = params.toString();
                 const cleanPath = `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash || ''}`;
                 window.history.replaceState({}, document.title, cleanPath);
-                setTimeout(() => exportReportsToPdf(), 250);
+                // Wait briefly so reports data/UI state settles before auto-triggering a download.
+                setTimeout(() => exportReportsToPdf(), PDF_EXPORT_INITIALIZATION_DELAY_MS);
             }
         });
 
@@ -1067,7 +1070,8 @@
                 // Safari/iOS fallback: open the generated PDF in current tab so users can share/save it.
                 window.location.assign(url);
             }
-            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            // Delay revocation briefly so browser download/preview handlers can start reading the blob.
+            setTimeout(() => URL.revokeObjectURL(url), BLOB_URL_REVOKE_DELAY_MS);
         }
 
         async function exportReportsToPdf() {

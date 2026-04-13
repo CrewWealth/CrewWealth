@@ -25,6 +25,7 @@ class TestPolishTemplateFeatures(unittest.TestCase):
         self.assertIn("jspdf.umd.min.js", content)
         self.assertIn("doc.output('blob')", content)
         self.assertIn("function downloadBlobFile(blob, fileName)", content)
+        self.assertIn("Could not download PDF. Please retry.", content)
         self.assertNotIn("window.open('', '_blank'", content)
         self.assertNotIn("Popup blocked. Please allow popups for PDF export.", content)
 
