@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap">
+    <link rel="stylesheet" href="/static/css/dashboard-polish.css">
     <title>FX Center - CrewWealth</title>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -115,10 +116,15 @@
             <a class="nav-link" href="/">← Dashboard</a>
             <a class="nav-link" href="/settings">⚙️ Settings</a>
             <a class="nav-link" href="/day3">🚀 Smart Tools Hub</a>
-            <a class="nav-link" href="/support">🛟 Help & Legal</a>
+            <a class="nav-link" href="#" onclick="openCrewwealthTour(); return false;">ℹ️ App Guide</a>
         </div>
-        <h1>💱 FX Center</h1>
-        <div class="page-subtitle">Advanced exchange-rate controls live here to keep main screens clean.</div>
+        <div class="cw-page-hero">
+            <h1>💱 FX Center</h1>
+            <div class="page-subtitle">Advanced exchange-rate controls live here to keep main screens clean.</div>
+            <div class="hero-actions">
+                <a href="/reports" class="hero-action-btn">📊 Open Reports</a>
+            </div>
+        </div>
 
         <div id="fxOnboarding" class="onboarding">
             <strong>Tip:</strong> keep pairs on <em>Auto</em> for daily updates, and use <em>Fixed</em> only when you want to lock a rate.

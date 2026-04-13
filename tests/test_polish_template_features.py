@@ -7,6 +7,11 @@ INDEX_TEMPLATE = ROOT / "app" / "templates" / "index.html"
 REPORTS_TEMPLATE = ROOT / "app" / "templates" / "reports.html"
 REGISTER_TEMPLATE = ROOT / "app" / "templates" / "register.html"
 SUPPORT_TEMPLATE = ROOT / "app" / "templates" / "support.html"
+GOALS_TEMPLATE = ROOT / "app" / "templates" / "goals.html"
+BUDGET_TEMPLATE = ROOT / "app" / "templates" / "budget.html"
+SETTINGS_TEMPLATE = ROOT / "app" / "templates" / "settings.html"
+FX_TEMPLATE = ROOT / "app" / "templates" / "fx.html"
+DAY3_TEMPLATE = ROOT / "app" / "templates" / "day3.html"
 MAIN_ROUTES = ROOT / "app" / "routes" / "main.py"
 APP_GUIDE_JS = ROOT / "app" / "static" / "js" / "app-guide.js"
 
@@ -64,6 +69,13 @@ class TestPolishTemplateFeatures(unittest.TestCase):
         content = INDEX_TEMPLATE.read_text(encoding="utf-8")
         self.assertIn("id=\"navSupportLink\"", content)
         self.assertIn("href=\"/support\"", content)
+
+    def test_help_legal_links_are_only_in_support_and_dashboard_navigation(self):
+        self.assertNotIn("Help & Legal", GOALS_TEMPLATE.read_text(encoding="utf-8"))
+        self.assertNotIn("Help & Legal", BUDGET_TEMPLATE.read_text(encoding="utf-8"))
+        self.assertNotIn("Help & Legal", SETTINGS_TEMPLATE.read_text(encoding="utf-8"))
+        self.assertNotIn("Help & Legal", FX_TEMPLATE.read_text(encoding="utf-8"))
+        self.assertNotIn("Help & Legal", DAY3_TEMPLATE.read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":

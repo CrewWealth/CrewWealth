@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap">
+    <link rel="stylesheet" href="/static/css/dashboard-polish.css">
     <title>Financial Goals - CrewWealth</title>
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -412,12 +413,19 @@
 </head>
 <body data-guide-page="goals">
     <div class="container">
-        <a href="/" class="nav-back">← Back to Home</a>
-        <a href="/support" class="nav-back">🛟 Help & Legal</a>
+        <div class="nav-row">
+            <a href="/" class="nav-back">← Dashboard</a>
+            <a href="/budget" class="nav-back">💳 Budget</a>
+            <a href="/reports" class="nav-back">📊 Reports</a>
+            <a href="#" class="nav-back" onclick="openCrewwealthTour(); return false;">ℹ️ App Guide</a>
+        </div>
 
-        <header>
+        <header class="cw-page-hero">
             <h1>🎯 Financial Goals</h1>
             <p class="header-subtitle">Set ambitious goals and track your progress to financial success</p>
+            <div class="hero-actions">
+                <a href="/reports" class="hero-action-btn">📊 Open Reports</a>
+            </div>
         </header>
 
         <div class="main-grid">

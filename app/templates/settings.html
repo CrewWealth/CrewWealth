@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap">
+    <link rel="stylesheet" href="/static/css/dashboard-polish.css">
     <title>Settings - CrewWealth</title>
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -189,9 +190,16 @@
 </head>
 <body data-guide-page="settings">
     <div class="container">
-        <a href="/" class="nav-back">← Back to Dashboard</a>
-        <a href="/support" class="nav-back">🛟 Help & Legal</a>
-        <h1>⚙️ Settings</h1>
+        <div class="nav-row">
+            <a href="/" class="nav-back">← Dashboard</a>
+            <a href="/fx" class="nav-back">💱 FX Center</a>
+            <a href="/day3" class="nav-back">🚀 Smart Tools Hub</a>
+            <a href="#" class="nav-back" onclick="openCrewwealthTour(); return false;">ℹ️ App Guide</a>
+        </div>
+        <div class="cw-page-hero">
+            <h1>⚙️ Settings</h1>
+            <p class="page-subtitle">Manage your currency preferences and foreign exchange settings.</p>
+        </div>
         
         <div class="settings-section" id="currencySettingsSection">
             <h2>💱 Currency Settings</h2>
