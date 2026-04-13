@@ -374,7 +374,7 @@
         const auth = firebase.auth();
         const db = firebase.firestore();
         const PDF_EXPORT_INITIALIZATION_DELAY_MS = 250;
-        const BLOB_URL_REVOKE_DELAY_MS = 1000;
+        let pendingDownloadUrl = null;
 
         let currentUser = null;
         let userCurrency = 'EUR'; // global variable for currency
@@ -1045,7 +1045,7 @@
                 window.jspdfAutoTable.default(doc, options);
                 return;
             }
-            throw new Error('PDF table renderer unavailable.');
+            throw new Error('PDF table library failed to load. Please refresh the page and try again.');
         }
 
         // Export strategy:
@@ -1057,7 +1057,12 @@
                 window.navigator.msSaveOrOpenBlob(blob, fileName);
                 return;
             }
+            if (pendingDownloadUrl) {
+                URL.revokeObjectURL(pendingDownloadUrl);
+                pendingDownloadUrl = null;
+            }
             const url = URL.createObjectURL(blob);
+            pendingDownloadUrl = url;
             const a = document.createElement('a');
             a.href = url;
             const supportsDownloadAttr = 'download' in HTMLAnchorElement.prototype;
@@ -1070,9 +1075,14 @@
                 // Safari/iOS fallback: open the generated PDF in current tab so users can share/save it.
                 window.location.assign(url);
             }
-            // Delay revocation briefly so browser download/preview handlers can start reading the blob.
-            setTimeout(() => URL.revokeObjectURL(url), BLOB_URL_REVOKE_DELAY_MS);
         }
+
+        window.addEventListener('beforeunload', () => {
+            if (pendingDownloadUrl) {
+                URL.revokeObjectURL(pendingDownloadUrl);
+                pendingDownloadUrl = null;
+            }
+        });
 
         async function exportReportsToPdf() {
             if (!currentUser) return;
@@ -1098,7 +1108,7 @@
 
                 const { jsPDF } = window.jspdf || {};
                 if (typeof jsPDF !== 'function') {
-                    throw new Error('PDF engine failed to load.');
+                    throw new Error('PDF library failed to load. Please check your internet connection and refresh the page.');
                 }
 
                 const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
@@ -1227,7 +1237,9 @@
                 setExportStatus('PDF downloaded. If you do not see it, check your browser downloads folder.', 'success');
             } catch (error) {
                 console.error('Error creating PDF export:', error);
-                setExportStatus('Could not download PDF. Please retry. If it keeps failing, refresh the page and try again.', 'error');
+                const baseError = 'Could not download PDF. Please retry. If it keeps failing, refresh the page and try again.';
+                const details = typeof error?.message === 'string' ? error.message.trim() : '';
+                setExportStatus(details ? `${baseError} Details: ${details}` : baseError, 'error');
             } finally {
                 if (exportButton) {
                     exportButton.disabled = false;

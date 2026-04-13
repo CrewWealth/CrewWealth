@@ -25,6 +25,8 @@ class TestPolishTemplateFeatures(unittest.TestCase):
         self.assertIn("jspdf.umd.min.js", content)
         self.assertIn("doc.output('blob')", content)
         self.assertIn("function downloadBlobFile(blob, fileName)", content)
+        self.assertIn("PDF library failed to load. Please check your internet connection and refresh the page.", content)
+        self.assertIn("PDF table library failed to load. Please refresh the page and try again.", content)
         self.assertIn(
             "Could not download PDF. Please retry. If it keeps failing, refresh the page and try again.",
             content
