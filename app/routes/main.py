@@ -128,6 +128,21 @@ def day3_center():
     """Day 3 integrated collaboration and forecasting page"""
     return render_template('day3.html')
 
+@main_bp.route('/support')
+def support():
+    """Support & legal hub page"""
+    return render_template('support.html')
+
+@main_bp.route('/privacy')
+def privacy():
+    """Privacy statement page"""
+    return render_template('privacy.html')
+
+@main_bp.route('/terms')
+def terms():
+    """Terms of use page"""
+    return render_template('terms.html')
+
 @main_bp.route('/migrate-goals')
 def migrate_goals():
     """Goals Migration page"""

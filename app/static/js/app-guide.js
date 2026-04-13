@@ -154,6 +154,13 @@
         {
             page: 'dashboard',
             url: '/',
+            selector: '#navSupportLink',
+            title: 'Support & legal resources',
+            text: 'Open Support & Legal for contact details plus quick access to the Privacy Statement and Terms of Use.'
+        },
+        {
+            page: 'dashboard',
+            url: '/',
             selector: '#tourInfoButton',
             title: 'Guide access, pause, and resume',
             text: 'You can pause this guide anytime and continue later. Use the top-right ℹ️ App Guide icon on Dashboard to reopen and review features whenever needed.'
