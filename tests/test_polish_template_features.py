@@ -6,6 +6,7 @@ ROOT = Path(__file__).resolve().parents[1]
 INDEX_TEMPLATE = ROOT / "app" / "templates" / "index.html"
 REPORTS_TEMPLATE = ROOT / "app" / "templates" / "reports.html"
 REGISTER_TEMPLATE = ROOT / "app" / "templates" / "register.html"
+SUPPORT_TEMPLATE = ROOT / "app" / "templates" / "support.html"
 MAIN_ROUTES = ROOT / "app" / "routes" / "main.py"
 APP_GUIDE_JS = ROOT / "app" / "static" / "js" / "app-guide.js"
 
@@ -46,6 +47,23 @@ class TestPolishTemplateFeatures(unittest.TestCase):
         content = MAIN_ROUTES.read_text(encoding="utf-8")
         self.assertNotIn("@main_bp.route('/guide')", content)
         self.assertNotIn("guide.html", content)
+
+    def test_support_and_legal_routes_exist(self):
+        content = MAIN_ROUTES.read_text(encoding="utf-8")
+        self.assertIn("@main_bp.route('/support')", content)
+        self.assertIn("@main_bp.route('/privacy')", content)
+        self.assertIn("@main_bp.route('/terms')", content)
+
+    def test_support_page_has_contact_and_legal_links(self):
+        content = SUPPORT_TEMPLATE.read_text(encoding="utf-8")
+        self.assertIn("support@crewwealth.app", content)
+        self.assertIn("href=\"/privacy\"", content)
+        self.assertIn("href=\"/terms\"", content)
+
+    def test_dashboard_has_support_link_in_navigation(self):
+        content = INDEX_TEMPLATE.read_text(encoding="utf-8")
+        self.assertIn("id=\"navSupportLink\"", content)
+        self.assertIn("href=\"/support\"", content)
 
 
 if __name__ == "__main__":
