@@ -1534,6 +1534,18 @@
                         <option value="">Select account...</option>
                     </select>
                 </div>
+                <!-- Source category: tag which budget category this transfer is deducted from.
+                     Stored as sourceCategoryId on the transaction document so that budget and
+                     reporting calculations can count it correctly without double-counting. -->
+                <div class="form-group">
+                    <label class="form-label">Source Category</label>
+                    <select class="form-select" id="transferSourceCategory">
+                        <option value="">— None (transfer only) —</option>
+                    </select>
+                    <small class="form-hint" style="color:var(--text-muted,#888);font-size:0.78rem;margin-top:4px;display:block;">
+                        Tag this transfer to a budget category (e.g. Salary, Side Job) so it counts as spent in your reports.
+                    </small>
+                </div>
                 <div class="form-group">
                     <label class="form-label">Date *</label>
                     <input type="date" class="form-input" id="transferDate" required>
@@ -1644,6 +1656,18 @@
                         <select class="form-select" id="editToAccount">
                             <option value="">Select account...</option>
                         </select>
+                    </div>
+
+                    <!-- Source category for transfers: which budget category is debited.
+                         Populated dynamically from the user's category list. -->
+                    <div class="form-group">
+                        <label class="form-label">Source Category</label>
+                        <select class="form-select" id="editTransferSourceCategory">
+                            <option value="">— None (transfer only) —</option>
+                        </select>
+                        <small class="form-hint" style="color:var(--text-muted,#888);font-size:0.78rem;margin-top:4px;display:block;">
+                            Tag this transfer to a budget category so it counts as spent in your reports.
+                        </small>
                     </div>
 
                     <div class="form-group">
@@ -2592,8 +2616,15 @@
             const currencyMap = accountCurrencyById || new Map(
                 accounts.map(account => [account.id, resolveAccountCurrency(account)])
             );
+
+            // Spent is calculated as the sum of two parts:
+            //   1. Regular payment transactions assigned to this category (paymentSpent).
+            //   2. Transfer transactions whose sourceCategoryId matches this category (transferSpent).
+            //      Transfers tagged with a sourceCategoryId deduct from that budget category in
+            //      reports without creating a duplicate payment transaction.
             
-            return transactions
+            // Part 1: Match normal payment transactions for this category
+            const paymentSpent = transactions
                 .filter(t => {
                     if (!t.date || t.categoryId !== categoryId || normalizeTransactionType(t.type) !== 'payment') return false;
                     
@@ -2619,6 +2650,26 @@
                     const converted = convertToUserCurrency(amount, currency, missingPairs, usedPairs);
                     return sum + (converted === null ? 0 : converted);
                 }, 0);
+
+            // Part 2: Include transfers tagged with this source category.
+            // When a user performs a transfer and sets a sourceCategoryId, the outgoing
+            // amount should count as "spent" in that category for budget/reporting purposes.
+            const transferSpent = transactions
+                .filter(t => {
+                    if (!t.date || t.sourceCategoryId !== categoryId || normalizeTransactionType(t.type) !== 'transfer') return false;
+                    const accountMatch = selectedAccountId === null || t.accountId === selectedAccountId;
+                    if (!accountMatch) return false;
+                    const txDate = t.date?.toDate ? t.date.toDate() : new Date(t.date);
+                    return txDate.getFullYear() === year && txDate.getMonth() === month - 1;
+                })
+                .reduce((sum, t) => {
+                    const amount = parseFloat(t.amount) || 0;
+                    const currency = getAccountCurrencyById(currencyMap, t.accountId) || userLegacyCurrency || userCurrency || DEFAULT_CURRENCY;
+                    const converted = convertToUserCurrency(amount, currency, missingPairs, usedPairs);
+                    return sum + (converted === null ? 0 : converted);
+                }, 0);
+
+            return paymentSpent + transferSpent;
         }
 
         function updateOverview() {
@@ -2647,7 +2698,12 @@
             const [year, month] = monthKey.split('-').map(Number);
             const totalSpent = transactions
                 .filter(t => {
-                    if (!t.date || normalizeTransactionType(t.type) !== 'payment') return false;
+                    if (!t.date) return false;
+                    const txType = normalizeTransactionType(t.type);
+                    // Count regular payments, and also transfers that have been tagged with
+                    // a source category — those represent real outflows from a budget category.
+                    const isCountable = txType === 'payment' || (txType === 'transfer' && !!t.sourceCategoryId);
+                    if (!isCountable) return false;
                     const accountMatch = selectedAccountId === null || t.accountId === selectedAccountId;
                     if (!accountMatch) return false;
 
@@ -2979,6 +3035,14 @@
             
             // Populate to account dropdown
             updateTransferToAccount();
+
+            // Populate source category dropdown with all user categories.
+            // Users pick which budget category this transfer is deducted from (e.g. Salary, Side Job).
+            const sourceCatSelect = document.getElementById('transferSourceCategory');
+            sourceCatSelect.innerHTML = '<option value="">— None (transfer only) —</option>';
+            categories.forEach(cat => {
+                sourceCatSelect.innerHTML += `<option value="${escapeHtml(cat.id)}">${escapeHtml(cat.name)}</option>`;
+            });
             
             openModal('transferModal');
         }
@@ -3143,6 +3207,9 @@
             const amount = parseFloat(document.getElementById('transferAmount').value);
             const fromAccountId = normalizeDocumentId(document.getElementById('transferFromAccount').value);
             const toAccountId = normalizeDocumentId(document.getElementById('transferToAccount').value);
+            // sourceCategoryId: the budget category this transfer is charged to (optional).
+            // Stored so calculateSpent() can attribute it correctly in budget/reporting views.
+            const sourceCategoryId = document.getElementById('transferSourceCategory').value || null;
             const date = document.getElementById('transferDate').value;
             const note = document.getElementById('transferNote').value.trim();
 
@@ -3175,12 +3242,14 @@
                 const toAccountRef = userRef.collection('accounts').doc(toAccountId);
                 const batch = db.batch();
 
-                // Create transaction + update balances atomically
+                // Create transaction + update balances atomically.
+                // sourceCategoryId links this transfer to a budget category for spending reports.
                 batch.set(txRef, {
                         type: 'transfer',
                         amount: amount,
                         accountId: fromAccountId,
                         toAccountId: toAccountId,
+                        sourceCategoryId: sourceCategoryId,
                         date: firebase.firestore.Timestamp.fromDate(new Date(date)),
                         note: note,
                         createdAt: firebase.firestore.Timestamp.now()
@@ -3196,6 +3265,7 @@
                 // Reset form and close modal
                 document.getElementById('transferAmount').value = '';
                 document.getElementById('transferNote').value = '';
+                document.getElementById('transferSourceCategory').value = '';
                 closeModal('transferModal');
 
                 // Reload data and update UI
@@ -3392,6 +3462,13 @@
                 categorySelect.innerHTML += `<option value="${cat.id}">${escapeHtml(cat.name)}</option>`;
             });
 
+            // Populate source category dropdown for transfers (all categories available).
+            const editTransferSourceCatSelect = document.getElementById('editTransferSourceCategory');
+            editTransferSourceCatSelect.innerHTML = '<option value="">— None (transfer only) —</option>';
+            categories.forEach(cat => {
+                editTransferSourceCatSelect.innerHTML += `<option value="${escapeHtml(cat.id)}">${escapeHtml(cat.name)}</option>`;
+            });
+
             const txDate = transaction.date?.toDate ? transaction.date.toDate() : new Date(transaction.date);
             const dateString = txDate.toISOString().split('T')[0];
 
@@ -3404,6 +3481,8 @@
                 document.getElementById('editTransferAmount').value = transaction.amount;
                 document.getElementById('editFromAccount').value = transaction.accountId;
                 document.getElementById('editToAccount').value = transaction.toAccountId || '';
+                // Restore the source category tag so users can update it on edit.
+                document.getElementById('editTransferSourceCategory').value = transaction.sourceCategoryId || '';
                 document.getElementById('editTransferDate').value = dateString;
                 document.getElementById('editTransferNote').value = transaction.note || '';
             } else {
@@ -3448,12 +3527,14 @@
             const originalToAccountId = normalizeDocumentId(document.getElementById('editOriginalToAccountId').value);
 
             try {
-                let newAmount, newAccountId, newToAccountId, newCategoryId, newDate, newNote;
+                let newAmount, newAccountId, newToAccountId, newCategoryId, newSourceCategoryId, newDate, newNote;
 
                 if (type === 'transfer') {
                     newAmount = parseFloat(document.getElementById('editTransferAmount').value);
                     newAccountId = normalizeDocumentId(document.getElementById('editFromAccount').value);
                     newToAccountId = normalizeDocumentId(document.getElementById('editToAccount').value);
+                    // Read updated source category tag for this transfer.
+                    newSourceCategoryId = document.getElementById('editTransferSourceCategory').value || null;
                     newDate = document.getElementById('editTransferDate').value;
                     newNote = document.getElementById('editTransferNote').value.trim();
                     newCategoryId = null;
@@ -3464,6 +3545,7 @@
                     newDate = document.getElementById('editDate').value;
                     newNote = document.getElementById('editNote').value.trim();
                     newToAccountId = null;
+                    newSourceCategoryId = null;
                 }
 
                 // Validation
@@ -3515,6 +3597,8 @@
                     accountId: newAccountId,
                     toAccountId: newToAccountId,
                     categoryId: newCategoryId,
+                    // Persist the source category tag so budget/reporting stays in sync after edits.
+                    sourceCategoryId: newSourceCategoryId,
                     date: firebase.firestore.Timestamp.fromDate(new Date(newDate)),
                     note: newNote
                 };
@@ -3595,6 +3679,10 @@
             recentTransactions.forEach(tx => {
                 const account = accounts.find(a => a.id === tx.accountId);
                 const category = categories.find(c => c.id === tx.categoryId);
+                // For transfers, look up the source category tag if set.
+                const sourceCategory = tx.sourceCategoryId
+                    ? categories.find(c => c.id === tx.sourceCategoryId)
+                    : null;
                 const accountCurrency = resolveAccountCurrency(account);
                 const amountValue = Math.abs(parseFloat(tx.amount) || 0);
                 const convertedAmount = convertToUserCurrency(amountValue, accountCurrency, missingPairs, usedPairs);
@@ -3642,10 +3730,15 @@
                 const div = document.createElement('div');
                 div.className = 'transaction-item';
                 div.onclick = () => editTransaction(tx); // Click to edit
+                // For transfers: show source category label if set, otherwise show transfer arrow.
+                // For payments/deposits: show the assigned category name.
+                const categoryDisplay = txType === 'transfer'
+                    ? (sourceCategory ? `from ${escapeHtml(sourceCategory.name)}` : 'Transfer')
+                    : (category?.name || '—');
                 div.innerHTML = `
                     <div class="transaction-icon">${icon}</div>
                     <div class="transaction-description">${escapeHtml(description)}</div>
-                    <div class="transaction-category">${category?.name || '—'}</div>
+                    <div class="transaction-category">${categoryDisplay}</div>
                     <div class="transaction-amount ${amountClass}">
                         ${txType === 'payment' ? '-' : (txType === 'deposit' || txType === 'salary') ? '+' : ''}${displayAmount}
                     </div>
