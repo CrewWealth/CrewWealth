@@ -2661,8 +2661,31 @@
                     return sum + (converted === null ? 0 : converted);
                 }, 0);
 
-            // Calculate to budget (planned budget only; spent is tracked separately)
-            const toBudget = availableFunds - totalBudgeted;
+            // Sum transfers to off-budget accounts in the current month.
+            // When a user has both a budget allocation AND executes a transfer for the same
+            // goal, the transfer reduces availableFunds (via the account balance update) while
+            // the allocation is still counted in totalBudgeted — causing the same money to be
+            // deducted twice from toBudget. Netting out executed transfers against the budget
+            // allocations prevents this double-counting.
+            const transfersToOffBudget = transactions
+                .filter(t => {
+                    if (!t.date || normalizeTransactionType(t.type) !== 'transfer') return false;
+                    const toAccount = accounts.find(a => a.id === t.toAccountId);
+                    if (!toAccount || !toAccount.offBudget) return false;
+                    const txDate = t.date?.toDate ? t.date.toDate() : new Date(t.date);
+                    return txDate.getFullYear() === year && txDate.getMonth() === month - 1;
+                })
+                .reduce((sum, t) => {
+                    const amount = parseFloat(t.amount) || 0;
+                    const currency = getAccountCurrencyById(accountCurrencyById, t.accountId) || userLegacyCurrency || userCurrency || DEFAULT_CURRENCY;
+                    const converted = convertToUserCurrency(amount, currency, missingPairs, usedPairs);
+                    return sum + (converted === null ? 0 : converted);
+                }, 0);
+
+            // Calculate to budget: only deduct the portion of totalBudgeted not yet covered
+            // by transfers to off-budget accounts. This prevents double-counting when a budget
+            // allocation and its corresponding transfer both reduce toBudget for the same goal.
+            const toBudget = availableFunds - Math.max(0, totalBudgeted - transfersToOffBudget);
 
             // Calculate overspent
             const overspent = categories.reduce((sum, cat) => {
