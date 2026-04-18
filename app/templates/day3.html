@@ -378,6 +378,14 @@
                         <option value="">Uncategorized</option>
                     </select>
                 </div>
+                <!-- Source category for transfers: which budget category is debited.
+                     Shown only when type=transfer; hidden for other transaction types. -->
+                <div id="quickSourceCategoryWrap" style="display:none;">
+                    <label for="quickSourceCategory">Source Category</label>
+                    <select id="quickSourceCategory">
+                        <option value="">— None (transfer only) —</option>
+                    </select>
+                </div>
             </div>
             <div class="actions">
                 <button onclick="saveQuickTransaction()">Save quick transaction</button>
@@ -765,11 +773,21 @@
         if (!currentUser) return;
         const snapshot = await db.collection('users').doc(currentUser.uid).collection('categories').get();
         day3Categories = snapshot.docs.map(doc => ({ id: doc.id, ...(doc.data() || {}) }));
+
+        // Populate category dropdown for payments/deposits
         const quickCategory = document.getElementById('quickCategory');
         const options = ['<option value="">Uncategorized</option>'].concat(
             day3Categories.map(category => `<option value="${category.id}">${escapeHtml(category.name || category.id)}</option>`)
         );
         quickCategory.innerHTML = options.join('');
+
+        // Populate source category dropdown for transfers (all categories available).
+        // This allows users to tag which budget category the transferred amount is deducted from.
+        const quickSourceCategory = document.getElementById('quickSourceCategory');
+        const sourceOptions = ['<option value="">— None (transfer only) —</option>'].concat(
+            day3Categories.map(category => `<option value="${category.id}">${escapeHtml(category.name || category.id)}</option>`)
+        );
+        quickSourceCategory.innerHTML = sourceOptions.join('');
     }
 
     function updateQuickTransactionFields() {
@@ -777,8 +795,11 @@
         const isTransfer = type === 'transfer';
         const quickToAccountWrap = document.getElementById('quickToAccountWrap');
         const quickCategoryWrap = document.getElementById('quickCategoryWrap');
+        const quickSourceCategoryWrap = document.getElementById('quickSourceCategoryWrap');
         quickToAccountWrap.style.display = isTransfer ? '' : 'none';
+        // For transfers: hide the regular category field and show the source category selector instead.
         quickCategoryWrap.style.display = isTransfer ? 'none' : '';
+        quickSourceCategoryWrap.style.display = isTransfer ? '' : 'none';
     }
 
     function inferImportedTransactionType(transaction) {
@@ -939,6 +960,8 @@
         const accountId = document.getElementById('quickAccount').value;
         const toAccountId = document.getElementById('quickToAccount').value;
         const categoryId = document.getElementById('quickCategory').value || null;
+        // Source category for transfers: which budget category to debit for reporting purposes.
+        const sourceCategoryId = document.getElementById('quickSourceCategory').value || null;
         const typeMap = { expense: 'payment', income: 'deposit', transfer: 'transfer' };
         const type = typeMap[quickType];
         const amount = Math.abs(rawAmount);
@@ -992,6 +1015,9 @@
                 accountId,
                 toAccountId: type === 'transfer' ? toAccountId : null,
                 categoryId: (type === 'payment' || type === 'deposit') ? categoryId : null,
+                // sourceCategoryId: which budget category this transfer is charged to.
+                // Only stored for transfers; null for other transaction types.
+                sourceCategoryId: type === 'transfer' ? sourceCategoryId : null,
                 date: timestampNow,
                 createdAt: timestampNow,
                 createdAtMs: Date.now(),
@@ -1031,6 +1057,7 @@
             document.getElementById('quickDescription').value = '';
             document.getElementById('quickAmount').value = '';
             document.getElementById('quickCategory').value = '';
+            document.getElementById('quickSourceCategory').value = '';
         } catch (error) {
             console.error('Failed to save quick transaction:', error);
             setStatus('quickStatus', 'Failed to save quick transaction. Please try again.', 'error');
