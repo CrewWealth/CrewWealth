@@ -392,6 +392,45 @@
             margin-bottom: var(--spacing-md);
         }
 
+        /* Linked account badge shown on goal cards */
+        .linked-account-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: rgba(50, 184, 198, 0.12);
+            color: var(--color-accent);
+            border: 1px solid rgba(50, 184, 198, 0.25);
+            padding: 3px 8px;
+            border-radius: var(--radius-sm);
+            font-size: 11px;
+            font-weight: 600;
+            margin-top: var(--spacing-xs);
+        }
+
+        /* Helper text below form fields */
+        .form-hint {
+            display: block;
+            font-size: 11px;
+            color: var(--color-text-secondary);
+            margin-top: 4px;
+            font-style: italic;
+        }
+
+        /* Live balance indicator on "Current Savings" row */
+        .live-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--color-success);
+            background: rgba(34, 197, 94, 0.1);
+            border-radius: 3px;
+            padding: 1px 5px;
+            vertical-align: middle;
+            margin-left: 4px;
+        }
+
         @media (max-width: 768px) {
             body {
                 padding: var(--spacing-md);
@@ -470,6 +509,16 @@
                             <label for="monthlyContribution">Monthly Contribution (<span class="currency-symbol">€</span>)</label>
                             <input type="number" id="monthlyContribution" placeholder="500" min="0" step="0.01" value="0">
                         </div>
+                    </div>
+
+                    <!-- Link this goal to a real off-budget account so the
+                         saved/progress value always reflects the live balance -->
+                    <div class="form-group">
+                        <label for="linkedAccountId">🔗 Linked Off-Budget Account</label>
+                        <select id="linkedAccountId">
+                            <option value="">— None (use manual amount above) —</option>
+                        </select>
+                        <small class="form-hint">When linked, the "saved" amount is taken live from this account's balance — the manual amount above is ignored.</small>
                     </div>
 
                     <div class="form-group">
@@ -553,6 +602,13 @@
         let currentUser = null;
         let goals = [];
         let userCurrency = 'EUR'; // global variable for currency
+        // Off-budget accounts refreshed on every goals reload to ensure live balances.
+        // accountBalanceById maps accountId -> current balance.
+        // Note: balances are stored in the account's own currency; currency conversion
+        // is not performed here since goals use a target amount entered in the user's
+        // base currency — a known limitation for multi-currency setups.
+        let offBudgetAccounts = [];
+        let accountBalanceById = {};
 
         // ============================================
         // CURRENCY FUNCTIONS
@@ -594,6 +650,8 @@
             }
             currentUser = user;
             await loadUserSettings();
+            // loadGoals() internally refreshes account balances, so a separate
+            // loadOffBudgetAccounts() call here is not needed.
             await loadGoals();
         });
 
@@ -605,6 +663,68 @@
 
         // Initialize
         document.getElementById('goalForm').addEventListener('submit', addGoal);
+
+        // ============================================
+        // OFF-BUDGET ACCOUNT HELPERS
+        // ============================================
+
+        /**
+         * Fetches all off-budget accounts for the current user, caches them in
+         * `offBudgetAccounts` / `accountBalanceById`, and populates the linked-
+         * account dropdown in the goal form.
+         */
+        async function loadOffBudgetAccounts() {
+            if (!currentUser) return;
+            try {
+                const snapshot = await db.collection('users')
+                    .doc(currentUser.uid)
+                    .collection('accounts')
+                    .where('offBudget', '==', true)
+                    .get();
+
+                offBudgetAccounts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+                // Build a quick balance lookup
+                accountBalanceById = {};
+                offBudgetAccounts.forEach(acc => {
+                    accountBalanceById[acc.id] = parseFloat(acc.balance) || 0;
+                });
+
+                populateAccountSelector();
+            } catch (error) {
+                console.error('Error loading off-budget accounts:', error);
+            }
+        }
+
+        /**
+         * Rebuilds the linked-account <select> from the cached `offBudgetAccounts`
+         * list without losing the currently selected value.
+         */
+        function populateAccountSelector() {
+            const select = document.getElementById('linkedAccountId');
+            const currentVal = select.value;
+            select.innerHTML = '<option value="">— None (use manual amount above) —</option>';
+            offBudgetAccounts.forEach(acc => {
+                const opt = document.createElement('option');
+                opt.value = acc.id;
+                opt.textContent = `${acc.name} (${formatCurrency(parseFloat(acc.balance) || 0)})`;
+                select.appendChild(opt);
+            });
+            // Restore selection after rebuild
+            select.value = currentVal;
+        }
+
+        /**
+         * Returns the effective "current / saved" amount for a goal.
+         * If the goal has a linked off-budget account, the account's live balance
+         * is used; otherwise, the manually-entered currentAmount is returned.
+         */
+        function getEffectiveCurrentAmount(goal) {
+            if (goal.linkedAccountId && accountBalanceById.hasOwnProperty(goal.linkedAccountId)) {
+                return accountBalanceById[goal.linkedAccountId];
+            }
+            return parseFloat(goal.currentAmount) || 0;
+        }
 
         async function loadGoals() {
             if (!currentUser) return;
@@ -620,6 +740,9 @@
                     id: doc.id,
                     ...doc.data()
                 }));
+
+                // Refresh account balances so progress always reflects live data
+                await loadOffBudgetAccounts();
 
                 renderGoals();
                 updateStats();
@@ -658,6 +781,10 @@
                 targetAmount: parseFloat(document.getElementById('targetAmount').value),
                 currentAmount: parseFloat(document.getElementById('currentAmount').value) || 0,
                 monthlyContribution: parseFloat(document.getElementById('monthlyContribution').value) || 0,
+                // Store which off-budget account is linked to this goal.
+                // When set, the saved/progress values are derived from the account's
+                // live balance instead of the static currentAmount above.
+                linkedAccountId: document.getElementById('linkedAccountId').value || null,
                 deadline: deadline,
                 targetDate: deadline,
                 description: document.getElementById('goalDescription').value,
@@ -718,12 +845,17 @@
             }
 
             goalsList.innerHTML = goals.map(goal => {
-                const progress = (goal.currentAmount / goal.targetAmount) * 100;
-                const remaining = goal.targetAmount - goal.currentAmount;
-                let monthsToGoal = goal.monthlyContribution > 0 ? Math.ceil(remaining / goal.monthlyContribution) : '∞';
+                // Use the live account balance when a linked account is set;
+                // otherwise fall back to the manually entered currentAmount.
+                const effectiveCurrent = getEffectiveCurrentAmount(goal);
+                const targetAmount = parseFloat(goal.targetAmount) || 0;
+                const progress = targetAmount > 0 ? (effectiveCurrent / targetAmount) * 100 : 0;
+                const remaining = targetAmount - effectiveCurrent;
+                const monthlyContribution = parseFloat(goal.monthlyContribution) || 0;
+                let monthsToGoal = monthlyContribution > 0 ? Math.ceil(remaining / monthlyContribution) : '∞';
                 let completionDate = 'N/A';
 
-                if (goal.monthlyContribution > 0 && monthsToGoal !== '∞') {
+                if (monthlyContribution > 0 && monthsToGoal !== '∞') {
                     const futureDate = new Date();
                     futureDate.setMonth(futureDate.getMonth() + monthsToGoal);
                     completionDate = futureDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
@@ -740,6 +872,19 @@
                     'Other': '📌'
                 };
 
+                // Build a badge showing which off-budget account is linked
+                const linkedAccount = goal.linkedAccountId
+                    ? offBudgetAccounts.find(a => a.id === goal.linkedAccountId)
+                    : null;
+                const linkedAccountBadge = linkedAccount
+                    ? `<span class="linked-account-badge">🔗 ${escapeHtml(linkedAccount.name)}</span>`
+                    : '';
+
+                // Label for the saved row: show "Live Balance" when driven by account
+                const savedLabel = linkedAccount
+                    ? `Current Savings <span class="live-badge">⚡ LIVE</span>`
+                    : 'Current Savings';
+
                 return `
                     <div class="goal-card">
                         <div class="goal-header">
@@ -747,18 +892,19 @@
                                 <span class="goal-category">${categoryEmoji[goal.category] || '📌'} ${escapeHtml(goal.category)}</span>
                                 <h3>${escapeHtml(goal.name)}</h3>
                                 ${goal.description ? `<p class="goal-description">${escapeHtml(goal.description)}</p>` : ''}
+                                ${linkedAccountBadge}
                             </div>
                             <button class="btn btn-danger" onclick="deleteGoal('${goal.id}')">Delete</button>
                         </div>
 
                         <div class="goal-amounts">
                             <div class="amount-item">
-                                <div class="amount-label">Current Savings</div>
-                                <div class="amount-value">${formatCurrency(goal.currentAmount)}</div>
+                                <div class="amount-label">${savedLabel}</div>
+                                <div class="amount-value">${formatCurrency(effectiveCurrent)}</div>
                             </div>
                             <div class="amount-item">
                                 <div class="amount-label">Target Amount</div>
-                                <div class="amount-value">${formatCurrency(goal.targetAmount)}</div>
+                                <div class="amount-value">${formatCurrency(targetAmount)}</div>
                             </div>
                         </div>
 
@@ -772,9 +918,9 @@
                             </div>
                         </div>
 
-                        ${goal.monthlyContribution > 0 ? `
+                        ${monthlyContribution > 0 ? `
                             <div class="timeline-info">
-                                📅 At ${formatCurrency(goal.monthlyContribution)}/month, you'll reach this goal in <strong>${monthsToGoal === '∞' ? 'N/A' : monthsToGoal + ' months'}</strong> (${completionDate})
+                                📅 At ${formatCurrency(monthlyContribution)}/month, you'll reach this goal in <strong>${monthsToGoal === '∞' ? 'N/A' : monthsToGoal + ' months'}</strong> (${completionDate})
                             </div>
                         ` : `
                             <div class="timeline-info">
@@ -785,7 +931,7 @@
                         <div class="goal-amounts">
                             <div class="amount-item">
                                 <div class="amount-label">Monthly Contribution</div>
-                                <div class="amount-value">${formatCurrency(goal.monthlyContribution)}</div>
+                                <div class="amount-value">${formatCurrency(monthlyContribution)}</div>
                             </div>
                             <div class="amount-item">
                                 <div class="amount-label">Remaining</div>
@@ -799,9 +945,10 @@
 
         function updateStats() {
             const totalGoals = goals.length;
-            const totalTarget = goals.reduce((sum, g) => sum + g.targetAmount, 0);
-            const totalSaved = goals.reduce((sum, g) => sum + g.currentAmount, 0);
-            const monthlySavings = goals.reduce((sum, g) => sum + g.monthlyContribution, 0);
+            const totalTarget = goals.reduce((sum, g) => sum + (parseFloat(g.targetAmount) || 0), 0);
+            // Use live account balance for linked goals; static amount otherwise
+            const totalSaved = goals.reduce((sum, g) => sum + getEffectiveCurrentAmount(g), 0);
+            const monthlySavings = goals.reduce((sum, g) => sum + (parseFloat(g.monthlyContribution) || 0), 0);
             const overallProgress = totalTarget > 0 ? (totalSaved / totalTarget) * 100 : 0;
 
             document.getElementById('totalGoals').textContent = totalGoals;
