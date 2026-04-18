@@ -602,9 +602,11 @@
         let currentUser = null;
         let goals = [];
         let userCurrency = 'EUR'; // global variable for currency
-        // Off-budget accounts loaded once and refreshed on each goals reload.
-        // accountBalanceById maps accountId -> current balance (in account currency,
-        // not yet converted — displayed as-is since goals are always in base currency).
+        // Off-budget accounts refreshed on every goals reload to ensure live balances.
+        // accountBalanceById maps accountId -> current balance.
+        // Note: balances are stored in the account's own currency; currency conversion
+        // is not performed here since goals use a target amount entered in the user's
+        // base currency — a known limitation for multi-currency setups.
         let offBudgetAccounts = [];
         let accountBalanceById = {};
 
@@ -648,9 +650,8 @@
             }
             currentUser = user;
             await loadUserSettings();
-            // Load off-budget accounts first so the dropdown is ready before
-            // the goal form is used, and account balances are available for rendering.
-            await loadOffBudgetAccounts();
+            // loadGoals() internally refreshes account balances, so a separate
+            // loadOffBudgetAccounts() call here is not needed.
             await loadGoals();
         });
 
@@ -847,12 +848,14 @@
                 // Use the live account balance when a linked account is set;
                 // otherwise fall back to the manually entered currentAmount.
                 const effectiveCurrent = getEffectiveCurrentAmount(goal);
-                const progress = goal.targetAmount > 0 ? (effectiveCurrent / goal.targetAmount) * 100 : 0;
-                const remaining = goal.targetAmount - effectiveCurrent;
-                let monthsToGoal = goal.monthlyContribution > 0 ? Math.ceil(remaining / goal.monthlyContribution) : '∞';
+                const targetAmount = parseFloat(goal.targetAmount) || 0;
+                const progress = targetAmount > 0 ? (effectiveCurrent / targetAmount) * 100 : 0;
+                const remaining = targetAmount - effectiveCurrent;
+                const monthlyContribution = parseFloat(goal.monthlyContribution) || 0;
+                let monthsToGoal = monthlyContribution > 0 ? Math.ceil(remaining / monthlyContribution) : '∞';
                 let completionDate = 'N/A';
 
-                if (goal.monthlyContribution > 0 && monthsToGoal !== '∞') {
+                if (monthlyContribution > 0 && monthsToGoal !== '∞') {
                     const futureDate = new Date();
                     futureDate.setMonth(futureDate.getMonth() + monthsToGoal);
                     completionDate = futureDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
@@ -901,7 +904,7 @@
                             </div>
                             <div class="amount-item">
                                 <div class="amount-label">Target Amount</div>
-                                <div class="amount-value">${formatCurrency(goal.targetAmount)}</div>
+                                <div class="amount-value">${formatCurrency(targetAmount)}</div>
                             </div>
                         </div>
 
@@ -915,9 +918,9 @@
                             </div>
                         </div>
 
-                        ${goal.monthlyContribution > 0 ? `
+                        ${monthlyContribution > 0 ? `
                             <div class="timeline-info">
-                                📅 At ${formatCurrency(goal.monthlyContribution)}/month, you'll reach this goal in <strong>${monthsToGoal === '∞' ? 'N/A' : monthsToGoal + ' months'}</strong> (${completionDate})
+                                📅 At ${formatCurrency(monthlyContribution)}/month, you'll reach this goal in <strong>${monthsToGoal === '∞' ? 'N/A' : monthsToGoal + ' months'}</strong> (${completionDate})
                             </div>
                         ` : `
                             <div class="timeline-info">
@@ -928,7 +931,7 @@
                         <div class="goal-amounts">
                             <div class="amount-item">
                                 <div class="amount-label">Monthly Contribution</div>
-                                <div class="amount-value">${formatCurrency(goal.monthlyContribution)}</div>
+                                <div class="amount-value">${formatCurrency(monthlyContribution)}</div>
                             </div>
                             <div class="amount-item">
                                 <div class="amount-label">Remaining</div>
