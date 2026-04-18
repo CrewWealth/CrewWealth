@@ -433,6 +433,25 @@
             color: var(--color-text);
         }
 
+        .bill-paid-btn {
+            padding: 4px 10px;
+            border: none;
+            border-radius: var(--radius-sm);
+            background: var(--color-primary);
+            color: white;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+            margin-left: var(--spacing-sm);
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .bill-paid-btn:hover {
+            background: var(--color-primary-hover);
+        }
+
         /* Empty State */
         .empty-state {
             text-align: center;
@@ -1374,6 +1393,41 @@
                     </div>
                 </div>
             </div>
+        <!-- Pay Bill Modal -->
+        <div class="modal" id="payBillModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    ✅ Mark as Paid
+                    <button class="modal-close" onclick="closeCalculator('payBillModal')">×</button>
+                </div>
+                <div style="padding: var(--spacing-xl);">
+                    <div class="form-group">
+                        <label class="form-label">Bill</label>
+                        <div id="payBillName" style="font-weight:600; color:var(--color-text); padding: var(--spacing-sm) 0;"></div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Amount</label>
+                        <div id="payBillAmountDisplay" style="font-weight:700; color:var(--color-text);"></div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Payment Date *</label>
+                        <input type="date" class="form-input" id="payBillDate">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Account *</label>
+                        <select class="form-select" id="payBillAccount">
+                            <option value="">Select account...</option>
+                        </select>
+                    </div>
+                    <input type="hidden" id="payBillId">
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-secondary" onclick="closeCalculator('payBillModal')">Cancel</button>
+                        <button type="button" class="btn btn-primary" id="payBillConfirmBtn" onclick="confirmPayBill()">✅ Confirm Payment</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         </main>
     </div>
 
@@ -2248,6 +2302,9 @@
             }
         }
 
+        // Cache for bill data used by the Pay Bill modal
+        let _upcomingBillsCache = {};
+
         async function loadUpcomingBills() {
             if (!currentUser) return;
 
@@ -2295,7 +2352,9 @@
                 }
 
                 let html = '';
+                _upcomingBillsCache = {};
                 upcomingBills.forEach(bill => {
+                    _upcomingBillsCache[bill.id] = bill;
                     const daysUntilDue = Math.ceil((bill.nextDueDate - now) / (1000 * 60 * 60 * 24));
                     let dueText = '';
                     let dueClass = '';
@@ -2314,6 +2373,7 @@
                         dueClass = '';
                     }
 
+                    const showPaid = daysUntilDue <= 0;
                     html += `
                         <div class="bill-item">
                             <div class="bill-info">
@@ -2321,6 +2381,7 @@
                                 <div class="bill-due ${dueClass}">${dueText}</div>
                             </div>
                             <div class="bill-amount">${formatCurrency(Math.abs(bill.amount || 0))}</div>
+                            ${showPaid ? `<button class="bill-paid-btn" onclick="openPayBillModal('${bill.id}')">Paid</button>` : ''}
                         </div>
                     `;
                 });
@@ -2329,6 +2390,163 @@
 
             } catch (error) {
                 console.error('❌ Error loading upcoming bills:', error);
+            }
+        }
+
+        // ============================================
+        // PAY BILL MODAL - DASHBOARD
+        // ============================================
+        function advanceBillNextDueDate(currentDate, frequency, dayOfMonth, dayOfWeek) {
+            const d = new Date(currentDate);
+            if (frequency === 'weekly') {
+                d.setDate(d.getDate() + 7);
+            } else if (frequency === 'biweekly') {
+                d.setDate(d.getDate() + 14);
+            } else if (frequency === 'monthly') {
+                d.setMonth(d.getMonth() + 1);
+                if (dayOfMonth) {
+                    const dom = parseInt(dayOfMonth);
+                    const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+                    d.setDate(Math.min(dom, lastDay));
+                }
+            } else if (frequency === 'quarterly') {
+                d.setMonth(d.getMonth() + 3);
+                if (dayOfMonth) {
+                    const dom = parseInt(dayOfMonth);
+                    const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+                    d.setDate(Math.min(dom, lastDay));
+                }
+            } else if (frequency === 'yearly') {
+                d.setFullYear(d.getFullYear() + 1);
+                if (dayOfMonth) {
+                    const dom = parseInt(dayOfMonth);
+                    const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+                    d.setDate(Math.min(dom, lastDay));
+                }
+            }
+            return d;
+        }
+
+        async function openPayBillModal(billId) {
+            if (!currentUser) return;
+            const bill = _upcomingBillsCache[billId];
+            if (!bill) return;
+
+            // Populate bill info
+            document.getElementById('payBillId').value = billId;
+            document.getElementById('payBillName').textContent = bill.name || 'Bill';
+            document.getElementById('payBillAmountDisplay').textContent = formatCurrency(Math.abs(bill.amount || 0));
+            document.getElementById('payBillDate').valueAsDate = new Date();
+
+            // Load accounts from Firebase
+            const accountSelect = document.getElementById('payBillAccount');
+            accountSelect.innerHTML = '<option value="">Select account...</option>';
+            try {
+                const accountsSnap = await db.collection('users').doc(currentUser.uid).collection('accounts').get();
+                accountsSnap.docs.forEach(doc => {
+                    const acc = doc.data();
+                    if (!acc.offBudget) {
+                        accountSelect.innerHTML += `<option value="${doc.id}">${escapeHtml(acc.name)}</option>`;
+                    }
+                });
+                // Also add off-budget accounts
+                accountsSnap.docs.forEach(doc => {
+                    const acc = doc.data();
+                    if (acc.offBudget) {
+                        accountSelect.innerHTML += `<option value="${doc.id}">${escapeHtml(acc.name)} (savings)</option>`;
+                    }
+                });
+            } catch (e) {
+                console.error('Error loading accounts for pay bill modal:', e);
+            }
+
+            document.getElementById('payBillModal').classList.add('active');
+        }
+
+        async function confirmPayBill() {
+            if (!currentUser) return;
+
+            const billId = document.getElementById('payBillId').value;
+            const accountId = document.getElementById('payBillAccount').value;
+            const payDate = document.getElementById('payBillDate').value;
+
+            if (!accountId) {
+                alert('Please select an account');
+                return;
+            }
+            if (!payDate) {
+                alert('Please select a payment date');
+                return;
+            }
+
+            const bill = _upcomingBillsCache[billId];
+            if (!bill) return;
+
+            const confirmBtn = document.getElementById('payBillConfirmBtn');
+            confirmBtn.disabled = true;
+            confirmBtn.textContent = '⏳ Processing...';
+
+            try {
+                const userRef = db.collection('users').doc(currentUser.uid);
+                const txRef = userRef.collection('transactions').doc();
+                const accountRef = userRef.collection('accounts').doc(accountId);
+                const billRef = userRef.collection('recurringTransactions').doc(billId);
+                const amount = Math.abs(bill.amount || 0);
+
+                // Look up category ID by name
+                let categoryId = null;
+                if (bill.category) {
+                    const catSnap = await userRef.collection('categories')
+                        .where('name', '==', bill.category)
+                        .limit(1)
+                        .get();
+                    if (!catSnap.empty) {
+                        categoryId = catSnap.docs[0].id;
+                    }
+                }
+
+                const batch = db.batch();
+
+                // Create payment transaction
+                batch.set(txRef, {
+                    type: 'payment',
+                    amount: amount,
+                    accountId: accountId,
+                    categoryId: categoryId,
+                    date: firebase.firestore.Timestamp.fromDate(new Date(payDate)),
+                    note: bill.name || '',
+                    recurringBillId: billId,
+                    createdAt: firebase.firestore.Timestamp.now()
+                });
+
+                // Deduct from account balance
+                batch.update(accountRef, {
+                    balance: firebase.firestore.FieldValue.increment(-amount)
+                });
+
+                // Advance bill's nextDueDate by one cycle
+                const currentNextDue = bill.nextDueDate instanceof Date
+                    ? bill.nextDueDate
+                    : (bill.nextDueDate?.toDate ? bill.nextDueDate.toDate() : new Date());
+                const newNextDue = advanceBillNextDueDate(currentNextDue, bill.frequency, bill.dayOfMonth, bill.dayOfWeek);
+                batch.update(billRef, {
+                    nextDueDate: firebase.firestore.Timestamp.fromDate(newNextDue),
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                await batch.commit();
+
+                document.getElementById('payBillModal').classList.remove('active');
+                await loadUpcomingBills();
+                await calculateNetWorth();
+
+                console.log('✅ Bill marked as paid successfully');
+            } catch (error) {
+                console.error('❌ Error paying bill:', error);
+                alert('Failed to mark bill as paid: ' + error.message);
+            } finally {
+                confirmBtn.disabled = false;
+                confirmBtn.textContent = '✅ Confirm Payment';
             }
         }
 
