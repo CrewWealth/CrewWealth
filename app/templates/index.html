@@ -380,6 +380,14 @@
             margin-bottom: var(--spacing-xs);
         }
 
+        /* Linked account label shown under goal amounts on the dashboard widget */
+        .goal-linked-account {
+            font-size: 11px;
+            color: var(--color-accent);
+            font-weight: 600;
+            margin-bottom: var(--spacing-xs);
+        }
+
         /* Bill Item */
         .bill-item {
             display: flex;
@@ -2187,13 +2195,36 @@
                     return;
                 }
 
+                // Load off-budget account balances so linked goals show live progress.
+                // Build a map of accountId -> balance for fast lookup.
+                const accountBalanceMap = {};
+                const accountNameMap = {};
+                try {
+                    const accountsSnap = await db.collection('users')
+                        .doc(currentUser.uid)
+                        .collection('accounts')
+                        .where('offBudget', '==', true)
+                        .get();
+                    accountsSnap.docs.forEach(doc => {
+                        const acc = doc.data();
+                        accountBalanceMap[doc.id] = parseFloat(acc.balance) || 0;
+                        accountNameMap[doc.id] = acc.name || '';
+                    });
+                } catch (accErr) {
+                    console.warn('⚠️ Could not load accounts for goals progress:', accErr);
+                }
+
                 let html = '';
                 goalsSnapshot.docs.forEach(doc => {
                     const goal = doc.data();
                     const target = parseFloat(goal.targetAmount) || 0;
-                    const current = parseFloat(goal.currentAmount) || 0;
+                    // Use live account balance when a linked account is set
+                    const current = goal.linkedAccountId && accountBalanceMap.hasOwnProperty(goal.linkedAccountId)
+                        ? accountBalanceMap[goal.linkedAccountId]
+                        : (parseFloat(goal.currentAmount) || 0);
                     const percentage = target > 0 ? (current / target) * 100 : 0;
                     const icon = goal.icon || '🎯';
+                    const linkedName = goal.linkedAccountId ? accountNameMap[goal.linkedAccountId] : null;
 
                     html += `
                         <div class="goal-item">
@@ -2202,6 +2233,7 @@
                                 <div class="goal-percentage">${percentage.toFixed(0)}%</div>
                             </div>
                             <div class="goal-amounts">${formatCurrency(current)} / ${formatCurrency(target)}</div>
+                            ${linkedName ? `<div class="goal-linked-account">🔗 ${escapeHtml(linkedName)}</div>` : ''}
                             <div class="progress-bar">
                                 <div class="progress-fill" style="width: ${Math.min(percentage, 100)}%"></div>
                             </div>
