@@ -1828,7 +1828,10 @@
     <!-- Pay Bill Modal -->
     <div class="modal" id="payBillModal">
         <div class="modal-content">
-            <div class="modal-header">✅ Mark as Paid</div>
+            <div class="modal-header">
+                ✅ Mark as Paid
+                <button class="modal-close" onclick="closeModal('payBillModal')">×</button>
+            </div>
             <div style="padding: var(--spacing-xl);">
                 <div class="form-group">
                     <label class="form-label">Bill</label>

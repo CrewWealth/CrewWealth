@@ -2525,7 +2525,9 @@
                 });
 
                 // Advance bill's nextDueDate by one cycle
-                const currentNextDue = bill.nextDueDate instanceof Date ? bill.nextDueDate : new Date();
+                const currentNextDue = bill.nextDueDate instanceof Date
+                    ? bill.nextDueDate
+                    : (bill.nextDueDate?.toDate ? bill.nextDueDate.toDate() : new Date());
                 const newNextDue = advanceBillNextDueDate(currentNextDue, bill.frequency, bill.dayOfMonth, bill.dayOfWeek);
                 batch.update(billRef, {
                     nextDueDate: firebase.firestore.Timestamp.fromDate(newNextDue),
