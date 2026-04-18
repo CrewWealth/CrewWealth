@@ -2130,17 +2130,22 @@
                     const relativeDate = getRelativeDate(date);
                     const transactionType = normalizeTransactionType(transaction.type);
                     const isIncome = transactionType === 'salary' || transactionType === 'deposit';
-                    const amountClass = isIncome ? 'income' : 'expense';
-                    const amountSign = isIncome ? '+' : '-';
+                    const isTransfer = transactionType === 'transfer';
+                    // Transfers are internal moves, not income or expense — display them neutrally.
+                    const amountClass = isIncome ? 'income' : isTransfer ? '' : 'expense';
+                    const amountSign = isIncome ? '+' : isTransfer ? '→ ' : '-';
                     const txCurrency = accountCurrencyById[transaction.accountId] || window.userCurrency || DEFAULT_CURRENCY;
                     const amountFormatted = amountSign + formatRecordCurrency(Math.abs(amount), txCurrency);
+                    // Transfers may have a note but no description field; fall back to note then type label.
+                    const displayName = transaction.description || transaction.note || (isTransfer ? 'Transfer' : 'Transaction');
+                    const displayCategory = isTransfer ? 'Transfer' : (transaction.category || 'Uncategorized');
 
                     html += `
                         <div class="transaction-item">
                             <div class="transaction-info">
-                                <div class="transaction-name">${escapeHtml(transaction.description || 'Transaction')}</div>
+                                <div class="transaction-name">${escapeHtml(displayName)}</div>
                                 <div class="transaction-meta">
-                                    <span>${escapeHtml(transaction.category || 'Uncategorized')}</span>
+                                    <span>${escapeHtml(displayCategory)}</span>
                                     <span>•</span>
                                     <span>${relativeDate}</span>
                                 </div>
