@@ -1142,9 +1142,12 @@
                 const baseCurrency = (userCurrency || DEFAULT_CURRENCY).toUpperCase();
 
                 // ── Compute per-category spending for the current month ───────────
-                const now = new Date();
+                // Create once so all timestamp references in the document are consistent.
+                const generatedAt = new Date();
+                const now = generatedAt;
                 const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-                const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+                // Last millisecond of the current month — day 0 of month+1 rolls to the last day.
+                const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1, 0, 0, 0, -1);
                 const spentByCategoryId = {};
                 transactionsSnapshot.docs.forEach(docSnap => {
                     const tx = docSnap.data() || {};
@@ -1290,7 +1293,7 @@
                 // Generated date, user name, and currency (right-aligned in header)
                 const userName = currentUser?.displayName || currentUser?.email || '';
                 doc.setFontSize(8.5);
-                doc.text(`Generated: ${new Date().toLocaleString()}`, pageWidth - marginX, 33, { align: 'right' });
+                doc.text(`Generated: ${generatedAt.toLocaleString()}`, pageWidth - marginX, 33, { align: 'right' });
                 if (userName) {
                     doc.text(`User: ${userName}`, pageWidth - marginX, 46, { align: 'right' });
                 }
@@ -1524,9 +1527,12 @@
                             estCompletion = '✓ Complete';
                         } else if (target > current && monthly > 0) {
                             const monthsLeft = Math.ceil((target - current) / monthly);
-                            const estDate = new Date();
-                            estDate.setMonth(estDate.getMonth() + monthsLeft);
-                            estCompletion = `${MONTH_NAMES[estDate.getMonth()]} ${estDate.getFullYear()}`;
+                            // Compute future year/month without using setMonth to avoid
+                            // day-of-month overflow (e.g. Jan 31 + 1 month → Mar 2).
+                            const totalMonths = now.getFullYear() * 12 + now.getMonth() + monthsLeft;
+                            const estYear  = Math.floor(totalMonths / 12);
+                            const estMonth = totalMonths % 12;
+                            estCompletion = `${MONTH_NAMES[estMonth]} ${estYear}`;
                         }
 
                         const linkedName = goal.linkedAccountId
@@ -1817,7 +1823,7 @@
                     doc.setTextColor(...C.gray);
                     doc.text('Generated with CrewWealth  •  crewwealth.app', marginX, footerY);
                     doc.text(
-                        `Data as of: ${new Date().toLocaleDateString()}${fxAsOfText ? '  •  ' + fxAsOfText : ''}`,
+                        `Data as of: ${generatedAt.toLocaleDateString()}${fxAsOfText ? '  •  ' + fxAsOfText : ''}`,
                         pageWidth / 2, footerY, { align: 'center' }
                     );
                     doc.text(`Page ${p} of ${totalPages}`, pageWidth - marginX, footerY, { align: 'right' });
@@ -1825,7 +1831,7 @@
 
                 // ── OUTPUT ────────────────────────────────────────────────────────
                 const pdfBlob = doc.output('blob');
-                const dateStamp = new Date().toISOString().slice(0, 10);
+                const dateStamp = generatedAt.toISOString().slice(0, 10);
                 downloadBlobFile(pdfBlob, `crewwealth-report-${dateStamp}.pdf`);
                 setExportStatus('PDF downloaded. If you do not see it, check your browser downloads folder.', 'success');
             } catch (error) {
