@@ -2616,8 +2616,14 @@
             const currencyMap = accountCurrencyById || new Map(
                 accounts.map(account => [account.id, resolveAccountCurrency(account)])
             );
+
+            // Spent is calculated as the sum of two parts:
+            //   1. Regular payment transactions assigned to this category (paymentSpent).
+            //   2. Transfer transactions whose sourceCategoryId matches this category (transferSpent).
+            //      Transfers tagged with a sourceCategoryId deduct from that budget category in
+            //      reports without creating a duplicate payment transaction.
             
-            // Match normal payment transactions for this category
+            // Part 1: Match normal payment transactions for this category
             const paymentSpent = transactions
                 .filter(t => {
                     if (!t.date || t.categoryId !== categoryId || normalizeTransactionType(t.type) !== 'payment') return false;
@@ -2645,7 +2651,7 @@
                     return sum + (converted === null ? 0 : converted);
                 }, 0);
 
-            // Also include transfers that are tagged with this source category.
+            // Part 2: Include transfers tagged with this source category.
             // When a user performs a transfer and sets a sourceCategoryId, the outgoing
             // amount should count as "spent" in that category for budget/reporting purposes.
             const transferSpent = transactions
