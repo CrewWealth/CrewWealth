@@ -995,7 +995,17 @@
 
         async function loadExportCollections() {
             const userRef = db.collection('users').doc(currentUser.uid);
-            const [accountsSnapshot, categoriesSnapshot, transactionsSnapshot] = await Promise.all([
+            const monthKey = getCurrentMonthKey();
+
+            // Load all required collections in parallel for the professional PDF report.
+            const [
+                accountsSnapshot,
+                categoriesSnapshot,
+                transactionsSnapshot,
+                goalsSnapshot,
+                budgetDoc,
+                recurringSnapshot
+            ] = await Promise.all([
                 getFirestoreSnapshotFromServer(
                     userRef.collection('accounts'),
                     'reports export accounts'
@@ -1007,6 +1017,15 @@
                 getFirestoreSnapshotFromServer(
                     userRef.collection('transactions').orderBy('date', 'desc'),
                     'reports export full transactions'
+                ),
+                getFirestoreSnapshotFromServer(
+                    userRef.collection('goals'),
+                    'reports export goals'
+                ),
+                userRef.collection('budgets').doc(monthKey).get(),
+                getFirestoreSnapshotFromServer(
+                    userRef.collection('recurringTransactions'),
+                    'reports export recurring bills'
                 )
             ]);
 
@@ -1014,12 +1033,29 @@
                 id: doc.id,
                 ...doc.data()
             }));
+
+            // Build both a lookup map (by id) and an ordered array for iteration.
             const categoriesById = {};
+            const categoriesArray = [];
             categoriesSnapshot.docs.forEach(doc => {
-                categoriesById[doc.id] = doc.data() || {};
+                const data = doc.data() || {};
+                categoriesById[doc.id] = data;
+                categoriesArray.push({ id: doc.id, ...data });
             });
 
-            return { accounts, categoriesById, transactionsSnapshot };
+            const goals = goalsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            const budgetData = budgetDoc.exists ? (budgetDoc.data() || {}) : {};
+            const recurringBills = recurringSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+            return {
+                accounts,
+                categoriesById,
+                categoriesArray,
+                transactionsSnapshot,
+                goals,
+                budgetData,
+                recurringBills
+            };
         }
 
         function escapeHtmlForPdf(value) {
@@ -1091,148 +1127,711 @@
                 exportButton.disabled = true;
                 exportButton.textContent = '⏳ Building PDF...';
             }
-            setExportStatus('Preparing your PDF export…');
+            setExportStatus('Preparing your professional PDF report…');
 
             try {
-                const { accounts, categoriesById, transactionsSnapshot } = await loadExportCollections();
+                // ── Load all Firestore data ───────────────────────────────────────
+                const {
+                    accounts, categoriesById, categoriesArray,
+                    transactionsSnapshot, goals, budgetData, recurringBills
+                } = await loadExportCollections();
+
                 const accountById = {};
-                accounts.forEach(account => {
-                    accountById[account.id] = account;
-                });
+                accounts.forEach(a => { accountById[a.id] = a; });
 
                 const baseCurrency = (userCurrency || DEFAULT_CURRENCY).toUpperCase();
+
+                // ── Compute per-category spending for the current month ───────────
+                // Create once so all timestamp references in the document are consistent.
+                const generatedAt = new Date();
+                const now = generatedAt;
+                const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+                // Last millisecond of the current month — day 0 of month+1 rolls to the last day.
+                const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1, 0, 0, 0, -1);
+                const spentByCategoryId = {};
+                transactionsSnapshot.docs.forEach(docSnap => {
+                    const tx = docSnap.data() || {};
+                    const txDate = tx.date && typeof tx.date.toDate === 'function'
+                        ? tx.date.toDate() : new Date(0);
+                    if (txDate < monthStart || txDate > monthEnd) return;
+                    // Count payments and transfers as "spent"
+                    if (tx.type !== 'payment' && tx.type !== 'transfer') return;
+                    if (!tx.categoryId) return;
+                    const account = accountById[tx.accountId] || null;
+                    const accountCurrency = account ? resolveAccountCurrency(account) : baseCurrency;
+                    const amount = Math.abs(parseFloat(tx.amount) || 0);
+                    const converted = convertMoney(amount, accountCurrency, baseCurrency, userFxRates || {});
+                    if (converted === null) return;
+                    spentByCategoryId[tx.categoryId] = (spentByCategoryId[tx.categoryId] || 0) + converted;
+                });
+
+                // Budget helpers: convert budgeted amounts to baseCurrency.
+                const budgetCurrency = (budgetData.__currency || userLegacyCurrency || baseCurrency).toUpperCase();
+                function getBudgeted(catId) {
+                    const raw = parseFloat(budgetData[catId]) || 0;
+                    const conv = convertMoney(raw, budgetCurrency, baseCurrency, userFxRates || {});
+                    return conv !== null ? conv : raw;
+                }
+                function getSpent(catId) {
+                    return spentByCategoryId[catId] || 0;
+                }
+
+                // ── Key summary metrics ───────────────────────────────────────────
                 const monthNet = cachedMonthlyIncome - cachedMonthlySpending;
                 const projection12m = cachedProjection?.balance_12m;
                 const projection24m = cachedProjection?.balance_24m;
                 const projection36m = cachedProjection?.balance_36m;
+                const savingsRate = cachedMonthlyIncome > 0
+                    ? Math.round((Math.max(0, monthNet) / cachedMonthlyIncome) * 100) : 0;
 
+                // ── Account balances converted to baseCurrency (for goal progress) ─
+                const accountBalanceById = {};
+                accounts.forEach(a => {
+                    const bal = parseFloat(a.balance) || 0;
+                    const cur = resolveAccountCurrency(a);
+                    const conv = convertMoney(bal, cur, baseCurrency, userFxRates || {});
+                    accountBalanceById[a.id] = conv !== null ? conv : bal;
+                });
+                function getEffectiveGoalAmount(goal) {
+                    if (goal.linkedAccountId && Object.prototype.hasOwnProperty.call(accountBalanceById, goal.linkedAccountId)) {
+                        return accountBalanceById[goal.linkedAccountId];
+                    }
+                    return parseFloat(goal.currentAmount) || 0;
+                }
+
+                // ── Initialise jsPDF document (A4 portrait, pt units) ─────────────
                 const { jsPDF } = window.jspdf || {};
                 if (typeof jsPDF !== 'function') {
                     throw new Error('PDF library failed to load. Please check your internet connection and refresh the page.');
                 }
-
                 const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
-                const pageWidth = doc.internal.pageSize.getWidth();
-                const marginX = 40;
-                let y = 48;
+                const pageWidth  = doc.internal.pageSize.getWidth();   // 595.28 pt
+                const pageHeight = doc.internal.pageSize.getHeight();  // 841.89 pt
+                const marginX    = 40;
+                const contentWidth = pageWidth - marginX * 2;
+                // Reserve bottom 32 pt for footer; leave 50 pt top margin after header on new pages.
+                const footerY    = pageHeight - 22;
+                const newPageTopY = 50;
 
-                const summaryRows = [
-                    ['Net worth', formatCurrency(cachedNetWorth)],
-                    ['Income (month)', formatCurrency(cachedMonthlyIncome)],
-                    ['Spending (month)', formatCurrency(cachedMonthlySpending)],
-                    ['Net (month)', formatCurrency(monthNet)],
-                    ['On budget', formatCurrency(cachedOnBudgetTotal)],
-                    ['Savings (off budget)', formatCurrency(cachedOffBudgetTotal)],
-                    ['Projection 12 months', projection12m == null ? '—' : formatCurrency(projection12m)],
-                    ['Projection 24 months', projection24m == null ? '—' : formatCurrency(projection24m)],
-                    ['Projection 36 months', projection36m == null ? '—' : formatCurrency(projection36m)]
+                // ── Design tokens (app palette) ───────────────────────────────────
+                const C = {
+                    teal:      [32, 128, 137],
+                    tealDark:  [19, 100, 110],
+                    tealLight: [224, 243, 244],
+                    dark:      [19, 66, 82],
+                    gray:      [98, 108, 113],
+                    white:     [255, 255, 255],
+                    green:     [34, 197, 94],
+                    red:       [239, 68, 68],
+                    amber:     [245, 158, 11],
+                    bg:        [252, 252, 249],
+                    border:    [232, 232, 224]
+                };
+
+                // ── Inner helpers ─────────────────────────────────────────────────
+
+                // Returns current y unchanged, or adds a page and returns newPageTopY.
+                function ensureSpace(y, neededHeight) {
+                    if (y + neededHeight > footerY - 30) {
+                        doc.addPage();
+                        return newPageTopY;
+                    }
+                    return y;
+                }
+
+                // Draws a teal left-accent section heading and returns updated y.
+                function drawSectionHeader(y, title) {
+                    doc.setFillColor(...C.teal);
+                    doc.rect(marginX, y, 4, 16, 'F');
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(12);
+                    doc.setTextColor(...C.teal);
+                    doc.text(title, marginX + 10, y + 12);
+                    return y + 26;
+                }
+
+                // Draws a horizontal progress bar at (x, y) with given dimensions.
+                // progress: 0.0–1.0.  fillColor defaults to teal (or green when complete).
+                function drawProgressBar(x, y, width, height, progress, fillColor) {
+                    const pct = Math.max(0, Math.min(1, progress));
+                    // Background track
+                    doc.setFillColor(...C.border);
+                    doc.rect(x, y, width, height, 'F');
+                    // Filled portion
+                    if (pct > 0) {
+                        const color = fillColor || (pct >= 1 ? C.green : C.teal);
+                        doc.setFillColor(...color);
+                        doc.rect(x, y, Math.max(2, width * pct), height, 'F');
+                    }
+                }
+
+                // ── PAGE 1 — BRANDING HEADER ──────────────────────────────────────
+                // Full-width teal header band (0 → 80 pt from top)
+                doc.setFillColor(...C.teal);
+                doc.rect(0, 0, pageWidth, 80, 'F');
+
+                // Logo badge: white circle with teal "CW" initials
+                const badgeCX = marginX + 24;
+                const badgeCY = 40;
+                doc.setFillColor(...C.white);
+                doc.circle(badgeCX, badgeCY, 22, 'F');
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(13);
+                doc.setTextColor(...C.teal);
+                doc.text('CW', badgeCX, badgeCY + 4.5, { align: 'center' });
+
+                // App name and report title (right of badge)
+                const hTextX = badgeCX + 22 + 12;
+                doc.setTextColor(...C.white);
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(20);
+                doc.text('CrewWealth', hTextX, 34);
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(11);
+                doc.text('Personal Finance Report', hTextX, 50);
+
+                // Generated date, user name, and currency (right-aligned in header)
+                const userName = currentUser?.displayName || currentUser?.email || '';
+                doc.setFontSize(8.5);
+                doc.text(`Generated: ${generatedAt.toLocaleString()}`, pageWidth - marginX, 33, { align: 'right' });
+                if (userName) {
+                    doc.text(`User: ${userName}`, pageWidth - marginX, 46, { align: 'right' });
+                }
+                doc.text(`Currency: ${baseCurrency}${fxAsOfText ? '  •  ' + fxAsOfText : ''}`, pageWidth - marginX, 59, { align: 'right' });
+
+                let y = 98; // Content starts below the header
+
+                // ── EXECUTIVE SUMMARY BLOCK ───────────────────────────────────────
+                // Highlighted summary card with net worth and key metrics
+                doc.setFillColor(...C.tealLight);
+                doc.setDrawColor(...C.teal);
+                doc.setLineWidth(1);
+                doc.roundedRect(marginX, y, contentWidth, 138, 6, 6, 'FD');
+
+                // Left side: large net-worth display
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(9.5);
+                doc.setTextColor(...C.teal);
+                doc.text('NET WORTH', marginX + 16, y + 18);
+                doc.setFontSize(26);
+                doc.text(formatCurrency(cachedNetWorth), marginX + 16, y + 44);
+
+                // Divider below net-worth figure
+                doc.setDrawColor(...C.teal);
+                doc.setLineWidth(0.5);
+                doc.line(marginX + 16, y + 52, marginX + 200, y + 52);
+
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(8.5);
+                doc.setTextColor(...C.dark);
+                doc.text(
+                    `${formatCurrency(cachedOffBudgetTotal)} Savings  +  ${formatCurrency(cachedOnBudgetTotal)} On-Budget`,
+                    marginX + 16, y + 64
+                );
+
+                // Right side: 2-row × 3-col metrics grid
+                const mStartX = marginX + 210;
+                const mColW   = (contentWidth - 215) / 3;
+                const metrics = [
+                    { label: 'Monthly Income',  value: formatCurrency(cachedMonthlyIncome),  color: C.green },
+                    { label: 'Monthly Spending', value: formatCurrency(cachedMonthlySpending), color: C.red },
+                    { label: 'Net Monthly',      value: formatCurrency(monthNet),              color: monthNet >= 0 ? C.green : C.red },
+                    {
+                        label: 'Savings Rate',
+                        value: `${savingsRate}%`,
+                        color: savingsRate >= 20 ? C.green : savingsRate >= 10 ? C.amber : C.red
+                    },
+                    { label: '12m Projection', value: projection12m != null ? formatCurrency(projection12m) : '—', color: C.teal },
+                    { label: '36m Projection', value: projection36m != null ? formatCurrency(projection36m) : '—', color: C.teal }
                 ];
-                const accountBody = accounts.length
-                    ? accounts.map(account => {
-                        const accountCurrency = resolveAccountCurrency(account);
-                        const rawBalance = parseFloat(account.balance) || 0;
-                        const converted = convertMoney(rawBalance, accountCurrency, baseCurrency, userFxRates || {});
-                        const convertedLabel = converted === null
-                            ? `${formatMoney(rawBalance, accountCurrency)} ${accountCurrency}`
-                            : `${formatMoney(converted, baseCurrency)} ${baseCurrency}`;
+                metrics.forEach((m, i) => {
+                    const col = i % 3;
+                    const row = Math.floor(i / 3);
+                    const mx  = mStartX + col * mColW;
+                    const my  = y + 16 + row * 56;
+                    doc.setFont('helvetica', 'normal');
+                    doc.setFontSize(7.5);
+                    doc.setTextColor(...C.gray);
+                    doc.text(m.label, mx, my);
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(12);
+                    doc.setTextColor(...m.color);
+                    doc.text(m.value, mx, my + 16);
+                });
+
+                y += 150;
+
+                // ── SECTION 1: BUDGET OVERVIEW (current month) ───────────────────
+                y = ensureSpace(y, 40);
+                const monthLabel = now.toLocaleString(undefined, { month: 'long', year: 'numeric' });
+                y = drawSectionHeader(y, `Budget Overview — ${monthLabel}`);
+
+                // Build grouped table body with per-group header rows.
+                // The "Available" cell stores a numeric _numVal so didParseCell can colour it.
+                const groupDefs = [
+                    { key: 'expenses', label: '💸 Daily Expenses' },
+                    { key: 'savings',  label: '💰 Savings Goals' },
+                    { key: 'bills',    label: '📄 Monthly Bills' }
+                ];
+                const grouped = { expenses: [], savings: [], bills: [] };
+                categoriesArray.forEach(cat => {
+                    if (Object.prototype.hasOwnProperty.call(grouped, cat.group)) {
+                        grouped[cat.group].push(cat);
+                    }
+                });
+                const budgetBody = [];
+                groupDefs.forEach(({ key, label }) => {
+                    const cats = grouped[key];
+                    if (!cats.length) return;
+                    budgetBody.push([{
+                        content: label,
+                        colSpan: 4,
+                        styles: { fillColor: C.tealLight, textColor: C.teal, fontStyle: 'bold', fontSize: 9, cellPadding: 5 }
+                    }]);
+                    cats.forEach(cat => {
+                        const budgeted  = getBudgeted(cat.id);
+                        const spent     = getSpent(cat.id);
+                        const available = budgeted - spent;
+                        budgetBody.push([
+                            cat.name || 'Category',
+                            formatCurrency(budgeted),
+                            formatCurrency(spent),
+                            { content: formatCurrency(available), _numVal: available }
+                        ]);
+                    });
+                });
+                if (budgetBody.length === 0) {
+                    budgetBody.push([{
+                        content: 'No budget categories found. Add categories in the Budget section.',
+                        colSpan: 4,
+                        styles: { textColor: C.gray, halign: 'center', cellPadding: 10 }
+                    }]);
+                }
+                renderPdfTable(doc, {
+                    startY: y,
+                    head: [['Category', 'Budgeted', 'Spent', 'Available']],
+                    body: budgetBody,
+                    theme: 'grid',
+                    styles: { fontSize: 9, textColor: C.dark, cellPadding: 5 },
+                    headStyles: { fillColor: C.teal, textColor: C.white, fontStyle: 'bold', fontSize: 9 },
+                    alternateRowStyles: { fillColor: C.bg },
+                    margin: { left: marginX, right: marginX },
+                    columnStyles: {
+                        0: { cellWidth: 'auto' },
+                        1: { cellWidth: 85, halign: 'right' },
+                        2: { cellWidth: 85, halign: 'right' },
+                        3: { cellWidth: 85, halign: 'right' }
+                    },
+                    // Colour "Available" cells red when overspent, green when within budget.
+                    didParseCell: function(data) {
+                        if (data.section === 'body' && data.column.index === 3) {
+                            const raw = data.cell.raw;
+                            if (raw && typeof raw === 'object' && typeof raw._numVal === 'number') {
+                                data.cell.styles.textColor  = raw._numVal < 0 ? C.red : C.green;
+                                data.cell.styles.fontStyle  = 'bold';
+                            }
+                        }
+                    }
+                });
+
+                y = (doc.lastAutoTable?.finalY || y + 100) + 20;
+
+                // ── SECTION 2: BUDGET vs. ACTUAL BAR CHART ───────────────────────
+                // Horizontal bar chart drawn with jsPDF primitives.
+                // Light-teal bars = budgeted; solid-teal/red bars = actual spending.
+                const chartCats = categoriesArray
+                    .map(cat => ({
+                        name:     cat.name || 'Category',
+                        budgeted: getBudgeted(cat.id),
+                        spent:    getSpent(cat.id)
+                    }))
+                    .filter(c => c.budgeted > 0 || c.spent > 0)
+                    .sort((a, b) => (b.budgeted + b.spent) - (a.budgeted + a.spent))
+                    .slice(0, 7);
+
+                if (chartCats.length > 0) {
+                    const rowGap  = 22;
+                    const barH    = 8;
+                    const labelW  = 112;
+                    const valueW  = 85;
+                    const barAreaW = contentWidth - labelW - valueW;
+                    const chartTotalH = chartCats.length * rowGap + 28;
+
+                    y = ensureSpace(y, 30 + chartTotalH);
+                    y = drawSectionHeader(y, 'Budget vs. Actual Spending');
+
+                    const maxVal = Math.max(...chartCats.map(c => Math.max(c.budgeted, c.spent)), 1);
+                    const barX   = marginX + labelW;
+
+                    chartCats.forEach((cat, i) => {
+                        const rowY = y + i * rowGap;
+                        // Category label
+                        doc.setFont('helvetica', 'normal');
+                        doc.setFontSize(8);
+                        doc.setTextColor(...C.dark);
+                        const label = cat.name.length > 18 ? cat.name.slice(0, 17) + '…' : cat.name;
+                        doc.text(label, marginX, rowY + barH - 1);
+
+                        // Background bar (budgeted amount — light teal)
+                        const budgetBarW = (cat.budgeted / maxVal) * barAreaW;
+                        doc.setFillColor(...C.tealLight);
+                        doc.rect(barX, rowY, Math.max(2, budgetBarW), barH, 'F');
+
+                        // Foreground bar (actual spending — teal if within budget, red if over)
+                        const spentBarW  = (cat.spent / maxVal) * barAreaW;
+                        const barColor   = cat.spent > cat.budgeted ? C.red : C.teal;
+                        doc.setFillColor(...barColor);
+                        doc.rect(barX, rowY + 2, Math.max(2, spentBarW), barH - 4, 'F');
+
+                        // Amounts on the right
+                        doc.setFont('helvetica', 'normal');
+                        doc.setFontSize(7.5);
+                        doc.setTextColor(...C.gray);
+                        doc.text(
+                            `${formatCurrency(cat.spent)} / ${formatCurrency(cat.budgeted)}`,
+                            barX + barAreaW + 4, rowY + barH - 1
+                        );
+                    });
+
+                    // Chart legend
+                    const legendY = y + chartCats.length * rowGap + 8;
+                    doc.setFontSize(7);
+                    doc.setTextColor(...C.gray);
+                    doc.setFillColor(...C.tealLight);
+                    doc.rect(barX, legendY, 10, 5, 'F');
+                    doc.text('Budgeted', barX + 13, legendY + 4.5);
+                    doc.setFillColor(...C.teal);
+                    doc.rect(barX + 62, legendY, 10, 5, 'F');
+                    doc.text('Spent (on track)', barX + 75, legendY + 4.5);
+                    doc.setFillColor(...C.red);
+                    doc.rect(barX + 162, legendY, 10, 5, 'F');
+                    doc.text('Overspent', barX + 175, legendY + 4.5);
+
+                    y = legendY + 20;
+                }
+
+                // ── SECTION 3: SAVINGS GOALS ──────────────────────────────────────
+                if (goals.length > 0) {
+                    y = ensureSpace(y, 40);
+                    y = drawSectionHeader(y, 'Savings Goals');
+
+                    const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                    const goalsBody = goals.map(goal => {
+                        const target   = parseFloat(goal.targetAmount) || 0;
+                        const current  = getEffectiveGoalAmount(goal);
+                        const progress = target > 0 ? Math.min(1, current / target) : 0;
+                        const monthly  = parseFloat(goal.monthlyContribution) || 0;
+
+                        let estCompletion = '—';
+                        if (current >= target && target > 0) {
+                            estCompletion = '✓ Complete';
+                        } else if (target > current && monthly > 0) {
+                            const monthsLeft = Math.ceil((target - current) / monthly);
+                            // Compute future year/month without using setMonth to avoid
+                            // day-of-month overflow (e.g. Jan 31 + 1 month → Mar 2).
+                            const totalMonths = now.getFullYear() * 12 + now.getMonth() + monthsLeft;
+                            const estYear  = Math.floor(totalMonths / 12);
+                            const estMonth = totalMonths % 12;
+                            estCompletion = `${MONTH_NAMES[estMonth]} ${estYear}`;
+                        }
+
+                        const linkedName = goal.linkedAccountId
+                            ? (accountById[goal.linkedAccountId]?.name || 'Linked account')
+                            : '—';
+
                         return [
-                            String(account.name || 'Account'),
-                            account.offBudget ? 'Off budget' : 'On budget',
-                            convertedLabel
+                            goal.name || 'Goal',
+                            linkedName,
+                            formatCurrency(target),
+                            formatCurrency(current),
+                            { content: `${Math.round(progress * 100)}%`, _pct: Math.round(progress * 100) },
+                            monthly > 0 ? formatCurrency(monthly) : '—',
+                            { content: estCompletion, _done: current >= target && target > 0 }
                         ];
-                    })
-                    : [['No accounts found', '', '']];
-                const txBody = transactionsSnapshot.docs.length
-                    ? transactionsSnapshot.docs.map(docSnapshot => {
-                        const tx = docSnapshot.data() || {};
+                    });
+
+                    renderPdfTable(doc, {
+                        startY: y,
+                        head: [['Goal', 'Linked Account', 'Target', 'Saved', '%', 'Monthly', 'Est. Done']],
+                        body: goalsBody,
+                        theme: 'grid',
+                        styles: { fontSize: 8.5, textColor: C.dark, cellPadding: 4 },
+                        headStyles: { fillColor: C.teal, textColor: C.white, fontStyle: 'bold' },
+                        alternateRowStyles: { fillColor: C.bg },
+                        margin: { left: marginX, right: marginX },
+                        columnStyles: {
+                            0: { cellWidth: 88 },
+                            1: { cellWidth: 88 },
+                            2: { cellWidth: 65, halign: 'right' },
+                            3: { cellWidth: 65, halign: 'right' },
+                            4: { cellWidth: 40, halign: 'right' },
+                            5: { cellWidth: 60, halign: 'right' },
+                            6: { cellWidth: 79, halign: 'right' }
+                        },
+                        didParseCell: function(data) {
+                            if (data.section !== 'body') return;
+                            // Colour the "%" progress column by completion level
+                            if (data.column.index === 4) {
+                                const raw = data.cell.raw;
+                                if (raw && typeof raw === 'object') {
+                                    const pct = raw._pct || 0;
+                                    data.cell.styles.textColor = pct >= 100 ? C.green : pct >= 50 ? C.teal : C.gray;
+                                    data.cell.styles.fontStyle = 'bold';
+                                }
+                            }
+                            // Colour the "Est. Done" column green when complete
+                            if (data.column.index === 6) {
+                                const raw = data.cell.raw;
+                                if (raw && typeof raw === 'object' && raw._done) {
+                                    data.cell.styles.textColor = C.green;
+                                    data.cell.styles.fontStyle = 'bold';
+                                }
+                            }
+                        }
+                    });
+
+                    // Draw a labelled progress bar for each goal below the table.
+                    // This visual summary makes completion status immediately obvious.
+                    let barY = (doc.lastAutoTable?.finalY || y + 100) + 12;
+                    const barTrackW = contentWidth * 0.55;
+                    const barTrackX = marginX + contentWidth * 0.22;
+
+                    goals.forEach(goal => {
+                        barY = ensureSpace(barY, 20);
+                        const target   = parseFloat(goal.targetAmount) || 0;
+                        const current  = getEffectiveGoalAmount(goal);
+                        const progress = target > 0 ? Math.min(1, current / target) : 0;
+
+                        doc.setFont('helvetica', 'normal');
+                        doc.setFontSize(8);
+                        doc.setTextColor(...C.dark);
+                        const goalLabel = (goal.name || 'Goal').length > 22
+                            ? (goal.name || 'Goal').slice(0, 21) + '…'
+                            : (goal.name || 'Goal');
+                        doc.text(goalLabel, marginX, barY + 8);
+
+                        drawProgressBar(barTrackX, barY + 2, barTrackW, 10, progress);
+
+                        const textColor = progress >= 1 ? C.green : C.teal;
+                        doc.setFont('helvetica', 'bold');
+                        doc.setFontSize(8);
+                        doc.setTextColor(...textColor);
+                        doc.text(`${Math.round(progress * 100)}%`, barTrackX + barTrackW + 6, barY + 10);
+
+                        barY += 18;
+                    });
+
+                    y = barY + 10;
+                }
+
+                // ── SECTION 4: RECURRING BILLS ────────────────────────────────────
+                if (recurringBills.length > 0) {
+                    y = ensureSpace(y, 40);
+                    y = drawSectionHeader(y, 'Recurring Bills');
+
+                    const today = new Date();
+                    const billsBody = recurringBills.map(bill => {
+                        // nextDueDate is stored as a Firestore Timestamp or plain string.
+                        const dueDate = bill.nextDueDate && typeof bill.nextDueDate.toDate === 'function'
+                            ? bill.nextDueDate.toDate()
+                            : (bill.nextDueDate ? new Date(bill.nextDueDate) : null);
+                        const dueDateStr = dueDate ? dueDate.toLocaleDateString() : '—';
+                        const isOverdue  = dueDate && dueDate <= today;
+                        const amount     = Math.abs(parseFloat(bill.amount) || 0);
+                        const freq       = bill.frequency
+                            ? String(bill.frequency).charAt(0).toUpperCase() + String(bill.frequency).slice(1)
+                            : '—';
+                        const statusText = isOverdue ? '⚠ Overdue' : 'Upcoming';
+                        return [
+                            bill.name || 'Bill',
+                            formatCurrency(amount),
+                            freq,
+                            dueDateStr,
+                            { content: statusText, _overdue: !!isOverdue }
+                        ];
+                    });
+
+                    renderPdfTable(doc, {
+                        startY: y,
+                        head: [['Name', 'Amount', 'Frequency', 'Due Date', 'Status']],
+                        body: billsBody,
+                        theme: 'grid',
+                        styles: { fontSize: 9, textColor: C.dark, cellPadding: 4 },
+                        headStyles: { fillColor: C.teal, textColor: C.white, fontStyle: 'bold' },
+                        alternateRowStyles: { fillColor: C.bg },
+                        margin: { left: marginX, right: marginX },
+                        columnStyles: {
+                            0: { cellWidth: 'auto' },
+                            1: { cellWidth: 80, halign: 'right' },
+                            2: { cellWidth: 70 },
+                            3: { cellWidth: 75 },
+                            4: { cellWidth: 75, halign: 'center' }
+                        },
+                        didParseCell: function(data) {
+                            if (data.section === 'body' && data.column.index === 4) {
+                                const raw = data.cell.raw;
+                                if (raw && typeof raw === 'object') {
+                                    data.cell.styles.textColor = raw._overdue ? C.red : C.amber;
+                                    data.cell.styles.fontStyle = 'bold';
+                                }
+                            }
+                        }
+                    });
+
+                    y = (doc.lastAutoTable?.finalY || y + 100) + 20;
+                }
+
+                // ── SECTION 5: RECENT TRANSACTIONS (last 20) ─────────────────────
+                y = ensureSpace(y, 40);
+                y = drawSectionHeader(y, 'Recent Transactions (last 20)');
+
+                const recentDocs = transactionsSnapshot.docs.slice(0, 20);
+                const txBody = recentDocs.length
+                    ? recentDocs.map(docSnapshot => {
+                        const tx     = docSnapshot.data() || {};
                         const amount = Math.abs(parseFloat(tx.amount) || 0);
-                        const type = String(tx.type || 'payment').toLowerCase();
+                        const type   = String(tx.type || 'payment').toLowerCase();
                         const isIncome = type === 'salary' || type === 'deposit';
-                        const account = accountById[tx.accountId] || null;
-                        const accountCurrency = account ? resolveAccountCurrency(account) : (userLegacyCurrency || baseCurrency);
+                        const account  = accountById[tx.accountId] || null;
+                        const accountCurrency = account ? resolveAccountCurrency(account) : baseCurrency;
                         const converted = convertMoney(amount, accountCurrency, baseCurrency, userFxRates || {});
-                        const amountLabel = converted === null
-                            ? `${formatMoney(amount, accountCurrency)} ${accountCurrency}`
-                            : `${formatMoney(converted, baseCurrency)} ${baseCurrency}`;
+                        const amountStr = converted !== null
+                            ? `${isIncome ? '+' : '-'}${formatMoney(converted, baseCurrency)} ${baseCurrency}`
+                            : `${isIncome ? '+' : '-'}${formatMoney(amount, accountCurrency)} ${accountCurrency}`;
                         const txDate = tx.date && typeof tx.date.toDate === 'function'
-                            ? tx.date.toDate()
-                            : new Date();
+                            ? tx.date.toDate() : new Date();
                         const category = tx.categoryId
                             ? (categoriesById[tx.categoryId]?.name || tx.category || 'Uncategorized')
                             : (tx.category || 'Uncategorized');
                         return [
                             txDate.toLocaleDateString(),
-                            isIncome ? 'Income' : 'Expense/Transfer',
                             String(tx.note || tx.description || tx.type || 'Transaction'),
                             String(category),
-                            String(account?.name || 'Unknown account'),
-                            `${isIncome ? '+' : '-'}${amountLabel}`
+                            String(account?.name || 'Unknown'),
+                            { content: amountStr, _income: isIncome }
                         ];
                     })
-                    : [['No transactions found', '', '', '', '', '']];
-
-                doc.setTextColor(19, 66, 82);
-                doc.setFont('helvetica', 'bold');
-                doc.setFontSize(16);
-                doc.text('CrewWealth financial export', marginX, y);
-                y += 18;
-                doc.setFont('helvetica', 'normal');
-                doc.setFontSize(10);
-                doc.setTextColor(98, 108, 113);
-                doc.text(`Generated: ${new Date().toLocaleString()}`, marginX, y);
-                y += 14;
-                doc.text(`Currency: ${baseCurrency} • FX info: ${fxAsOfText || 'n/a'}`, marginX, y);
+                    : [['No transactions found', '', '', '', '']];
 
                 renderPdfTable(doc, {
-                    startY: y + 14,
-                    head: [['Summary metric', 'Value']],
-                    body: summaryRows,
-                    theme: 'grid',
-                    styles: { fontSize: 10, textColor: [19, 66, 82] },
-                    headStyles: { fillColor: [32, 128, 137], textColor: [255, 255, 255] },
-                    margin: { left: marginX, right: marginX }
-                });
-
-                const accountStartY = (doc.lastAutoTable?.finalY || y + 120) + 16;
-                doc.setFont('helvetica', 'bold');
-                doc.setFontSize(12);
-                doc.setTextColor(19, 66, 82);
-                doc.text('Account overview', marginX, accountStartY);
-                renderPdfTable(doc, {
-                    startY: accountStartY + 8,
-                    head: [['Account', 'Type', 'Balance']],
-                    body: accountBody,
-                    theme: 'grid',
-                    styles: { fontSize: 9, textColor: [19, 66, 82] },
-                    headStyles: { fillColor: [32, 128, 137], textColor: [255, 255, 255] },
-                    margin: { left: marginX, right: marginX }
-                });
-
-                const txStartY = (doc.lastAutoTable?.finalY || accountStartY + 120) + 16;
-                doc.setFont('helvetica', 'bold');
-                doc.setFontSize(12);
-                doc.text('Full transaction history', marginX, txStartY);
-                renderPdfTable(doc, {
-                    startY: txStartY + 8,
-                    head: [['Date', 'Type', 'Description', 'Category', 'Account', 'Amount']],
+                    startY: y,
+                    head: [['Date', 'Description', 'Category', 'Account', 'Amount']],
                     body: txBody,
                     theme: 'grid',
-                    styles: { fontSize: 8, textColor: [19, 66, 82], cellPadding: 4 },
-                    headStyles: { fillColor: [32, 128, 137], textColor: [255, 255, 255] },
+                    styles: { fontSize: 8, textColor: C.dark, cellPadding: 4 },
+                    headStyles: { fillColor: C.teal, textColor: C.white, fontStyle: 'bold', fontSize: 8 },
+                    alternateRowStyles: { fillColor: C.bg },
                     margin: { left: marginX, right: marginX },
-                    tableWidth: pageWidth - (marginX * 2),
+                    tableWidth: contentWidth,
                     columnStyles: {
-                        0: { cellWidth: 55 },
-                        1: { cellWidth: 70 },
-                        2: { cellWidth: 140 },
-                        3: { cellWidth: 90 },
-                        4: { cellWidth: 90 },
-                        5: { cellWidth: 71 }
+                        0: { cellWidth: 60 },
+                        1: { cellWidth: 145 },
+                        2: { cellWidth: 100 },
+                        3: { cellWidth: 100 },
+                        4: { cellWidth: 110, halign: 'right' }
+                    },
+                    // Colour income amounts green, expenses red for quick scanning.
+                    didParseCell: function(data) {
+                        if (data.section === 'body' && data.column.index === 4) {
+                            const raw = data.cell.raw;
+                            if (raw && typeof raw === 'object') {
+                                data.cell.styles.textColor = raw._income ? C.green : C.red;
+                                data.cell.styles.fontStyle = 'bold';
+                            }
+                        }
                     }
                 });
 
+                y = (doc.lastAutoTable?.finalY || y + 200) + 20;
+
+                // ── SECTION 6: ACCOUNT OVERVIEW ───────────────────────────────────
+                y = ensureSpace(y, 40);
+                y = drawSectionHeader(y, 'Account Overview');
+
+                const accountBody = accounts.length
+                    ? accounts.map(account => {
+                        const accountCurrency = resolveAccountCurrency(account);
+                        const rawBalance = parseFloat(account.balance) || 0;
+                        const converted  = convertMoney(rawBalance, accountCurrency, baseCurrency, userFxRates || {});
+                        const balLabel   = converted !== null
+                            ? `${formatMoney(converted, baseCurrency)} ${baseCurrency}`
+                            : `${formatMoney(rawBalance, accountCurrency)} ${accountCurrency}`;
+                        return [
+                            String(account.name || 'Account'),
+                            account.offBudget ? 'Off-Budget (Savings)' : 'On-Budget',
+                            balLabel
+                        ];
+                    })
+                    : [['No accounts found', '', '']];
+
+                renderPdfTable(doc, {
+                    startY: y,
+                    head: [['Account', 'Type', 'Balance']],
+                    body: accountBody,
+                    theme: 'grid',
+                    styles: { fontSize: 9, textColor: C.dark, cellPadding: 5 },
+                    headStyles: { fillColor: C.teal, textColor: C.white, fontStyle: 'bold' },
+                    alternateRowStyles: { fillColor: C.bg },
+                    margin: { left: marginX, right: marginX },
+                    columnStyles: {
+                        0: { cellWidth: 'auto' },
+                        1: { cellWidth: 160 },
+                        2: { cellWidth: 130, halign: 'right' }
+                    }
+                });
+
+                // ── SECTION 7: 3-YEAR WEALTH PROJECTION ──────────────────────────
+                y = (doc.lastAutoTable?.finalY || y + 100) + 20;
+                y = ensureSpace(y, 40);
+                y = drawSectionHeader(y, '3-Year Wealth Projection');
+
+                const projRows = [
+                    ['Current Net Worth',               formatCurrency(cachedNetWorth)],
+                    ['Monthly Net (Income − Spending)',  formatCurrency(monthNet)],
+                    ['12-Month Projected Balance',       projection12m != null ? formatCurrency(projection12m) : '—'],
+                    ['24-Month Projected Balance',       projection24m != null ? formatCurrency(projection24m) : '—'],
+                    ['36-Month Projected Balance',       projection36m != null ? formatCurrency(projection36m) : '—']
+                ];
+
+                renderPdfTable(doc, {
+                    startY: y,
+                    head: [['Metric', 'Value']],
+                    body: projRows,
+                    theme: 'grid',
+                    styles: { fontSize: 9, textColor: C.dark, cellPadding: 5 },
+                    headStyles: { fillColor: C.teal, textColor: C.white, fontStyle: 'bold' },
+                    alternateRowStyles: { fillColor: C.bg },
+                    margin: { left: marginX, right: marginX },
+                    columnStyles: {
+                        0: { cellWidth: 280 },
+                        1: { cellWidth: 235, halign: 'right', fontStyle: 'bold', textColor: C.teal }
+                    }
+                });
+
+                // ── PAGE FOOTERS — applied to every page after all content is built ─
+                // Iterating all pages ensures autoTable-created pages also get footers.
+                const totalPages = doc.internal.getNumberOfPages();
+                for (let p = 1; p <= totalPages; p++) {
+                    doc.setPage(p);
+                    // Separator line above footer
+                    doc.setDrawColor(...C.border);
+                    doc.setLineWidth(0.5);
+                    doc.line(marginX, footerY - 10, pageWidth - marginX, footerY - 10);
+                    // Footer text: branding left, date centre, page number right
+                    doc.setFont('helvetica', 'normal');
+                    doc.setFontSize(7.5);
+                    doc.setTextColor(...C.gray);
+                    doc.text('Generated with CrewWealth  •  crewwealth.app', marginX, footerY);
+                    doc.text(
+                        `Data as of: ${generatedAt.toLocaleDateString()}${fxAsOfText ? '  •  ' + fxAsOfText : ''}`,
+                        pageWidth / 2, footerY, { align: 'center' }
+                    );
+                    doc.text(`Page ${p} of ${totalPages}`, pageWidth - marginX, footerY, { align: 'right' });
+                }
+
+                // ── OUTPUT ────────────────────────────────────────────────────────
                 const pdfBlob = doc.output('blob');
-                const dateStamp = new Date().toISOString().slice(0, 10);
+                const dateStamp = generatedAt.toISOString().slice(0, 10);
                 downloadBlobFile(pdfBlob, `crewwealth-report-${dateStamp}.pdf`);
                 setExportStatus('PDF downloaded. If you do not see it, check your browser downloads folder.', 'success');
             } catch (error) {
